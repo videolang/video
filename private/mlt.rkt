@@ -90,6 +90,8 @@
   #:c-id mlt_playlist_blank)
 (define-mlt mlt-playlist-count (_fun _mlt-playlist -> _int)
   #:c-id mlt_playlist_count)
+(define-mlt mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> _ibool)
+  #:c-id mlt_playlist_mix)
 
 ;; Tractor
 (define-mlt mlt-tractor-new (_fun -> _mlt-tractor/null)

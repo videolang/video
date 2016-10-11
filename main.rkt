@@ -14,6 +14,8 @@
      (mlt-producer-service (video-mlt-object video-object))]
     [(filter? video-object)
      (mlt-filter-service (video-mlt-object video-object))]
+    [(transition? video-object)
+     (mlt-*-service (transition-playlist video-object))]
     [else (error 'video "Unsupported video: ~a" video-object)]))
 
 ;; Connect target to source
@@ -38,8 +40,9 @@
      (mlt-playlist-append-io playlist (video-mlt-object producer) start end)]
     [else
      (mlt-playlist-append playlist (video-mlt-object producer))]))
-                    
+
 (define profile (make-parameter #f))
+(define optimise-playlists? (make-parameter #t))
 ;; Convert a video object into an MLT object
 ;; Video -> MLT-Object
 (define (convert-to-mlt! data)
@@ -66,9 +69,22 @@
       [(struct* playlist ([producers producers]))
        (define playlist (mlt-playlist-init))
        (for ([i (in-list producers)])
-         (convert-to-mlt! i)
+         (parameterize ([optimise-playlists? #t])
+           (convert-to-mlt! i))
          (playlist-append playlist i))
        playlist]
+      [(struct* transition ([type type]
+                            [playlist playlist]
+                            [index index]
+                            [length length]))
+       (define opt? (optimise-playlists?))
+       (parameterize ([optimise-playlists? #f])
+         (define playlist* (convert-to-mlt! playlist))
+         (define transition* (mlt-factory-transition p type #f)) ; TODO, should probably not be #f?
+         (mlt-playlist-mix playlist* index length transition*)
+         (when opt?
+           (mlt-producer-optimise playlist*))
+         playlist*)]
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
@@ -86,11 +102,12 @@
     (error "Unable to locate factory modules"))
   (define p (mlt-profile-init #f))
   
-  (define target (parameterize ([profile p])
+  (define target (parameterize ([profile p]
+                                [optimise-playlists? #t])
                    (convert-to-mlt! data)))
-  
+
   (mlt-consumer-start target)
-  
+ 
   (let loop ()
     (sleep 1)
     (unless (mlt-consumer-is-stopped target)
@@ -102,7 +119,7 @@
 (struct frame properties ())
 (struct service properties (filters))
 (struct filter service (type))
-(struct transition service (type))
+(struct transition service (type playlist index length))
 (struct consumer service (type target))
 (struct producer service (type))
 (struct playlist producer (producers))
@@ -125,6 +142,8 @@
                             #:inputs [inputs '()]
                             #:output [output #f]
                             #:tracks [tracks '()]
+                            #:length [length 0]
+                            #:playlist [transition-playlist #f]
                             #:filters/transitions [f/t '()])
   (match class-type
     ['video (video mlt-object)]
@@ -133,7 +152,7 @@
     ['frame (frame mlt-object prop)]
     ['service (service mlt-object prop filters)]
     ['filter (filter mlt-object prop filters type)]
-    ['transition (transition mlt-object prop filters type)]
+    ['transition (transition mlt-object prop filters type transition-playlist index length)]
     ['consumer (consumer mlt-object prop filters type target)]
     ['producer (producer mlt-object prop filters type)]
     ['playlist (playlist mlt-object prop filters type producers)]
@@ -183,15 +202,20 @@
 (render
  (bvo
   'link
-  #:source (bvo 'playlist
-                #:producers (list
-                             (bvo 'clip
-                                  #:source "/Users/leif/demo.mkv"
-                                  #:start 0
-                                  #:end 275)
-                             (bvo 'clip
-                                  #:source "/Users/leif/demo.mkv"
-                                  #:filters (list (bvo 'filter #:type 'grayscale))
-                                  #:start 225
-                                  #:end 500)))
+  #:source (bvo
+            'transition
+            #:playlist (bvo 'playlist
+                            #:producers (list
+                                         (bvo 'clip
+                                              #:source "/Users/leif/demo.mkv"
+                                              #:start 0
+                                              #:end 300)
+                                         (bvo 'clip
+                                              #:source "/Users/leif/demo.mkv"
+                                              #:filters (list (bvo 'filter #:type 'grayscale))
+                                              #:start 200
+                                              #:end 600)))
+            #:type 'luma
+            #:index 0
+            #:length 100)
   #:target (bvo 'consumer)))
