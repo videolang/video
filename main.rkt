@@ -29,6 +29,16 @@
                          index)]
     [else (error 'video "Unsupported target ~a" target)]))
 
+;; Append a clip to the appropriate playlist
+;; _mlt-playlist Producer -> _ibool
+(define (playlist-append playlist producer)
+  (match producer
+    [(struct* clip ([start start]
+                    [end end]))
+     (mlt-playlist-append-io playlist (video-mlt-object producer) start end)]
+    [else
+     (mlt-playlist-append playlist (video-mlt-object producer))]))
+                    
 (define profile (make-parameter #f))
 ;; Convert a video object into an MLT object
 ;; Video -> MLT-Object
@@ -57,7 +67,7 @@
        (define playlist (mlt-playlist-init))
        (for ([i (in-list producers)])
          (convert-to-mlt! i)
-         (mlt-playlist-append playlist (video-mlt-object i)))
+         (playlist-append playlist i))
        playlist]
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
@@ -153,13 +163,35 @@
             #:index 0)
   #:target (build-video-object 'consumer)))
 
+#;
 (render
  (bvo
   'link
   #:source (bvo 'playlist
                 #:producers (list
-                             ;(bvo 'clip #:source "/Users/leif/demo.mkv")
                              (bvo 'clip
                                   #:source "/Users/leif/demo.mkv"
-                                  #:filters (list (bvo 'filter #:type 'grayscale)))))
+                                  #:start 0
+                                  #:end 100)
+                             (bvo 'clip
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:filters (list (bvo 'filter #:type 'grayscale))
+                                  #:start 100
+                                  #:end 200)))
+  #:target (bvo 'consumer)))
+
+(render
+ (bvo
+  'link
+  #:source (bvo 'playlist
+                #:producers (list
+                             (bvo 'clip
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:start 0
+                                  #:end 275)
+                             (bvo 'clip
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:filters (list (bvo 'filter #:type 'grayscale))
+                                  #:start 225
+                                  #:end 500)))
   #:target (bvo 'consumer)))
