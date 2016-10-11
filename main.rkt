@@ -31,9 +31,11 @@
 
 (define profile (make-parameter #f))
 ;; Convert a video object into an MLT object
-;; Video-Object -> MLT-Object
+;; Video -> MLT-Object
 (define (convert-to-mlt! data)
   (define p (profile))
+
+  ;; Process Data
   (define ret
     (match data
       [(struct* link ([source source]
@@ -60,6 +62,12 @@
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
+
+  ;; Attach filters
+  (when (service? data)
+    (for ([f (in-list (service-filters data))])
+      (mlt-service-attach (video-mlt-object data) (convert-to-mlt! f))))
+  
   ret)
 
 (define (render data)
@@ -150,7 +158,7 @@
   'link
   #:source (bvo 'playlist
                 #:producers (list
-                             (bvo 'clip #:source "/Users/leif/demo.mkv")
+                             ;(bvo 'clip #:source "/Users/leif/demo.mkv")
                              (bvo 'clip
                                   #:source "/Users/leif/demo.mkv"
                                   #:filters (list (bvo 'filter #:type 'grayscale)))))

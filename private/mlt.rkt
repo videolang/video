@@ -116,3 +116,7 @@
   #:c-id mlt_filter_connect)
 (define-mlt mlt-filter-service (_fun _mlt-filter -> _mlt-service)
   #:c-id mlt_filter_service)
+
+;; Service
+(define-mlt mlt-service-attach (_fun _mlt-service _mlt-filter -> _ibool)
+  #:c-id mlt_service_attach)
