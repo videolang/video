@@ -63,7 +63,7 @@
        (mlt-factory-producer p type source)]
       [(struct* consumer ([type type]
                           [target target]))
-       (mlt-factory-consumer type target)]
+       (mlt-factory-consumer p type target)]
       [(struct* filter ([type type]))
        (mlt-factory-filter p type #f)] ;; TODO, should probably not be #f?
       [(struct* playlist ([producers producers]))
@@ -199,6 +199,7 @@
                                   #:end 200)))
   #:target (bvo 'consumer)))
 
+#;
 (render
  (bvo
   'link
@@ -218,4 +219,38 @@
             #:type 'luma
             #:index 0
             #:length 100)
-  #:target (bvo 'consumer)))
+  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
+  ;#:target (bvo 'consumer)))
+
+(render
+ (bvo
+  'link
+  #:source
+  (bvo
+   'transition
+   #:playlist (bvo
+               'transition
+               #:playlist (bvo 'playlist
+                               #:producers (list
+                                            (bvo 'clip
+                                                  #:source "/Users/leif/demo.mkv"
+                                                  #:start 0
+                                                  #:end 300)
+                                            (bvo 'clip
+                                                 #:source "/Users/leif/demo.mkv"
+                                                 #:filters (list (bvo 'filter #:type 'grayscale))
+                                                 #:start 200
+                                                 #:end 600)
+                                            (bvo 'clip
+                                                 #:source "/Users/leif/demo.mkv"
+                                                 #:filters (list (bvo 'filter #:type 'invert))
+                                                 #:start 500
+                                                 #:end 900)))
+               #:type 'luma
+               #:index 1
+               #:length 100)
+   #:type 'luma
+   #:index 0
+   #:length 100)
+  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
+  ;#:target (bvo 'consumer)))

@@ -34,7 +34,7 @@
   #:c-id mlt_factory_init)
 (define-mlt mlt-factory-producer (_fun _mlt-profile _symbol-or-null _string -> _mlt-producer/null)
   #:c-id mlt_factory_producer)
-(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null -> _mlt-consumer/null)
+(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string -> _mlt-consumer/null)
   #:c-id mlt_factory_consumer)
 (define-mlt mlt-factory-filter (_fun _mlt-profile _symbol-or-null _string -> _mlt-filter/null)
   #:c-id mlt_factory_filter)
