@@ -29,16 +29,18 @@
                          index)]
     [else (error 'video "Unsupported target ~a" target)]))
 
+(define profile (make-parameter #f))
 ;; Convert a video object into an MLT object
-;; Video-Object _mlt-profile -> MLT-Object
-(define (convert-to-mlt! data p)
+;; Video-Object -> MLT-Object
+(define (convert-to-mlt! data)
+  (define p (profile))
   (define ret
     (match data
       [(struct* link ([source source]
                       [target target]
                       [index index]))
-       (define source* (convert-to-mlt! source p))
-       (define target* (convert-to-mlt! target p))
+       (convert-to-mlt! source)
+       (define target* (convert-to-mlt! target))
        (mlt-*-connect target (mlt-*-service source) index)
        target*]
       [(struct* clip ([source source]))
@@ -49,6 +51,12 @@
        (mlt-factory-consumer type target)]
       [(struct* filter ([type type]))
        (mlt-factory-filter p type #f)] ;; TODO, should probably not be #f?
+      [(struct* playlist ([producers producers]))
+       (define playlist (mlt-playlist-init))
+       (for ([i (in-list producers)])
+         (convert-to-mlt! i)
+         (mlt-playlist-append playlist (video-mlt-object i)))
+       playlist]
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
@@ -60,8 +68,9 @@
     (error "Unable to locate factory modules"))
   (define p (mlt-profile-init #f))
   
-  (define target (convert-to-mlt! data p))
-   
+  (define target (parameterize ([profile p])
+                   (convert-to-mlt! data)))
+  
   (mlt-consumer-start target)
   
   (let loop ()
@@ -116,6 +125,8 @@
     ['field (field mlt-object prop filters type f/t)]
     [_ (error 'video "Invalid type ~a" class-type)]))
 
+(define bvo build-video-object)
+
 #;
 (render
  (build-video-object
@@ -123,6 +134,7 @@
   #:source (build-video-object 'clip #:source "/Users/leif/demo.mkv")
   #:target (build-video-object 'consumer)))
 
+#;
 (render
  (build-video-object
   'link
@@ -132,3 +144,14 @@
             #:target (build-video-object 'filter #:type 'grayscale)
             #:index 0)
   #:target (build-video-object 'consumer)))
+
+(render
+ (bvo
+  'link
+  #:source (bvo 'playlist
+                #:producers (list
+                             (bvo 'clip #:source "/Users/leif/demo.mkv")
+                             (bvo 'clip
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:filters (list (bvo 'filter #:type 'grayscale)))))
+  #:target (bvo 'consumer)))
