@@ -15,12 +15,12 @@
   (cond
     [(link? video-object)
      (mlt-*-service (link-target video-object))]
-    [(producer? video-object)
-     (mlt-producer-service (video-mlt-object video-object))]
     [(filter? video-object)
      (mlt-filter-service (video-mlt-object video-object))]
     [(transition? video-object)
      (mlt-*-service (transition-playlist video-object))]
+    [(producer? video-object)
+     (mlt-producer-service (video-mlt-object video-object))]
     [else (error 'video "Unsupported video: ~a" video-object)]))
 
 ;; Connect target to source
@@ -43,9 +43,9 @@
     [(struct* producer ([start start]
                         [end end]))
      #:when (and start end)
-     (mlt-playlist-append-io playlist (video-mlt-object producer) start end)]
+     (mlt-playlist-append-io playlist (video-mlt-object pro) start end)]
     [else
-     (mlt-playlist-append playlist (video-mlt-object producer))]))
+     (mlt-playlist-append playlist (video-mlt-object pro))]))
 
 (define profile (make-parameter #f))
 (define optimise-playlists? (make-parameter #t))
@@ -64,10 +64,6 @@
        (define target* (convert-to-mlt! target))
        (mlt-*-connect target (mlt-*-service source) index)
        target*]
-      [(struct* producer ([source source]
-                          [type type]))
-       (define type (producer-type data))
-       (mlt-factory-producer p type source)]
       [(struct* consumer ([type type]
                           [target target]))
        (mlt-factory-consumer p type target)]
@@ -92,6 +88,11 @@
          (when opt?
            (mlt-producer-optimise playlist*))
          playlist*)]
+      [(struct* producer ([source source]
+                          [type type]))
+       (define type (producer-type data))
+       (mlt-factory-producer p type source)]
+
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
@@ -122,94 +123,86 @@
 
 (define demo "/Users/leif/demo.mkv")
 
+#;
 (render
  (make-link #:source (make-producer #:source "/Users/leif/demo.mkv")
             #:target (make-consumer)))
 
 #;
 (render
- (build-video-object
-  'link
-  #:source (build-video-object
-            'link
-            #:source (build-video-object 'clip #:source "/Users/leif/demo.mkv")
-            #:target (build-video-object 'filter #:type 'grayscale)
+ (make-link
+  #:source (make-link
+            #:source (make-producer #:source "/Users/leif/demo.mkv")
+            #:target (make-filter #:type 'grayscale)
             #:index 0)
-  #:target (build-video-object 'consumer)))
+  #:target (make-consumer)))
 
 #;
 (render
- (bvo
-  'link
-  #:source (bvo 'playlist
-                #:producers (list
-                             (bvo 'clip
-                                  #:source "/Users/leif/demo.mkv"
-                                  #:start 0
-                                  #:end 100)
-                             (bvo 'clip
-                                  #:source "/Users/leif/demo.mkv"
-                                  #:filters (list (bvo 'filter #:type 'grayscale))
-                                  #:start 100
-                                  #:end 200)))
-  #:target (bvo 'consumer)))
+ (make-link
+  #:source (make-playlist
+            #:producers (list
+                         (make-producer
+                          #:source "/Users/leif/demo.mkv"
+                          #:start 0
+                          #:end 100)
+                         (make-producer
+                          #:source "/Users/leif/demo.mkv"
+                          #:filters (list (make-filter #:type 'grayscale))
+                          #:start 100
+                          #:end 200)))
+  #:target (make-consumer)))
 
 #;
 (render
- (bvo
-  'link
-  #:source (bvo
-            'transition
-            #:playlist (bvo 'playlist
-                            #:producers (list
-                                         (bvo 'clip
-                                              #:source "/Users/leif/demo.mkv"
-                                              #:start 0
-                                              #:end 300)
-                                         (bvo 'clip
-                                              #:source "/Users/leif/demo.mkv"
-                                              #:filters (list (bvo 'filter #:type 'grayscale))
-                                              #:start 200
-                                              #:end 600)))
+ (make-link
+  #:source (make-transition
+            #:playlist (make-playlist
+                        #:producers (list
+                                     (make-producer
+                                      #:source "/Users/leif/demo.mkv"
+                                      #:start 0
+                                      #:end 300)
+                                     (make-producer
+                                      #:source "/Users/leif/demo.mkv"
+                                      #:filters (list (make-filter #:type 'grayscale))
+                                      #:start 200
+                                      #:end 600)))
             #:type 'luma
             #:index 0
             #:length 100)
-  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
-  ;#:target (bvo 'consumer)))
+  ;#:target (make-consumer #:type 'avformat #:target "output.mp4")))
+  #:target (make-consumer)))
 
-#;
 (render
- (bvo
-  'link
+ (make-link
   #:source
-  (bvo
-   'transition
-   #:playlist (bvo
-               'transition
-               #:playlist (bvo 'playlist
-                               #:producers (list
-                                            (bvo 'clip
-                                                  #:source "/Users/leif/demo.mkv"
-                                                  #:start 0
-                                                  #:end 300)
-                                            (bvo 'clip
-                                                 #:source "/Users/leif/demo.mkv"
-                                                 #:filters (list (bvo 'filter #:type 'grayscale))
-                                                 #:start 200
-                                                 #:end 600)
-                                            (bvo 'clip
-                                                 #:source "/Users/leif/demo.mkv"
-                                                 #:filters (list (bvo 'filter #:type 'invert))
-                                                 #:start 500
-                                                 #:end 900)))
+  (make-transition
+   #:playlist (make-transition
+               #:playlist (make-playlist
+                           #:producers (list
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:start 0
+                                         #:end 300)
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:filters (list (make-filter #:type 'grayscale))
+                                         #:start 200
+                                         #:end 600)
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:filters (list (make-filter #:type 'invert))
+                                         #:start 500
+                                         #:end 900)))
                #:type 'luma
                #:index 1
                #:length 100)
    #:type 'luma
    #:index 0
    #:length 100)
-  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
-  ;#:target (bvo 'consumer)))
+  #:target (make-consumer #:type 'avformat #:target "output.mp4")))
+  ;#:target (make-consumer)))
 
 #;
 (render
