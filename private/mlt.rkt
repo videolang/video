@@ -70,14 +70,16 @@
    [stack-audio _mlt-deque]
    [stack-service _mlt-deque]
    [is-processing _int]))
-                  
-   
-  
-(define-cpointer-type _mlt-service _mlt-properties-pointer)
-(define-cpointer-type _mlt-consumer _mlt-service)
-(define-cpointer-type _mlt-filter _mlt-service)
-(define-cpointer-type _mlt-transition _mlt-service)
-(define-cpointer-type _mlt-producer _mlt-service)
+(define-cstruct (_mlt-service _mlt-properties)
+  ([get-frame (_fun _mlt-service-pointer _mlt-frame-pointer _int -> _int)]
+   [close _mlt-destructor]
+   [close-object (_cpointer/null _void)]
+   [local (_cpointer/null _void)]
+   [child (_cpointer/null _void)]))
+(define-cpointer-type _mlt-consumer _mlt-service-pointer)
+(define-cpointer-type _mlt-filter _mlt-service-pointer)
+(define-cpointer-type _mlt-transition _mlt-service-pointer)
+(define-cpointer-type _mlt-producer _mlt-service-pointer)
 (define-cpointer-type _mlt-playlist _mlt-producer)
 (define-cpointer-type _mlt-tractor _mlt-producer)
 (define-cpointer-type _mlt-multitrack _mlt-producer)
@@ -89,12 +91,8 @@
 (define-mlt mlt-factory-producer (_fun _mlt-profile-pointer _symbol-or-null _string
                                        -> _mlt-producer/null)
   #:c-id mlt_factory_producer)
-<<<<<<< HEAD
 (define-mlt mlt-factory-consumer (_fun _mlt-profile-pointer _symbol-or-null _string
                                        -> _mlt-consumer/null)
-=======
-(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string -> _mlt-consumer/null)
->>>>>>> parent of 65cb031... Add more examples.
   #:c-id mlt_factory_consumer)
 (define-mlt mlt-factory-filter (_fun _mlt-profile-pointer _symbol-or-null _string -> _mlt-filter/null)
   #:c-id mlt_factory_filter)
@@ -106,7 +104,7 @@
   #:c-id mlt_profile_init)
 
 ;; Consumer
-(define-mlt mlt-consumer-connect (_fun _mlt-consumer _mlt-service -> (v : _int)
+(define-mlt mlt-consumer-connect (_fun _mlt-consumer _mlt-service-pointer -> (v : _int)
                                        ->
                                        (cond
                                          [(= 0 v) 'success]
@@ -125,12 +123,14 @@
 ;; Producer
 (define-mlt mlt-producer-close (_fun _mlt-producer -> _void)
   #:c-id mlt_producer_close)
-(define-mlt mlt-producer-service (_fun _mlt-producer -> _mlt-service)
+(define-mlt mlt-producer-service (_fun _mlt-producer -> _mlt-service-pointer)
   #:c-id mlt_producer_service)
 (define-mlt mlt-producer-optimise (_fun _mlt-producer -> _ibool)
   #:c-id mlt_producer_optimise)
 (define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer _mlt-position _mlt-position -> _ibool)
   #:c-id mlt_producer_set_in_and_out)
+(define-mlt mlt-producer-set-speed (_fun _mlt-producer _double -> _ibool)
+  #:c-id mlt_producer_set_speed)
 
 ;; Playlist
 (define-mlt mlt-playlist-init (_fun -> _mlt-playlist/null)
@@ -170,7 +170,6 @@
   #:c-id mlt_properties_set)
 (define-mlt mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> _ibool)
   #:c-id mlt_properties_set_int)
-<<<<<<< HEAD
 (define-mlt mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> _ibool)
   #:c-id mlt_properties_set_int64)
 (define-mlt mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position -> _ibool)
@@ -179,17 +178,13 @@
   #:c-id mlt_properties_set_double)
 (define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int -> _ibool)
   #:c-id mlt_properties_set)
-=======
-(define-mlt mlt-properties-set-position (_fun _mlt-properties _string _mlt-position -> _ibool)
-  #:c-id mlt_properties_set_position)
->>>>>>> parent of 65cb031... Add more examples.
 
 ;; Filters
-(define-mlt mlt-filter-connect (_fun _mlt-filter _mlt-service _int -> _ibool)
+(define-mlt mlt-filter-connect (_fun _mlt-filter _mlt-service-pointer _int -> _ibool)
   #:c-id mlt_filter_connect)
-(define-mlt mlt-filter-service (_fun _mlt-filter -> _mlt-service)
+(define-mlt mlt-filter-service (_fun _mlt-filter -> _mlt-service-pointer)
   #:c-id mlt_filter_service)
 
 ;; Service
-(define-mlt mlt-service-attach (_fun _mlt-service _mlt-filter -> _ibool)
+(define-mlt mlt-service-attach (_fun _mlt-service-pointer _mlt-filter -> _ibool)
   #:c-id mlt_service_attach)
