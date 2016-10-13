@@ -34,7 +34,8 @@
   #:c-id mlt_factory_init)
 (define-mlt mlt-factory-producer (_fun _mlt-profile _symbol-or-null _string -> _mlt-producer/null)
   #:c-id mlt_factory_producer)
-(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string -> _mlt-consumer/null)
+(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string
+                                       -> _mlt-consumer/null)
   #:c-id mlt_factory_consumer)
 (define-mlt mlt-factory-filter (_fun _mlt-profile _symbol-or-null _string -> _mlt-filter/null)
   #:c-id mlt_factory_filter)
@@ -73,6 +74,8 @@
   #:c-id mlt_producer_optimise)
 (define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer _mlt-position _mlt-position -> _ibool)
   #:c-id mlt_producer_set_in_and_out)
+(define-mlt mlt-producer-set-speed (_fun _mlt-producer _double -> _ibool)
+  #:c-id mlt_producer_set_speed)
 
 ;; Playlist
 (define-mlt mlt-playlist-init (_fun -> _mlt-playlist/null)
@@ -112,8 +115,14 @@
   #:c-id mlt_properties_set)
 (define-mlt mlt-properties-set-int (_fun _mlt-properties _string _int -> _ibool)
   #:c-id mlt_properties_set_int)
+(define-mlt mlt-properties-set-int64 (_fun _mlt-properties _string _int64 -> _ibool)
+  #:c-id mlt_properties_set_int64)
 (define-mlt mlt-properties-set-position (_fun _mlt-properties _string _mlt-position -> _ibool)
   #:c-id mlt_properties_set_position)
+(define-mlt mlt-properties-set-double (_fun _mlt-properties _string _double -> _ibool)
+  #:c-id mlt_properties_set_double)
+(define-mlt mlt-properties-anim-set (_fun _mlt-properties _string _string _int _int -> _ibool)
+  #:c-id mlt_properties_set)
 
 ;; Filters
 (define-mlt mlt-filter-connect (_fun _mlt-filter _mlt-service _int -> _ibool)
