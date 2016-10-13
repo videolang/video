@@ -1,7 +1,12 @@
 #lang racket/base
 
 (require racket/match
-         "private/mlt.rkt")
+         "private/mlt.rkt"
+         "private/video.rkt"
+         (for-syntax racket/base
+                     racket/list
+                     racket/syntax
+                     syntax/parse))
 
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
@@ -33,10 +38,11 @@
 
 ;; Append a clip to the appropriate playlist
 ;; _mlt-playlist Producer -> _ibool
-(define (playlist-append playlist producer)
-  (match producer
-    [(struct* clip ([start start]
-                    [end end]))
+(define (playlist-append playlist pro)
+  (match pro
+    [(struct* producer ([start start]
+                        [end end]))
+     #:when (and start end)
      (mlt-playlist-append-io playlist (video-mlt-object producer) start end)]
     [else
      (mlt-playlist-append playlist (video-mlt-object producer))]))
@@ -58,7 +64,8 @@
        (define target* (convert-to-mlt! target))
        (mlt-*-connect target (mlt-*-service source) index)
        target*]
-      [(struct* clip ([source source]))
+      [(struct* producer ([source source]
+                          [type type]))
        (define type (producer-type data))
        (mlt-factory-producer p type source)]
       [(struct* consumer ([type type]
@@ -113,63 +120,11 @@
     (unless (mlt-consumer-is-stopped target)
       (loop))))
 
-(struct video ([mlt-object #:mutable]))
-(struct link video (source target index))
-(struct properties video (prop))
-(struct frame properties ())
-(struct service properties (filters))
-(struct filter service (type))
-(struct transition service (type playlist index length))
-(struct consumer service (type target))
-(struct producer service (type))
-(struct playlist producer (producers))
-(struct clip producer (source start end))
-(struct tractor producer (inputs output))
-(struct multitrack producer (tracks))
-(struct field producer (filters/transitions))
+(define demo "/Users/leif/demo.mkv")
 
-(define (build-video-object class-type
-                            #:source [source #f]
-                            #:target [target #f]
-                            #:index [index 0]
-                            #:properties [prop (hash)]
-                            #:mlt-object [mlt-object #f]
-                            #:filters [filters '()]
-                            #:type [type #f]
-                            #:producers [producers '()]
-                            #:start [start #f]
-                            #:end [end #f]
-                            #:inputs [inputs '()]
-                            #:output [output #f]
-                            #:tracks [tracks '()]
-                            #:length [length 0]
-                            #:playlist [transition-playlist #f]
-                            #:filters/transitions [f/t '()])
-  (match class-type
-    ['video (video mlt-object)]
-    ['link (link mlt-object source target index)]
-    ['properties (properties mlt-object prop)]
-    ['frame (frame mlt-object prop)]
-    ['service (service mlt-object prop filters)]
-    ['filter (filter mlt-object prop filters type)]
-    ['transition (transition mlt-object prop filters type transition-playlist index length)]
-    ['consumer (consumer mlt-object prop filters type target)]
-    ['producer (producer mlt-object prop filters type)]
-    ['playlist (playlist mlt-object prop filters type producers)]
-    ['clip (clip mlt-object prop filters type source start end)]
-    ['tractor (tractor mlt-object prop filters type inputs output)]
-    ['multitrack (multitrack mlt-object prop filters type tracks)]
-    ['field (field mlt-object prop filters type f/t)]
-    [_ (error 'video "Invalid type ~a" class-type)]))
-
-(define bvo build-video-object)
-
-#;
 (render
- (build-video-object
-  'link
-  #:source (build-video-object 'clip #:source "/Users/leif/demo.mkv")
-  #:target (build-video-object 'consumer)))
+ (make-link #:source (make-producer #:source "/Users/leif/demo.mkv")
+            #:target (make-consumer)))
 
 #;
 (render
@@ -222,6 +177,7 @@
   #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
   ;#:target (bvo 'consumer)))
 
+#;
 (render
  (bvo
   'link
@@ -254,3 +210,15 @@
    #:length 100)
   #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
   ;#:target (bvo 'consumer)))
+
+#;
+(render
+ (bvo
+  'link
+  ;#:source (bvo 'clip #:type 'color #:source "green")
+  #:source (bvo 'playlist
+                #:producers (list (bvo 'clip #:type 'color #:source "green"))
+                #:start 0
+                #:end 100)
+  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
+  ;`#:target (bvo 'consumer)))

@@ -71,6 +71,8 @@
   #:c-id mlt_producer_service)
 (define-mlt mlt-producer-optimise (_fun _mlt-producer -> _ibool)
   #:c-id mlt_producer_optimise)
+(define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer _mlt-position _mlt-position -> _ibool)
+  #:c-id mlt_producer_set_in_and_out)
 
 ;; Playlist
 (define-mlt mlt-playlist-init (_fun -> _mlt-playlist/null)
