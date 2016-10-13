@@ -15,11 +15,65 @@
               (λ (v) (if (symbol? v) (symbol->string v) v))
               (λ (v) (if (string? v) (string->symbol v) v))))
 (define _mlt-position _int32)
+(define _mlt-destructor (_fun _cpointer -> _void))
+(define _mlt-image-format (_enum '(mlt-image-none = 0
+                                   mlt-image-rgb24
+                                   mlt-image-rgb24a
+                                   mlt-image-yuv422
+                                   mlt-image-yuv420p
+                                   mlt-image-opengl
+                                   mlt-image-glsl
+                                   mlt-image-glsl-texture)))
+(define _mlt-audio-format (_enum '(mlt-audio-none = 0
+                                   mlt-audio-pcm
+                                   mlt-audio-s16
+                                   mlt-audio-s32
+                                   mlt-audio-float
+                                   mlt-audio-s32le
+                                   mlt-audio-f32le
+                                   mlt-audio-u8)))
 (define-cpointer-type _mlt-repository)
-(define-cpointer-type _mlt-profile)
-(define-cpointer-type _mlt-properties)
-(define-cpointer-type _mlt-frame _mlt-properties)
-(define-cpointer-type _mlt-service _mlt-properties)
+(define-cpointer-type _mlt-deque)
+(define-cstruct _mlt-profile
+  ([description _string]
+   [frame-rate-num _int]
+   [frame-rate-den _int]
+   [width _int]
+   [height _int]
+   [progressive _int]
+   [sample-aspect-num _int]
+   [sample-aspect-den _int]
+   [display-aspect-num _int]
+   [disaply-aspect-den _int]
+   [colorspace _int]
+   [is-explicit _int]))
+(define-cstruct _mlt-properties
+  ([child (_cpointer/null 'child)]
+   [local (_cpointer/null 'local)]
+   [close _mlt-destructor]
+   [close-object (_cpointer/null 'close-object)]))
+(define-cstruct (_mlt-frame _mlt-properties)
+  ([get-alpha-mask (_fun _mlt-frame-pointer -> (_ptr o _uint8))]
+   [convert-image (_fun _mlt-frame-pointer
+                        (_ptr io (_ptr io _uint8))
+                        (_ptr io _mlt-image-format)
+                        _mlt-image-format
+                        ->
+                        _ibool)]
+   [convert-audio (_fun _mlt-frame-pointer
+                        (_ptr io (_ptr io _void))
+                        (_ptr io _mlt-audio-format)
+                        _mlt-audio-format
+                        ->
+                        _ibool)]
+   [stack-image _mlt-deque]
+   [stack-audio _mlt-deque]
+   [stack-service _mlt-deque]
+   [is-processing _int]))
+                  
+   
+  
+(define-cpointer-type _mlt-service _mlt-properties-pointer)
 (define-cpointer-type _mlt-consumer _mlt-service)
 (define-cpointer-type _mlt-filter _mlt-service)
 (define-cpointer-type _mlt-transition _mlt-service)
@@ -32,31 +86,34 @@
 ;; Factory
 (define-mlt mlt-factory-init (_fun _path -> _mlt-repository/null)
   #:c-id mlt_factory_init)
-(define-mlt mlt-factory-producer (_fun _mlt-profile _symbol-or-null _string -> _mlt-producer/null)
+(define-mlt mlt-factory-producer (_fun _mlt-profile-pointer _symbol-or-null _string
+                                       -> _mlt-producer/null)
   #:c-id mlt_factory_producer)
-(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string
+<<<<<<< HEAD
+(define-mlt mlt-factory-consumer (_fun _mlt-profile-pointer _symbol-or-null _string
                                        -> _mlt-consumer/null)
+=======
+(define-mlt mlt-factory-consumer (_fun _mlt-profile/null _symbol-or-null _string -> _mlt-consumer/null)
+>>>>>>> parent of 65cb031... Add more examples.
   #:c-id mlt_factory_consumer)
-(define-mlt mlt-factory-filter (_fun _mlt-profile _symbol-or-null _string -> _mlt-filter/null)
+(define-mlt mlt-factory-filter (_fun _mlt-profile-pointer _symbol-or-null _string -> _mlt-filter/null)
   #:c-id mlt_factory_filter)
 (define-mlt mlt-factory-transition (_fun _mlt-profile _symbol-or-null _string -> _mlt-transition/null)
   #:c-id mlt_factory_transition)
 
 ;; Profile
-(define-mlt mlt-profile-init (_fun _string -> _mlt-profile/null)
+(define-mlt mlt-profile-init (_fun _string -> _mlt-profile-pointer/null)
   #:c-id mlt_profile_init)
 
 ;; Consumer
-(define-mlt mlt-consumer-connect (_fun _mlt-consumer _mlt-service ->
-                                       (make-ctype
-                                        _int #f
-                                        (λ (v)
-                                          (cond
-                                            [(= 0 v) 'success]
-                                            [(= 1 v) 'error/producer-does-not-accept-input]
-                                            [(= 2 v) 'error/producer-invalid]
-                                            [(= 3 v) 'error/producer-already-registered]
-                                            [else    'warning]))))
+(define-mlt mlt-consumer-connect (_fun _mlt-consumer _mlt-service -> (v : _int)
+                                       ->
+                                       (cond
+                                         [(= 0 v) 'success]
+                                         [(= 1 v) 'error/producer-does-not-accept-input]
+                                         [(= 2 v) 'error/producer-invalid]
+                                         [(= 3 v) 'error/producer-already-registered]
+                                         [else    'warning]))
   #:c-id mlt_consumer_connect)
 (define-mlt mlt-consumer-start (_fun _mlt-consumer -> _ibool)
   #:c-id mlt_consumer_start)
@@ -74,8 +131,6 @@
   #:c-id mlt_producer_optimise)
 (define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer _mlt-position _mlt-position -> _ibool)
   #:c-id mlt_producer_set_in_and_out)
-(define-mlt mlt-producer-set-speed (_fun _mlt-producer _double -> _ibool)
-  #:c-id mlt_producer_set_speed)
 
 ;; Playlist
 (define-mlt mlt-playlist-init (_fun -> _mlt-playlist/null)
@@ -87,7 +142,7 @@
   #:c-id mlt_playlist_append_io)
 (define-mlt mlt-playlist-close (_fun _mlt-playlist -> _void)
   #:c-id mlt_playlist_close)
-(define-mlt mlt-playlist-properties (_fun _mlt-playlist -> _mlt-properties)
+(define-mlt mlt-playlist-properties (_fun _mlt-playlist -> _mlt-properties-pointer)
   #:c-id mlt_playlist_properties)
 (define-mlt mlt-playlist-producer (_fun _mlt-playlist -> _mlt-producer)
   #:c-id mlt_playlist_producer)
@@ -111,18 +166,23 @@
   #:c-id mlt_multitrack_connect)
 
 ;; Properties
-(define-mlt mlt-properties-set (_fun _mlt-properties _string _string -> _ibool)
+(define-mlt mlt-properties-set (_fun _mlt-properties-pointer _string _string -> _ibool)
   #:c-id mlt_properties_set)
-(define-mlt mlt-properties-set-int (_fun _mlt-properties _string _int -> _ibool)
+(define-mlt mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> _ibool)
   #:c-id mlt_properties_set_int)
-(define-mlt mlt-properties-set-int64 (_fun _mlt-properties _string _int64 -> _ibool)
+<<<<<<< HEAD
+(define-mlt mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> _ibool)
   #:c-id mlt_properties_set_int64)
+(define-mlt mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position -> _ibool)
+  #:c-id mlt_properties_set_position)
+(define-mlt mlt-properties-set-double (_fun _mlt-properties-pointer _string _double -> _ibool)
+  #:c-id mlt_properties_set_double)
+(define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int -> _ibool)
+  #:c-id mlt_properties_set)
+=======
 (define-mlt mlt-properties-set-position (_fun _mlt-properties _string _mlt-position -> _ibool)
   #:c-id mlt_properties_set_position)
-(define-mlt mlt-properties-set-double (_fun _mlt-properties _string _double -> _ibool)
-  #:c-id mlt_properties_set_double)
-(define-mlt mlt-properties-anim-set (_fun _mlt-properties _string _string _int _int -> _ibool)
-  #:c-id mlt_properties_set)
+>>>>>>> parent of 65cb031... Add more examples.
 
 ;; Filters
 (define-mlt mlt-filter-connect (_fun _mlt-filter _mlt-service _int -> _ibool)

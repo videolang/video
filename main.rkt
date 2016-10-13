@@ -1,8 +1,6 @@
 #lang racket/base
 
-(provide render)
 (require racket/match
-         racket/dict
          "private/mlt.rkt"
          "private/video.rkt"
          (for-syntax racket/base
@@ -42,8 +40,8 @@
 ;; _mlt-playlist Producer -> _ibool
 (define (playlist-append playlist pro)
   (match pro
-    [(struct* playlist-producer ([start start]
-                                 [end end]))
+    [(struct* producer ([start start]
+                        [end end]))
      #:when (and start end)
      (mlt-playlist-append-io playlist (video-mlt-object pro) start end)]
     [else
@@ -78,8 +76,6 @@
            (convert-to-mlt! i))
          (playlist-append playlist i))
        playlist]
-      [(struct* playlist-producer ([producer producer]))
-       (convert-to-mlt! producer)]
       [(struct* transition ([type type]
                             [playlist playlist]
                             [index index]
@@ -89,39 +85,17 @@
          (define playlist* (convert-to-mlt! playlist))
          (define transition* (mlt-factory-transition p type #f)) ; TODO, should probably not be #f?
          (mlt-playlist-mix playlist* index length transition*)
-         #;(when opt?
+         (when opt?
            (mlt-producer-optimise playlist*))
          playlist*)]
       [(struct* producer ([source source]
-                          [type type]
-                          [start start]
-                          [end end]))
-       (define producer* (mlt-factory-producer p type source))
-       (when (and start end)
-         (mlt-producer-set-in-and-out producer* start end))
-       producer*]
+                          [type type]))
+       (define type (producer-type data))
+       (mlt-factory-producer p type source)]
 
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
-
-  ;; Set properties
-  (when (properties? data)
-    (for ([(k v) (in-dict (properties-prop data))])
-      (cond
-        [(integer? v) (mlt-properties-set-int64 ret k v)]
-        [(real? v) (mlt-properties-set-double ret k v)]
-        [(string? v) (mlt-properties-set ret k v)]
-        [(anim-property? v)
-         (match v
-           [(struct* anim-property ([value value]
-                                    [position position]
-                                    [length length]))
-            (cond
-              [(string? value)
-               (mlt-properties-anim-set ret value position length)]
-              [else (error 'video "Anim Property type ~a not currently supported" value)])])]
-        [else (error 'video "Property type ~a not currently supported" v)])))
 
   ;; Attach filters
   (when (service? data)
@@ -135,6 +109,7 @@
   (unless (mlt-factory-init #f)
     (error "Unable to locate factory modules"))
   (define p (mlt-profile-init #f))
+  (displayln (mlt-profile->list p))
   
   (define target (parameterize ([profile p]
                                 [optimise-playlists? #t])
@@ -146,3 +121,98 @@
     (sleep 1)
     (unless (mlt-consumer-is-stopped target)
       (loop))))
+
+(define demo "/Users/leif/demo.mkv")
+
+#;
+(render
+ (make-link #:source (make-producer #:source "/Users/leif/demo.mkv")
+            #:target (make-consumer)))
+
+#;
+(render
+ (make-link
+  #:source (make-link
+            #:source (make-producer #:source "/Users/leif/demo.mkv")
+            #:target (make-filter #:type 'grayscale)
+            #:index 0)
+  #:target (make-consumer)))
+
+#;
+(render
+ (make-link
+  #:source (make-playlist
+            #:producers (list
+                         (make-producer
+                          #:source "/Users/leif/demo.mkv"
+                          #:start 0
+                          #:end 100)
+                         (make-producer
+                          #:source "/Users/leif/demo.mkv"
+                          #:filters (list (make-filter #:type 'grayscale))
+                          #:start 100
+                          #:end 200)))
+  #:target (make-consumer)))
+
+#;
+(render
+ (make-link
+  #:source (make-transition
+            #:playlist (make-playlist
+                        #:producers (list
+                                     (make-producer
+                                      #:source "/Users/leif/demo.mkv"
+                                      #:start 0
+                                      #:end 300)
+                                     (make-producer
+                                      #:source "/Users/leif/demo.mkv"
+                                      #:filters (list (make-filter #:type 'grayscale))
+                                      #:start 200
+                                      #:end 600)))
+            #:type 'luma
+            #:index 0
+            #:length 100)
+  ;#:target (make-consumer #:type 'avformat #:target "output.mp4")))
+  #:target (make-consumer)))
+
+(render
+ (make-link
+  #:source
+  (make-transition
+   #:playlist (make-transition
+               #:playlist (make-playlist
+                           #:producers (list
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:start 0
+                                         #:end 300)
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:filters (list (make-filter #:type 'grayscale))
+                                         #:start 200
+                                         #:end 600)
+                                        (make-producer
+                                         #:source "/Users/leif/demo.mkv"
+                                         #:filters (list (make-filter #:type 'invert))
+                                         #:start 500
+                                         #:end 900)))
+               #:type 'luma
+               #:index 1
+               #:length 100)
+   #:type 'luma
+   #:index 0
+   #:length 100)
+  #:target (make-consumer #:type 'avformat #:target "output.mp4")))
+  ;#:target (make-consumer)))
+
+#;
+(render
+ (bvo
+  'link
+  ;#:source (bvo 'clip #:type 'color #:source "green")
+  #:source (bvo 'playlist
+                #:producers (list (bvo 'clip #:type 'color #:source "green"))
+                #:start 0
+                #:end 100)
+  #:target (bvo 'consumer #:type 'avformat #:target "output.mp4")))
+  ;`#:target (bvo 'consumer)))
