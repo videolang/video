@@ -2,14 +2,36 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
-         racket/gui/base)
+         racket/gui/base
+         (for-syntax racket/syntax
+                     racket/base
+                     syntax/parse))
 (provide (all-defined-out))
 
+;; MLT Library
 (define mlt-lib (ffi-lib "libmlt" '("6")))
 (define-ffi-definer define-mlt mlt-lib)
 
+;; MLT Error
+(struct exn:fail:mlt exn:fail ())
+(struct exn:fail:mlt:warning exn:fail:mlt ())
+(define raise-mlt-warnings (make-parameter #f))
+(define-syntax (raise-mlt-warning stx)
+  (syntax-parse stx
+    [(_ function:id)
+     (syntax/loc stx
+       (when (raise-mlt-warnings)
+         (raise (exn:fail:mlt:warning (format "MLT: Function ~a returned warning" 'function)
+                                      (current-continuation-marks)))))]))
+(define-syntax (raise-mlt-error stx)
+  (syntax-parse stx
+    [(_ function:id (~optional (~seq #:msg msg:str)
+                               #:defaults ([msg #'""])))
+     (syntax/loc stx
+       (raise (exn:fail:mlt (format "MLT: Function ~a failed: ~a" 'function msg)
+                            (current-continuation-marks))))]))
+
 ;; Types
-(define _ibool (make-ctype _bool #f not))
 (define _symbol-or-null
   (make-ctype _string
               (λ (v) (if (symbol? v) (symbol->string v) v))
@@ -61,14 +83,14 @@
                         (_ptr io (_ptr io _uint8))
                         (_ptr io _mlt-image-format)
                         _mlt-image-format
-                        ->
-                        _ibool)]
+                        -> [v : _bool]
+                        -> (when v (raise-mlt-error mlt-frame-convert-image)))]
    [convert-audio (_fun _mlt-frame-pointer
                         (_ptr io (_ptr io _void))
                         (_ptr io _mlt-audio-format)
                         _mlt-audio-format
-                        ->
-                        _ibool)]
+                        -> [v : _bool]
+                        -> (when v (raise-mlt-error mlt-framework-convert-audio)))]
    [stack-image _mlt-deque]
    [stack-audio _mlt-deque]
    [stack-service _mlt-deque]
@@ -80,10 +102,14 @@
    [local (_cpointer/null 'local)]
    [child (_cpointer/null 'child)]))
 (define-cstruct (_mlt-consumer _mlt-service)
-  ([start* (_fun _mlt-consumer-pointer -> _ibool)]
-   [stop* (_fun _mlt-consumer-pointer -> _ibool)]
-   [is-stopped* (_fun _mlt-consumer-pointer -> _ibool)]
-   [purge* (_fun _mlt-consumer-pointer -> _ibool)]
+  ([start* (_fun _mlt-consumer-pointer -> [v : _bool]
+                 -> (when v (raise-mlt-error mlt-consumer-start)))]
+   [stop* (_fun _mlt-consumer-pointer -> [v : _bool]
+                -> (when v (raise-mlt-error mlt-consumer-stop)))]
+   [is-stopped* (_fun _mlt-consumer-pointer -> [v : _bool]
+                      -> (when v (raise-mlt-error mlt-consumer-is-stopped)))]
+   [purge* (_fun _mlt-consumer-pointer -> [v : _bool]
+                 -> (when v (raise-mlt-error mlt-consumer-purge)))]
    [close* (_fun _mlt-consumer-pointer -> _void)]
    [local (_cpointer/null 'local)]
    [child (_cpointer/null 'child)]))
@@ -145,14 +171,21 @@
                                        ->
                                        (cond
                                          [(= 0 v) 'success]
-                                         [(= 1 v) 'error/producer-does-not-accept-input]
-                                         [(= 2 v) 'error/producer-invalid]
-                                         [(= 3 v) 'error/producer-already-registered]
-                                         [else    'warning]))
+                                         [(= 1 v)
+                                          (raise-mlt-error mlt-consumer-connect
+                                                           #:msg "Producer does not accept input")]
+                                         [(= 2 v) (raise-mlt-error mlt-consumer-connect
+                                                                   #:msg "Invalid Producer")]
+                                         [(= 3 v) (raise-mlt-error
+                                                   mlt-consumer-connect
+                                                   #:msg "Producer has already been registered")]
+                                         [else (raise-mlt-warning mlt-consumer-connect)]))
   #:c-id mlt_consumer_connect)
-(define-mlt mlt-consumer-start (_fun _mlt-consumer-pointer -> _ibool)
+(define-mlt mlt-consumer-start (_fun _mlt-consumer-pointer -> [v : _bool]
+                                     -> (when v (raise-mlt-error mlt-consumer-start)))
   #:c-id mlt_consumer_start)
-(define-mlt mlt-consumer-stop (_fun _mlt-consumer-pointer -> _ibool)
+(define-mlt mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
+                                    -> (when v (raise-mlt-error mlt-consumer-stop)))
   #:c-id mlt_consumer_stop)
 (define-mlt mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool)
   #:c-id mlt_consumer_is_stopped)
@@ -162,25 +195,30 @@
   #:c-id mlt_producer_close)
 (define-mlt mlt-producer-service (_fun _mlt-producer-pointer -> _mlt-service-pointer)
   #:c-id mlt_producer_service)
-(define-mlt mlt-producer-optimise (_fun _mlt-producer-pointer -> _ibool)
+(define-mlt mlt-producer-optimise (_fun _mlt-producer-pointer -> [v : _bool]
+                                        -> (when v (raise-mlt-error mlt-producer-optimise)))
   #:c-id mlt_producer_optimise)
 (define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer-pointer _mlt-position _mlt-position
-                                              -> _ibool)
+                                              -> [v : _bool]
+                                              -> (when v
+                                                   (raise-mlt-error mlt-producer-set-in-and-out)))
   #:c-id mlt_producer_set_in_and_out)
-(define-mlt mlt-producer-set-speed (_fun _mlt-producer-pointer _double -> _ibool)
+(define-mlt mlt-producer-set-speed (_fun _mlt-producer-pointer _double -> [v : _bool]
+                                         -> (when v (raise-mlt-error mlt-producer-set-speed)))
   #:c-id mlt_producer_set_speed)
 
 ;; Playlist
 (define-mlt mlt-playlist-init (_fun -> _mlt-playlist-pointer/null)
   #:c-id mlt_playlist_init)
-(define-mlt mlt-playlist-append (_fun _mlt-playlist-pointer _mlt-producer-pointer -> _ibool)
+(define-mlt mlt-playlist-append (_fun _mlt-playlist-pointer _mlt-producer-pointer -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-playlist-append)))
   #:c-id mlt_playlist_append)
 (define-mlt mlt-playlist-append-io (_fun _mlt-playlist-pointer
                                          _mlt-producer-pointer
                                          _mlt-position
                                          _mlt-position
-                                         ->
-                                         _ibool)
+                                         -> [v : _bool]
+                                         -> (when v (raise-mlt-error mlt-playlist-append-io)))
   #:c-id mlt_playlist_append_io)
 (define-mlt mlt-playlist-close (_fun _mlt-playlist-pointer -> _void)
   #:c-id mlt_playlist_close)
@@ -188,11 +226,13 @@
   #:c-id mlt_playlist_properties)
 (define-mlt mlt-playlist-producer (_fun _mlt-playlist-pointer -> _mlt-producer-pointer)
   #:c-id mlt_playlist_producer)
-(define-mlt mlt-playlist-blank (_fun _mlt-playlist _mlt-position -> _ibool)
+(define-mlt mlt-playlist-blank (_fun _mlt-playlist _mlt-position -> [v : _bool]
+                                     -> (when v (raise-mlt-error mltt-playlist-blank)))
   #:c-id mlt_playlist_blank)
 (define-mlt mlt-playlist-count (_fun _mlt-playlist -> _int)
   #:c-id mlt_playlist_count)
-(define-mlt mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> _ibool)
+(define-mlt mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> [v : _bool]
+                                   -> (when v (raise-mlt-error mlt-playlist-mix)))
   #:c-id mlt_playlist_mix)
 
 ;; Tractor
@@ -204,21 +244,32 @@
   #:c-id mlt_tractor_multitrack)
 
 ;; MultiTrack
-(define-mlt mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> _ibool)
+(define-mlt mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> [v : _bool]
+                                         -> (when v (raise-mlt-error mlt-multitrack-connect)))
   #:c-id mlt_multitrack_connect)
 
 ;; Properties
-(define-mlt mlt-properties-set (_fun _mlt-properties-pointer _string _string -> _ibool)
+(define-mlt mlt-properties-set (_fun _mlt-properties-pointer _string _string -> [v : _bool]
+                                     -> (when v (raise-mlt-error mlt-properties-set)))
   #:c-id mlt_properties_set)
-(define-mlt mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> _ibool)
+(define-mlt mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> [v : _bool]
+                                         -> (when v (raise-mlt-error mlt-properties-set-int)))
   #:c-id mlt_properties_set_int)
-(define-mlt mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> _ibool)
+(define-mlt mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> [v : _bool]
+                                           -> (when v (raise-mlt-error mlt-properties-set-int64)))
   #:c-id mlt_properties_set_int64)
-(define-mlt mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position -> _ibool)
+(define-mlt mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position
+                                              -> [v : _bool]
+                                              -> (when v
+                                                   (raise-mlt-error mlt-properties-set-position)))
   #:c-id mlt_properties_set_position)
-(define-mlt mlt-properties-set-double (_fun _mlt-properties-pointer _string _double -> _ibool)
+(define-mlt mlt-properties-set-double (_fun _mlt-properties-pointer _string _double
+                                            -> [v : _bool]
+                                            -> (when v (raise-mlt-error mlt-properties-set-double)))
   #:c-id mlt_properties_set_double)
-(define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int -> _ibool)
+(define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int
+                                          -> [v : _bool]
+                                          -> (when v (raise-mlt-error mlt-properties-anim-set)))
   #:c-id mlt_properties_set)
 (define-mlt mlt-properties-get-name (_fun _mlt-properties-pointer _int -> _string)
   #:c-id mlt_properties_get_name)
@@ -232,18 +283,22 @@
   #:c-id mlt_properties_set_position)
 (define-mlt mlt-properties-get-double (_fun _mlt-properties-pointer _string -> _double)
   #:c-id mlt_properties_get_double)
-(define-mlt mlt-properties-save (_fun _mlt-properties-pointer _path -> _ibool)
+(define-mlt mlt-properties-save (_fun _mlt-properties-pointer _path -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-properties-save)))
   #:c-id mlt_properties_save)
 (define-mlt mlt-properties-count (_fun _mlt-properties-pointer -> _int)
   #:c-id mlt_properties_count)
 
 
 ;; Filters
-(define-mlt mlt-filter-connect (_fun _mlt-filter-pointer _mlt-service-pointer _int -> _ibool)
+(define-mlt mlt-filter-connect (_fun _mlt-filter-pointer _mlt-service-pointer _int
+                                     -> [v : _bool]
+                                     -> (when v (raise-mlt-error mlt-filter-connect)))
   #:c-id mlt_filter_connect)
 (define-mlt mlt-filter-service (_fun _mlt-filter-pointer -> _mlt-service-pointer)
   #:c-id mlt_filter_service)
 
 ;; Service
-(define-mlt mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> _ibool)
+(define-mlt mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
+                                     -> (when v (raise-mlt-error mlt-service-attach)))
   #:c-id mlt_service_attach)

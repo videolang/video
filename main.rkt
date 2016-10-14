@@ -127,7 +127,7 @@
   (when (service? data)
     (for ([f (in-list (service-filters data))])
       (mlt-service-attach (video-mlt-object data) (convert-to-mlt! f))))
-  
+
   ret)
 
 (define (render data)
@@ -135,7 +135,6 @@
   (unless (mlt-factory-init #f)
     (error "Unable to locate factory modules"))
   (define p (mlt-profile-init #f))
-  (displayln (mlt-profile->list p))
   
   (define target (parameterize ([profile p]
                                 [optimise-playlists? #t])
