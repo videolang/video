@@ -132,8 +132,7 @@
 
 (define (render data)
   
-  (unless (mlt-factory-init #f)
-    (error "Unable to locate factory modules"))
+  (mlt-factory-init #f)
   (define p (mlt-profile-init #f))
   
   (define target (parameterize ([profile p]

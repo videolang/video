@@ -5,12 +5,20 @@
          racket/gui/base
          (for-syntax racket/syntax
                      racket/base
+                     racket/string
                      syntax/parse))
 (provide (all-defined-out))
 
 ;; MLT Library
 (define mlt-lib (ffi-lib "libmlt" '("6")))
 (define-ffi-definer define-mlt mlt-lib)
+(define-syntax (define-mlt* stx)
+  (syntax-parse stx
+    [(_ name:id args ...)
+     #:with c-name (format-id stx "~a" (string-replace (symbol->string (syntax-e #'name)) "-" "_"))
+     (syntax/loc stx
+       (define-mlt name args ...
+         #:c-id c-name))]))
 
 ;; MLT Error
 (struct exn:fail:mlt exn:fail ())
@@ -147,158 +155,112 @@
    [count* _int]))
 
 ;; Factory
-(define-mlt mlt-factory-init (_fun _path -> _mlt-repository/null)
-  #:c-id mlt_factory_init)
-(define-mlt mlt-factory-producer (_fun _mlt-profile-pointer _symbol-or-null _string
-                                       -> _mlt-producer-pointer/null)
-  #:c-id mlt_factory_producer)
-(define-mlt mlt-factory-consumer (_fun _mlt-profile-pointer _symbol-or-null _string
-                                       -> _mlt-consumer-pointer/null)
-  #:c-id mlt_factory_consumer)
-(define-mlt mlt-factory-filter (_fun _mlt-profile-pointer _symbol-or-null _string
-                                     -> _mlt-filter-pointer/null)
-  #:c-id mlt_factory_filter)
-(define-mlt mlt-factory-transition (_fun _mlt-profile-pointer _symbol-or-null _string
-                                         -> _mlt-transition-pointer/null)
-  #:c-id mlt_factory_transition)
+(define-mlt* mlt-factory-init (_fun _path -> _mlt-repository/null))
+(define-mlt* mlt-factory-producer (_fun _mlt-profile-pointer _symbol-or-null _string
+                                        -> _mlt-producer-pointer/null))
+(define-mlt* mlt-factory-consumer (_fun _mlt-profile-pointer _symbol-or-null _string
+                                        -> _mlt-consumer-pointer/null))
+(define-mlt* mlt-factory-filter (_fun _mlt-profile-pointer _symbol-or-null _string
+                                      -> _mlt-filter-pointer/null))
+(define-mlt* mlt-factory-transition (_fun _mlt-profile-pointer _symbol-or-null _string
+                                          -> _mlt-transition-pointer/null))
 
 ;; Profile
-(define-mlt mlt-profile-init (_fun _string -> _mlt-profile-pointer/null)
-  #:c-id mlt_profile_init)
+(define-mlt* mlt-profile-init (_fun _string -> _mlt-profile-pointer/null))
 
 ;; Consumer
-(define-mlt mlt-consumer-connect (_fun _mlt-consumer-pointer _mlt-service-pointer -> (v : _int)
-                                       ->
-                                       (cond
-                                         [(= 0 v) 'success]
-                                         [(= 1 v)
-                                          (raise-mlt-error mlt-consumer-connect
-                                                           #:msg "Producer does not accept input")]
-                                         [(= 2 v) (raise-mlt-error mlt-consumer-connect
-                                                                   #:msg "Invalid Producer")]
-                                         [(= 3 v) (raise-mlt-error
-                                                   mlt-consumer-connect
-                                                   #:msg "Producer has already been registered")]
-                                         [else (raise-mlt-warning mlt-consumer-connect)]))
-  #:c-id mlt_consumer_connect)
-(define-mlt mlt-consumer-start (_fun _mlt-consumer-pointer -> [v : _bool]
-                                     -> (when v (raise-mlt-error mlt-consumer-start)))
-  #:c-id mlt_consumer_start)
-(define-mlt mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
-                                    -> (when v (raise-mlt-error mlt-consumer-stop)))
-  #:c-id mlt_consumer_stop)
-(define-mlt mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool)
-  #:c-id mlt_consumer_is_stopped)
+(define-mlt* mlt-consumer-connect (_fun _mlt-consumer-pointer _mlt-service-pointer -> (v : _int)
+                                        ->
+                                        (cond
+                                          [(= 0 v) 'success]
+                                          [(= 1 v)
+                                           (raise-mlt-error mlt-consumer-connect
+                                                            #:msg "Producer does not accept input")]
+                                          [(= 2 v) (raise-mlt-error mlt-consumer-connect
+                                                                    #:msg "Invalid Producer")]
+                                          [(= 3 v) (raise-mlt-error
+                                                    mlt-consumer-connect
+                                                    #:msg "Producer has already been registered")]
+                                          [else (raise-mlt-warning mlt-consumer-connect)])))
+(define-mlt* mlt-consumer-start (_fun _mlt-consumer-pointer -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-consumer-start))))
+(define-mlt* mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
+                                     -> (when v (raise-mlt-error mlt-consumer-stop))))
+(define-mlt* mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool))
 
 ;; Producer
-(define-mlt mlt-producer-close (_fun _mlt-producer-pointer -> _void)
-  #:c-id mlt_producer_close)
-(define-mlt mlt-producer-service (_fun _mlt-producer-pointer -> _mlt-service-pointer)
-  #:c-id mlt_producer_service)
-(define-mlt mlt-producer-optimise (_fun _mlt-producer-pointer -> [v : _bool]
-                                        -> (when v (raise-mlt-error mlt-producer-optimise)))
-  #:c-id mlt_producer_optimise)
-(define-mlt mlt-producer-set-in-and-out (_fun _mlt-producer-pointer _mlt-position _mlt-position
-                                              -> [v : _bool]
-                                              -> (when v
-                                                   (raise-mlt-error mlt-producer-set-in-and-out)))
-  #:c-id mlt_producer_set_in_and_out)
-(define-mlt mlt-producer-set-speed (_fun _mlt-producer-pointer _double -> [v : _bool]
-                                         -> (when v (raise-mlt-error mlt-producer-set-speed)))
-  #:c-id mlt_producer_set_speed)
+(define-mlt* mlt-producer-close (_fun _mlt-producer-pointer -> _void))
+(define-mlt* mlt-producer-service (_fun _mlt-producer-pointer -> _mlt-service-pointer))
+(define-mlt* mlt-producer-optimise (_fun _mlt-producer-pointer -> [v : _bool]
+                                         -> (when v (raise-mlt-error mlt-producer-optimise))))
+(define-mlt* mlt-producer-set-in-and-out (_fun _mlt-producer-pointer _mlt-position _mlt-position
+                                               -> [v : _bool]
+                                               -> (when v
+                                                    (raise-mlt-error mlt-producer-set-in-and-out))))
+(define-mlt* mlt-producer-set-speed (_fun _mlt-producer-pointer _double -> [v : _bool]
+                                          -> (when v (raise-mlt-error mlt-producer-set-speed))))
 
 ;; Playlist
-(define-mlt mlt-playlist-init (_fun -> _mlt-playlist-pointer/null)
-  #:c-id mlt_playlist_init)
-(define-mlt mlt-playlist-append (_fun _mlt-playlist-pointer _mlt-producer-pointer -> [v : _bool]
-                                      -> (when v (raise-mlt-error mlt-playlist-append)))
-  #:c-id mlt_playlist_append)
-(define-mlt mlt-playlist-append-io (_fun _mlt-playlist-pointer
-                                         _mlt-producer-pointer
-                                         _mlt-position
-                                         _mlt-position
-                                         -> [v : _bool]
-                                         -> (when v (raise-mlt-error mlt-playlist-append-io)))
-  #:c-id mlt_playlist_append_io)
-(define-mlt mlt-playlist-close (_fun _mlt-playlist-pointer -> _void)
-  #:c-id mlt_playlist_close)
-(define-mlt mlt-playlist-properties (_fun _mlt-playlist-pointer -> _mlt-properties-pointer)
-  #:c-id mlt_playlist_properties)
-(define-mlt mlt-playlist-producer (_fun _mlt-playlist-pointer -> _mlt-producer-pointer)
-  #:c-id mlt_playlist_producer)
-(define-mlt mlt-playlist-blank (_fun _mlt-playlist _mlt-position -> [v : _bool]
-                                     -> (when v (raise-mlt-error mltt-playlist-blank)))
-  #:c-id mlt_playlist_blank)
-(define-mlt mlt-playlist-count (_fun _mlt-playlist -> _int)
-  #:c-id mlt_playlist_count)
-(define-mlt mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> [v : _bool]
-                                   -> (when v (raise-mlt-error mlt-playlist-mix)))
-  #:c-id mlt_playlist_mix)
+(define-mlt* mlt-playlist-init (_fun -> _mlt-playlist-pointer/null))
+(define-mlt* mlt-playlist-append (_fun _mlt-playlist-pointer _mlt-producer-pointer -> [v : _bool]
+                                       -> (when v (raise-mlt-error mlt-playlist-append))))
+(define-mlt* mlt-playlist-append-io (_fun _mlt-playlist-pointer
+                                          _mlt-producer-pointer
+                                          _mlt-position
+                                          _mlt-position
+                                          -> [v : _bool]
+                                          -> (when v (raise-mlt-error mlt-playlist-append-io))))
+(define-mlt* mlt-playlist-close (_fun _mlt-playlist-pointer -> _void))
+(define-mlt* mlt-playlist-properties (_fun _mlt-playlist-pointer -> _mlt-properties-pointer))
+(define-mlt* mlt-playlist-producer (_fun _mlt-playlist-pointer -> _mlt-producer-pointer))
+(define-mlt* mlt-playlist-blank (_fun _mlt-playlist _mlt-position -> [v : _bool]
+                                      -> (when v (raise-mlt-error mltt-playlist-blank))))
+(define-mlt* mlt-playlist-count (_fun _mlt-playlist -> _int))
+(define-mlt* mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> [v : _bool]
+                                    -> (when v (raise-mlt-error mlt-playlist-mix))))
 
 ;; Tractor
-(define-mlt mlt-tractor-new (_fun -> _mlt-tractor-pointer/null)
-  #:c-id mlt_tractor_new)
-(define-mlt mlt-tractor-field (_fun _mlt-tractor-pointer -> _mlt-field/null)
-  #:c-id mlt_tractor_field)
-(define-mlt mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> _mlt-multitrack-pointer)
-  #:c-id mlt_tractor_multitrack)
+(define-mlt* mlt-tractor-new (_fun -> _mlt-tractor-pointer/null))
+(define-mlt* mlt-tractor-field (_fun _mlt-tractor-pointer -> _mlt-field/null))
+(define-mlt* mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> _mlt-multitrack-pointer))
 
 ;; MultiTrack
-(define-mlt mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> [v : _bool]
-                                         -> (when v (raise-mlt-error mlt-multitrack-connect)))
-  #:c-id mlt_multitrack_connect)
+(define-mlt* mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> [v : _bool]
+                                          -> (when v (raise-mlt-error mlt-multitrack-connect))))
 
 ;; Properties
-(define-mlt mlt-properties-set (_fun _mlt-properties-pointer _string _string -> [v : _bool]
-                                     -> (when v (raise-mlt-error mlt-properties-set)))
-  #:c-id mlt_properties_set)
-(define-mlt mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> [v : _bool]
-                                         -> (when v (raise-mlt-error mlt-properties-set-int)))
-  #:c-id mlt_properties_set_int)
-(define-mlt mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> [v : _bool]
-                                           -> (when v (raise-mlt-error mlt-properties-set-int64)))
-  #:c-id mlt_properties_set_int64)
-(define-mlt mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position
-                                              -> [v : _bool]
-                                              -> (when v
-                                                   (raise-mlt-error mlt-properties-set-position)))
-  #:c-id mlt_properties_set_position)
-(define-mlt mlt-properties-set-double (_fun _mlt-properties-pointer _string _double
-                                            -> [v : _bool]
-                                            -> (when v (raise-mlt-error mlt-properties-set-double)))
-  #:c-id mlt_properties_set_double)
-(define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int
-                                          -> [v : _bool]
-                                          -> (when v (raise-mlt-error mlt-properties-anim-set)))
-  #:c-id mlt_properties_set)
-(define-mlt mlt-properties-get-name (_fun _mlt-properties-pointer _int -> _string)
-  #:c-id mlt_properties_get_name)
-(define-mlt mlt-properties-get (_fun _mlt-properties-pointer _string -> _string)
-  #:c-id mlt_properties_get)
-(define-mlt mlt-properties-get-int (_fun _mlt-properties-pointer _string -> _int)
-  #:c-id mlt_properties_get_int)
-(define-mlt mlt-properties-get-int64 (_fun _mlt-properties-pointer _string -> _int64)
-  #:c-id mlt_properties_get_int64)
-(define-mlt mlt-properties-get-position (_fun _mlt-properties-pointer _string -> _mlt-position)
-  #:c-id mlt_properties_set_position)
-(define-mlt mlt-properties-get-double (_fun _mlt-properties-pointer _string -> _double)
-  #:c-id mlt_properties_get_double)
-(define-mlt mlt-properties-save (_fun _mlt-properties-pointer _path -> [v : _bool]
-                                      -> (when v (raise-mlt-error mlt-properties-save)))
-  #:c-id mlt_properties_save)
-(define-mlt mlt-properties-count (_fun _mlt-properties-pointer -> _int)
-  #:c-id mlt_properties_count)
-
+(define-mlt* mlt-properties-set (_fun _mlt-properties-pointer _string _string -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-properties-set))))
+(define-mlt* mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> [v : _bool]
+                                          -> (when v (raise-mlt-error mlt-properties-set-int))))
+(define-mlt* mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> [v : _bool]
+                                            -> (when v (raise-mlt-error mlt-properties-set-int64))))
+(define-mlt* mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position
+                                               -> [v : _bool]
+                                               -> (when v
+                                                    (raise-mlt-error mlt-properties-set-position))))
+(define-mlt* mlt-properties-set-double (_fun _mlt-properties-pointer _string _double
+                                             -> [v : _bool]
+                                             -> (when v (raise-mlt-error mlt-properties-set-double))))
+(define-mlt* mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int
+                                           -> [v : _bool]
+                                           -> (when v (raise-mlt-error mlt-properties-anim-set))))
+(define-mlt* mlt-properties-get-name (_fun _mlt-properties-pointer _int -> _string))
+(define-mlt* mlt-properties-get (_fun _mlt-properties-pointer _string -> _string))
+(define-mlt* mlt-properties-get-int (_fun _mlt-properties-pointer _string -> _int))
+(define-mlt* mlt-properties-get-int64 (_fun _mlt-properties-pointer _string -> _int64))
+(define-mlt* mlt-properties-get-position (_fun _mlt-properties-pointer _string -> _mlt-position))
+(define-mlt* mlt-properties-get-double (_fun _mlt-properties-pointer _string -> _double))
+(define-mlt* mlt-properties-save (_fun _mlt-properties-pointer _path -> [v : _bool]
+                                       -> (when v (raise-mlt-error mlt-properties-save))))
+(define-mlt* mlt-properties-count (_fun _mlt-properties-pointer -> _int))
 
 ;; Filters
-(define-mlt mlt-filter-connect (_fun _mlt-filter-pointer _mlt-service-pointer _int
-                                     -> [v : _bool]
-                                     -> (when v (raise-mlt-error mlt-filter-connect)))
-  #:c-id mlt_filter_connect)
-(define-mlt mlt-filter-service (_fun _mlt-filter-pointer -> _mlt-service-pointer)
-  #:c-id mlt_filter_service)
+(define-mlt* mlt-filter-connect (_fun _mlt-filter-pointer _mlt-service-pointer _int
+                                      -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-filter-connect))))
+(define-mlt* mlt-filter-service (_fun _mlt-filter-pointer -> _mlt-service-pointer))
 
 ;; Service
-(define-mlt mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
-                                     -> (when v (raise-mlt-error mlt-service-attach)))
-  #:c-id mlt_service_attach)
+(define-mlt* mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
+                                      -> (when v (raise-mlt-error mlt-service-attach))))
