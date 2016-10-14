@@ -15,7 +15,7 @@
               (λ (v) (if (symbol? v) (symbol->string v) v))
               (λ (v) (if (string? v) (string->symbol v) v))))
 (define _mlt-position _int32)
-(define _mlt-destructor (_fun _cpointer -> _void))
+(define _mlt-destructor (_fun (_cpointer 'destruct) -> _void))
 (define _mlt-image-format (_enum '(mlt-image-none = 0
                                    mlt-image-rgb24
                                    mlt-image-rgb24a
@@ -76,40 +76,40 @@
 (define-cstruct (_mlt-service _mlt-properties)
   ([get-frame (_fun _mlt-service-pointer _mlt-frame-pointer _int -> _int)]
    [close* _mlt-destructor]
-   [close-object (_cpointer/null _void)]
-   [local (_cpointer/null _void)]
-   [child (_cpointer/null _void)]))
+   [close-object (_cpointer/null 'class-object)]
+   [local (_cpointer/null 'local)]
+   [child (_cpointer/null 'child)]))
 (define-cstruct (_mlt-consumer _mlt-service)
   ([start* (_fun _mlt-consumer-pointer -> _ibool)]
    [stop* (_fun _mlt-consumer-pointer -> _ibool)]
    [is-stopped* (_fun _mlt-consumer-pointer -> _ibool)]
    [purge* (_fun _mlt-consumer-pointer -> _ibool)]
    [close* (_fun _mlt-consumer-pointer -> _void)]
-   [local (_cpointer/null _void)]
-   [child (_cpointer/null _void)]))
+   [local (_cpointer/null 'local)]
+   [child (_cpointer/null 'child)]))
 (define-cstruct (_mlt-filter _mlt-service)
   ([close* (_fun _mlt-filter-pointer -> _void)]
    [process* (_fun _mlt-filter-pointer _mlt-frame-pointer -> _mlt-frame-pointer)]
-   [child (_cpointer/null _void)]))
+   [child (_cpointer/null 'child)]))
 (define-cstruct (_mlt-transition _mlt-service)
   ([close* (_fun _mlt-transition-pointer -> _void)]
    [process* (_fun _mlt-transition-pointer _mlt-frame-pointer _mlt-frame-pointer
                    -> _mlt-frame-pointer)]
-   [child (_cpointer/null _void)]
+   [child (_cpointer/null 'child)]
    [producer _mlt-service-pointer]
-   [frames (_cpointer/null _mlt-frame-pointer)]
+   [frames (_cpointer/null 'frames _mlt-frame-pointer)]
    [held _int]))
 (define-cstruct (_mlt-producer _mlt-service)
   ([get-frame* (_fun _mlt-producer-pointer _mlt-frame-pointer _int -> _int)]
    [close* _mlt-destructor]
-   [close-object (_cpointer/null _void)]
-   [local (_cpointer/null _void)]
-   [child (_cpointer/null _void)]))
+   [close-object (_cpointer/null 'close-object)]
+   [local (_cpointer/null 'local)]
+   [child (_cpointer/null 'child)]))
 (define-cstruct (_mlt-playlist _mlt-producer)
   ([blank* _mlt-producer]
    [size* _int]
    [count* _int]
-   [list* (_cpointer (_cpointer _playlist-entry))]))
+   [list* (_cpointer 'list (_cpointer 'list* _playlist-entry))]))
 (define-cstruct (_mlt-tractor _mlt-producer)
   ([producer _mlt-service-pointer]))
 (define-cstruct _mlt-track
@@ -220,6 +220,23 @@
   #:c-id mlt_properties_set_double)
 (define-mlt mlt-properties-anim-set (_fun _mlt-properties-pointer _string _string _int _int -> _ibool)
   #:c-id mlt_properties_set)
+(define-mlt mlt-properties-get-name (_fun _mlt-properties-pointer _int -> _string)
+  #:c-id mlt_properties_get_name)
+(define-mlt mlt-properties-get (_fun _mlt-properties-pointer _string -> _string)
+  #:c-id mlt_properties_get)
+(define-mlt mlt-properties-get-int (_fun _mlt-properties-pointer _string -> _int)
+  #:c-id mlt_properties_get_int)
+(define-mlt mlt-properties-get-int64 (_fun _mlt-properties-pointer _string -> _int64)
+  #:c-id mlt_properties_get_int64)
+(define-mlt mlt-properties-get-position (_fun _mlt-properties-pointer _string -> _mlt-position)
+  #:c-id mlt_properties_set_position)
+(define-mlt mlt-properties-get-double (_fun _mlt-properties-pointer _string -> _double)
+  #:c-id mlt_properties_get_double)
+(define-mlt mlt-properties-save (_fun _mlt-properties-pointer _path -> _ibool)
+  #:c-id mlt_properties_save)
+(define-mlt mlt-properties-count (_fun _mlt-properties-pointer -> _int)
+  #:c-id mlt_properties_count)
+
 
 ;; Filters
 (define-mlt mlt-filter-connect (_fun _mlt-filter-pointer _mlt-service-pointer _int -> _ibool)
