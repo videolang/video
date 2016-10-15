@@ -26,7 +26,7 @@
     [else (error 'video "Unsupported video: ~a" video-object)]))
 
 ;; Connect target to source
-;; Video-Object _mlt-service Integer -> _ibool
+;; Video-Object _mlt-service Integer -> Void
 (define (mlt-*-connect target source-service [index #f])
   (cond
     [(consumer? target)
@@ -39,7 +39,7 @@
     [else (error 'video "Unsupported target ~a" target)]))
 
 ;; Append a clip to the appropriate playlist
-;; _mlt-playlist Producer -> _ibool
+;; _mlt-playlist Producer -> Void
 (define (playlist-append playlist pro)
   (match pro
     [(struct* playlist-producer ([start start]
@@ -49,12 +49,13 @@
     [else
      (mlt-playlist-append playlist (video-mlt-object pro))]))
 
-(define profile (make-parameter #f))
+(define current-profile (make-parameter #f))
+(define current-tractor (make-parameter #f))
 (define optimise-playlists? (make-parameter #t))
 ;; Convert a video object into an MLT object
 ;; Video -> MLT-Object
 (define (convert-to-mlt! data)
-  (define p (profile))
+  (define p (current-profile))
 
   ;; Process Data
   (define ret
@@ -92,6 +93,36 @@
          #;(when opt?
            (mlt-producer-optimise playlist*))
          playlist*)]
+      [(struct* tractor ([multitrack multitrack]
+                         [field field]))
+       (define tractor* (mlt-tractor-new))
+       (parameterize ([current-tractor tractor*])
+         (convert-to-mlt! multitrack)
+         (convert-to-mlt! field)
+         (mlt-tractor-producer tractor*))]
+      [(struct* multitrack ([tracks tracks]))
+       (define t (current-tractor))
+       (define multitrack* (mlt-tractor-multitrack t))
+       (for ([track (in-list tracks)]
+             [i (in-naturals)])
+         (define track* (convert-to-mlt! track))
+         (mlt-multitrack-connect track* i))
+       multitrack*]
+      [(struct* field ([field-elements field-elements]))
+       (define t (current-tractor))
+       (define field* (mlt-tractor-field t))
+       (for ([element (in-list field-elements)])
+         (match element
+           [(struct* field-element ([element element]
+                                    [track track]
+                                    [track-2 track-2]))
+            (define element* (convert-to-mlt! element))
+            (cond
+              [(transition? element)
+               (mlt-field-plant-transition element* track track-2)]
+              [(filter? element)
+               (mlt-field-plant-filter element* track)])]))
+       field*]
       [(struct* producer ([source source]
                           [type type]
                           [start start]
@@ -100,7 +131,6 @@
        (when (and start end)
          (mlt-producer-set-in-and-out producer* start end))
        producer*]
-
       [_ (error 'video "Unsuported data ~a" data)]))
   (when (video? data)
     (set-video-mlt-object! data ret))
@@ -135,7 +165,7 @@
   (mlt-factory-init #f)
   (define p (mlt-profile-init #f))
   
-  (define target (parameterize ([profile p]
+  (define target (parameterize ([current-profile p]
                                 [optimise-playlists? #t])
                    (convert-to-mlt! data)))
 

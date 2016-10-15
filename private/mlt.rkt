@@ -14,16 +14,13 @@
 ;; MLT Library
 (define mlt-lib (ffi-lib "libmlt" '("6")))
 (define-ffi-definer define-mlt mlt-lib)
-(define-syntax-parameter ret-error #f)
+(define-syntax-parameter current-func-name #f)
 (define-syntax (define-mlt* stx)
   (syntax-parse stx
     [(_ name:id args ...)
      #:with c-name (format-id stx "~a" (string-replace (symbol->string (syntax-e #'name)) "-" "_"))
      (syntax/loc stx
-       (splicing-syntax-parameterize ([ret-error
-                                       (syntax-parser
-                                         [(_ v)
-                                          #'(when v (raise-mlt-error name))])])
+       (splicing-syntax-parameterize ([current-func-name (make-rename-transformer #'name)])
          (define-mlt name args ...
            #:c-id c-name)))]))
 
@@ -34,17 +31,27 @@
 (define-syntax (raise-mlt-warning stx)
   (syntax-parse stx
     [(_ function:id)
+     #:with expanded-function (local-expand #'function 'expression #f)
      (syntax/loc stx
        (when (raise-mlt-warnings)
-         (raise (exn:fail:mlt:warning (format "MLT: Function ~a returned warning" 'function)
+         (raise (exn:fail:mlt:warning (format "MLT: Function ~a returned warning" 'expanded-function)
                                       (current-continuation-marks)))))]))
 (define-syntax (raise-mlt-error stx)
   (syntax-parse stx
     [(_ function:id (~optional (~seq #:msg msg:str)
                                #:defaults ([msg #'""])))
+     #:with expanded-function (local-expand #'function 'expression #f)
      (syntax/loc stx
-       (raise (exn:fail:mlt (format "MLT: Function ~a failed: ~a" 'function msg)
+       (raise (exn:fail:mlt (format "MLT: Function ~a failed: ~a" 'expanded-function msg)
                             (current-continuation-marks))))]))
+(define-syntax (ret-error stx)
+  (syntax-parse stx
+    [(_ v)
+     (quasisyntax/loc stx (when v (raise-mlt-error current-func-name)))]))
+(define-syntax (null-error stx)
+  (syntax-parse stx
+    [(_ v)
+     (quasisyntax/loc stx (or v (raise-mlt-error current-func-name)))]))
 
 ;; Types
 (define _symbol-or-null
@@ -162,15 +169,20 @@
    [count* _int]))
 
 ;; Factory
-(define-mlt* mlt-factory-init (_fun _path -> _mlt-repository/null))
+(define-mlt* mlt-factory-init (_fun _path -> [v : _mlt-repository/null]
+                                    -> (null-error v)))
 (define-mlt* mlt-factory-producer (_fun _mlt-profile-pointer _symbol-or-null _string
-                                        -> _mlt-producer-pointer/null))
+                                        -> [v : _mlt-producer-pointer/null]
+                                        -> (null-error v)))
 (define-mlt* mlt-factory-consumer (_fun _mlt-profile-pointer _symbol-or-null _string
-                                        -> _mlt-consumer-pointer/null))
+                                        -> [v : _mlt-consumer-pointer/null]
+                                        -> (null-error v)))
 (define-mlt* mlt-factory-filter (_fun _mlt-profile-pointer _symbol-or-null _string
-                                      -> _mlt-filter-pointer/null))
+                                      -> [v : _mlt-filter-pointer/null]
+                                      -> (null-error v)))
 (define-mlt* mlt-factory-transition (_fun _mlt-profile-pointer _symbol-or-null _string
-                                          -> _mlt-transition-pointer/null))
+                                          -> [v : _mlt-transition-pointer/null]
+                                          -> (null-error v)))
 
 ;; Profile
 (define-mlt* mlt-profile-init (_fun _string -> _mlt-profile-pointer/null))
@@ -179,7 +191,7 @@
 (define-mlt* mlt-consumer-connect (_fun _mlt-consumer-pointer _mlt-service-pointer -> (v : _int)
                                         ->
                                         (cond
-                                          [(= 0 v) 'success]
+                                          [(= 0 v) (void)]
                                           [(= 1 v)
                                            (raise-mlt-error mlt-consumer-connect
                                                             #:msg "Producer does not accept input")]
@@ -227,8 +239,10 @@
 
 ;; Tractor
 (define-mlt* mlt-tractor-new (_fun -> _mlt-tractor-pointer/null))
-(define-mlt* mlt-tractor-field (_fun _mlt-tractor-pointer -> _mlt-field/null))
-(define-mlt* mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> _mlt-multitrack-pointer))
+(define-mlt* mlt-tractor-field (_fun _mlt-tractor-pointer -> [v : _mlt-field/null]
+                                     -> (null-error v)))
+(define-mlt* mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> [v : _mlt-multitrack-pointer]
+                                          -> (null-error v)))
 
 ;; MultiTrack
 (define-mlt* mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> [v : _bool]
@@ -257,7 +271,7 @@
 (define-mlt* mlt-properties-get-position (_fun _mlt-properties-pointer _string -> _mlt-position))
 (define-mlt* mlt-properties-get-double (_fun _mlt-properties-pointer _string -> _double))
 (define-mlt* mlt-properties-save (_fun _mlt-properties-pointer _path -> [v : _bool]
-                                       -> (when v (raise-mlt-error mlt-properties-save))))
+                                       -> (ret-error v)))
 (define-mlt* mlt-properties-count (_fun _mlt-properties-pointer -> _int))
 
 ;; Filters
@@ -269,3 +283,10 @@
 ;; Service
 (define-mlt* mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
                                       -> (ret-error v)))
+
+;; Field
+(define-mlt* mlt-field-multitrack (_fun _mlt-field -> _mlt-multitrack-pointer))
+(define-mlt* mlt-field-plant-transition (_fun _mlt-field _mlt-transition _int _int -> [v : _bool]
+                                              -> (ret-error v)))
+(define-mlt* mlt-field-plant-filter (_fun _mlt-field _mlt-transition _int -> [v : _bool]
+                                          -> (ret-error v)))
