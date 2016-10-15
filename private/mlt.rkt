@@ -159,7 +159,7 @@
    [count* _int]
    [list* (_cpointer 'list (_cpointer 'list* _playlist-entry))]))
 (define-cstruct (_mlt-tractor _mlt-producer)
-  ([producer _mlt-service-pointer]))
+  ([producer* _mlt-service-pointer]))
 (define-cstruct _mlt-track
   ([producer _mlt-producer-pointer/null]
    [event _mlt-event/null]))
@@ -243,9 +243,12 @@
                                      -> (null-error v)))
 (define-mlt* mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> [v : _mlt-multitrack-pointer]
                                           -> (null-error v)))
+(define-mlt* mlt-tractor-producer (_fun _mlt-tractor-pointer -> [v : _mlt-producer-pointer]
+                                        -> (null-error v)))
 
 ;; MultiTrack
-(define-mlt* mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer -> [v : _bool]
+(define-mlt* mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer _int
+                                          -> [v : _bool]
                                           -> (ret-error v)))
 
 ;; Properties

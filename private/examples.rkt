@@ -142,9 +142,9 @@
   #:source
   (make-tractor
    #:multitrack (make-multitrack #:tracks (list (make-producer #:source demo
-                                                               #:prop (hash "width" 200
-                                                                            "height" 200))
-                                                (make-producer #:source demo
                                                                #:prop (hash "width" 100
-                                                                            "height" 100)))))
+                                                                            "height" 100))
+                                                (make-producer #:source demo
+                                                               #:prop (hash "width" 200
+                                                                            "height" 200)))))
   #:target (make-consumer)))

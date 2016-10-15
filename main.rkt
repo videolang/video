@@ -106,7 +106,7 @@
        (for ([track (in-list tracks)]
              [i (in-naturals)])
          (define track* (convert-to-mlt! track))
-         (mlt-multitrack-connect track* i))
+         (mlt-multitrack-connect multitrack* track* i))
        multitrack*]
       [(struct* field ([field-elements field-elements]))
        (define t (current-tractor))
