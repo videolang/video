@@ -239,6 +239,13 @@
                                                -> (ret-error v)))
 (define-mlt* mlt-producer-set-speed (_fun _mlt-producer-pointer _double -> [v : _bool]
                                           -> (ret-error v)))
+(define-mlt* mlt-producer-get-length (_fun _mlt-producer-pointer -> _mlt-position))
+(define-mlt* mlt-producer-get-length-time (_fun _mlt-producer-pointer _mlt-time-format -> _string))
+(define-mlt* mlt-producer-get-playtime (_fun _mlt-producer-pointer -> _mlt-position))
+(define-mlt* mlt-producer-get-speed (_fun _mlt-producer-pointer -> _double))
+(define-mlt* mlt-producer-is-mix (_fun _mlt-producer-pointer -> _bool))
+(define-mlt* mlt-producer-is-blank (_fun _mlt-producer-pointer -> _bool))
+(define-mlt* mlt-producer-is-cut (_fun _mlt-producer-pointer -> _bool))
 
 ;; Playlist
 (define-mlt* mlt-playlist-init (_fun -> [v : _mlt-playlist-pointer/null]
@@ -284,6 +291,9 @@
                                       -> (ret-error v)))
 (define-mlt* mlt-properties-set-int (_fun _mlt-properties-pointer _string _int -> [v : _bool]
                                           -> (ret-error v)))
+(define-mlt mlt-properties-set/bool (_fun _mlt-properties-pointer _string _bool -> [v : _bool]
+                                              -> (when v (raise-mlt-error mlt-properties-set/bool)))
+  #:c-id mlt_properties_set_int)
 (define-mlt* mlt-properties-set-int64 (_fun _mlt-properties-pointer _string _int64 -> [v : _bool]
                                             -> (ret-error v)))
 (define-mlt* mlt-properties-set-position (_fun _mlt-properties-pointer _string _mlt-position
@@ -314,10 +324,15 @@
 ;; Service
 (define-mlt* mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
                                       -> (ret-error v)))
+(define-mlt* mlt-service-filter (_fun _mlt-service-pointer _int -> _mlt-filter-pointer))
+(define-mlt* mlt-service-identify (_fun _mlt-service-pointer -> _mlt-service-type))
+(define-mlt* mlt-service-lock (_fun _mlt-service-pointer -> _void))
+(define-mlt* mlt-service-unlock (_fun _mlt-service-pointer -> _void))
 
 ;; Field
 (define-mlt* mlt-field-multitrack (_fun _mlt-field -> _mlt-multitrack-pointer))
-(define-mlt* mlt-field-plant-transition (_fun _mlt-field _mlt-transition _int _int -> [v : _bool]
+(define-mlt* mlt-field-plant-transition (_fun _mlt-field _mlt-transition-pointer _int _int
+                                              -> [v : _bool]
                                               -> (ret-error v)))
-(define-mlt* mlt-field-plant-filter (_fun _mlt-field _mlt-transition _int -> [v : _bool]
+(define-mlt* mlt-field-plant-filter (_fun _mlt-field _mlt-transition-pointer _int -> [v : _bool]
                                           -> (ret-error v)))

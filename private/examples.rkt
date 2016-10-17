@@ -62,6 +62,7 @@
   ;#:target (make-consumer #:type 'avformat #:target "output.mp4")))
   #:target (make-consumer)))
 
+#;
 (render
  (make-link
   #:source
@@ -194,17 +195,15 @@
    #:multitrack
    (make-multitrack
     #:tracks (list (make-producer #:source demo)
-                   (make-producer #:source "pango:/Users/leif/water.txt"
+                   (make-producer #:source hold:logo
                                   #:prop (hash "in" 0
-                                               "out" 200
-                                               "length" 200
-                                               "a_track" 0
-                                               "b_track" 1))))
+                                               "out" 300
+                                               ))))
    #:field (make-field
             #:field-elements
             (list (make-field-element
-                   #:element (make-transition #:type 'composit
-                                              #:source "10%/10%:15%x15%")
+                   #:element (make-transition #:type 'composite
+                                             #:source "10%/10%:15%x15%")
                    #:track 0
                    #:track-2 1))))
   #:target (make-consumer)))
