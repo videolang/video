@@ -1,7 +1,8 @@
 #lang info
 (define collection "video")
 (define deps '("base"
-               "rackunit-lib"))
+               "rackunit-lib"
+               "gui-lib"))
 (define build-deps '("scribble-lib" "racket-doc"))
 (define scribblings '(("scribblings/video.scrbl" ())))
 (define pkg-desc "Description Here")

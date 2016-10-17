@@ -1,7 +1,6 @@
 #lang scribble/manual
 @require[@for-label[video/core
-                    video/render
-                    racket/base]]
+                    video/render]]
 
 @title{Video}
 @author{leif}
