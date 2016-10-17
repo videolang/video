@@ -76,6 +76,27 @@
                                    mlt-audio-s32le
                                    mlt-audio-f32le
                                    mlt-audio-u8)))
+(define _mlt-whence (_enum '(mlt-whence-relative-start = 0
+                             mlt-whence-relative-current
+                             mlt-whence-relative-end)))
+(define _mlt-service-type (_enum '(invalid-type = 0
+                                   unknown-type
+                                   producer-type
+                                   tractor-type
+                                   playlist-type
+                                   multitrack-type
+                                   filter-type
+                                   transition-type
+                                   consumer-type
+                                   field-type)))
+(define _mlt-time-format (_enum '(mlt-time-frames = 0
+                                  mlt-time-clock
+                                  mlt-time-smpte-df
+                                  mlt-time-smpte
+                                  mlt-time-smpte-ndf)))
+(define _mlt-keyframe-type (_enum '(mlt-keyframe-discrete = 0
+                                    mlt-keyframe-linear
+                                    mlt-keyframe-smooth)))
 (define-cpointer-type _mlt-repository)
 (define-cpointer-type _mlt-deque)
 (define-cpointer-type _playlist-entry)
@@ -236,6 +257,9 @@
 (define-mlt* mlt-playlist-count (_fun _mlt-playlist -> _int))
 (define-mlt* mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> [v : _bool]
                                     -> (ret-error v)))
+(define-mlt* mlt-playlist-clip-length (_fun _mlt-playlist _int -> _int))
+(define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist _int -> _bool))
+(define-mlt* mlt-playlist-clip (_fun _mlt-playlist _mlt-whence _int -> _mlt-position))
 
 ;; Tractor
 (define-mlt* mlt-tractor-new (_fun -> _mlt-tractor-pointer/null))
