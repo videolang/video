@@ -25,8 +25,8 @@
            (name #,@all-ids))
          (define-syntax new-supers '#,(cons all-ids all-defaults)))]))
 
-(struct video ([mlt-object #:mutable]))
-(define-constructor video empty [mlt-object #f])
+(struct video ([mlt-object #:mutable] tag))
+(define-constructor video empty [mlt-object #f] [tag #f])
 (struct link video (source target index))
 (define-constructor link video [source #f] [target #f] [index 0])
 (struct properties video (prop))

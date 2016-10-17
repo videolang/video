@@ -207,3 +207,23 @@
                    #:track 0
                    #:track-2 1))))
   #:target (make-consumer)))
+
+(render
+ (make-link
+  #:source
+  (make-tractor
+   #:multitrack
+   (make-multitrack
+    #:tracks (list (make-producer #:source demo)
+                   (make-producer #:source "pixbuf:/Users/leif/logo.png"
+                                  #:prop (hash "in" 0
+                                               "out" 300
+                                               ))))
+   #:field (make-field
+            #:field-elements
+            (list (make-field-element
+                   #:element (make-transition #:type 'composite
+                                              #:source "10%/10%:15%x15%")
+                   #:track 0
+                   #:track-2 1))))
+  #:target (make-consumer)))
