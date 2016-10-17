@@ -19,8 +19,6 @@
      (mlt-*-service (link-target video-object))]
     [(filter? video-object)
      (mlt-filter-service (video-mlt-object video-object))]
-    [(transition? video-object)
-     (mlt-*-service (transition-playlist video-object))]
     [(producer? video-object)
      (mlt-producer-service (video-mlt-object video-object))]
     [else (error 'video "Unsupported video: ~a" video-object)]))
@@ -38,20 +36,8 @@
                          index)]
     [else (error 'video "Unsupported target ~a" target)]))
 
-;; Append a clip to the appropriate playlist
-;; _mlt-playlist Producer -> Void
-(define (playlist-append playlist pro)
-  (match pro
-    [(struct* playlist-producer ([start start]
-                                 [end end]))
-     #:when (and start end)
-     (mlt-playlist-append-io playlist (video-mlt-object pro) start end)]
-    [else
-     (mlt-playlist-append playlist (video-mlt-object pro))]))
-
 (define current-profile (make-parameter #f))
 (define current-tractor (make-parameter #f))
-(define optimise-playlists? (make-parameter #t))
 ;; Convert a video object into an MLT object
 ;; Video -> MLT-Object
 (define (convert-to-mlt! data)
@@ -73,28 +59,32 @@
       [(struct* filter ([type type]
                         [source source]))
        (mlt-factory-filter p type source)]
-      [(struct* playlist ([producers producers]))
-       (define playlist (mlt-playlist-init))
-       (for ([i (in-list producers)])
-         (parameterize ([optimise-playlists? #t])
-           (convert-to-mlt! i))
-         (playlist-append playlist i))
-       playlist]
+      [(struct* playlist ([elements elements]))
+       (define playlist* (mlt-playlist-init))
+       (for ([i (in-list elements)])
+         (define i* (convert-to-mlt! i))
+         (match i
+           [(struct* playlist-producer ([start start]
+                                        [end end]))
+            #:when (and start end)
+            (mlt-playlist-append-io playlist* i* start end)]
+           [(struct* producer ())
+            (mlt-playlist-append playlist* i*)]
+           [(struct* transition ()) (void)] ;; Must be handled after clips are added
+           [_ (error 'playlist "Not a playlist element: ~a" i)]))
+       (for ([e (in-list elements)]
+             [i (in-naturals)])
+         (when (transition? e)
+           (mlt-playlist-mix playlist*
+                             (- i 1)
+                             (transition-length e)
+                             (video-mlt-object e))))
+       playlist*]
       [(struct* playlist-producer ([producer producer]))
        (convert-to-mlt! producer)]
       [(struct* transition ([type type]
-                            [source source]
-                            [playlist playlist]
-                            [index index]
-                            [length length]))
-       (define opt? (optimise-playlists?))
-       (parameterize ([optimise-playlists? #f])
-         (define playlist* (convert-to-mlt! playlist))
-         (define transition* (mlt-factory-transition p type source))
-         (mlt-playlist-mix playlist* index length transition*)
-         #;(when opt?
-           (mlt-producer-optimise playlist*))
-         playlist*)]
+                            [source source]))
+       (mlt-factory-transition p type source)]
       [(struct* tractor ([multitrack multitrack]
                          [field field]))
        (define tractor* (mlt-tractor-new))
@@ -160,6 +150,10 @@
     (for ([f (in-list (service-filters data))])
       (mlt-service-attach (video-mlt-object data) (convert-to-mlt! f))))
 
+  ;; Optimise if possible
+  (when (producer? ret)
+    (mlt-producer-optimise (video-mlt-object ret)))
+  
   ret)
 
 (define (render data)
@@ -167,8 +161,7 @@
   (mlt-factory-init #f)
   (define p (mlt-profile-init #f))
   
-  (define target (parameterize ([current-profile p]
-                                [optimise-playlists? #t])
+  (define target (parameterize ([current-profile p])
                    (convert-to-mlt! data)))
 
   (mlt-consumer-start target)

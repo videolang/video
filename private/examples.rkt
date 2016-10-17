@@ -29,16 +29,16 @@
 (render
  (make-link
   #:source (make-playlist
-            #:producers (list
-                         (make-producer
-                          #:source "/Users/leif/demo.mkv"
-                          #:start 0
-                          #:end 100)
-                         (make-producer
-                          #:source "/Users/leif/demo.mkv"
-                          #:filters (list (make-filter #:type 'grayscale))
-                          #:start 100
-                          #:end 200)))
+            #:elements (list
+                                 (make-producer
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:start 0
+                                  #:end 100)
+                                 (make-producer
+                                  #:source "/Users/leif/demo.mkv"
+                                  #:filters (list (make-filter #:type 'grayscale))
+                                  #:start 100
+                                  #:end 200)))
   #:target (make-consumer)))
 
 #;
@@ -62,38 +62,35 @@
   ;#:target (make-consumer #:type 'avformat #:target "output.mp4")))
   #:target (make-consumer)))
 
-#;
 (render
  (make-link
   #:source
-  (make-transition
-   #:playlist (make-transition
-               #:playlist (make-playlist
-                           #:producers (list
-                                        (make-playlist-producer
-                                         #:producer (make-producer #:source "/Users/leif/demo.mkv")
-                                         #:start 0
-                                         #:end 300)
-                                        (make-playlist-producer
-                                         #:producer
-                                         (make-producer #:source "/Users/leif/demo.mkv"
-                                                        #:filters (list
-                                                                   (make-filter #:type 'grayscale)))
-                                         #:start 200
-                                         #:end 600)
-                                        (make-playlist-producer
-                                         #:producer
-                                         (make-producer
-                                          #:source "/Users/leif/demo.mkv"
-                                          #:filters (list (make-filter #:type 'invert)))
-                                         #:start 500
-                                         #:end 900)))
-               #:type 'luma
-               #:index 1
-               #:length 100)
-   #:type 'luma
-   #:index 0
-   #:length 100)
+  (make-playlist
+   #:elements (list
+               (make-playlist-producer
+                #:producer (make-producer #:source "/Users/leif/demo.mkv")
+                #:start 0
+                #:end 300)
+               (make-transition
+                #:type 'luma
+                #:length 100)
+               (make-playlist-producer
+                #:producer
+                (make-producer #:source demo
+                               #:filters (list
+                                          (make-filter #:type 'grayscale)))
+                #:start 200
+                #:end 600)
+               (make-transition
+                #:type 'luma
+                #:length 100)
+               (make-playlist-producer
+                #:producer
+                (make-producer
+                 #:source demo
+                 #:filters (list (make-filter #:type 'invert)))
+                #:start 500
+                #:end 900)))
   ;#:target (make-consumer #:type 'avformat #:target "output.mp4")))
   #:target (make-consumer)))
 
@@ -189,6 +186,7 @@
                                                             "b_track" 1)))))
   #:target (make-consumer)))
 
+#;
 (render
  (make-link
   #:source

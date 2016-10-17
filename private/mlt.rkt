@@ -206,7 +206,8 @@
                                           -> (null-error v)))
 
 ;; Profile
-(define-mlt* mlt-profile-init (_fun _string -> _mlt-profile-pointer/null))
+(define-mlt* mlt-profile-init (_fun _string -> [v : _mlt-profile-pointer/null]
+                                    -> (null-error v)))
 
 ;; Consumer
 (define-mlt* mlt-consumer-connect (_fun _mlt-consumer-pointer _mlt-service-pointer -> (v : _int)
@@ -223,16 +224,16 @@
                                                     #:msg "Producer has already been registered")]
                                           [else (raise-mlt-warning mlt-consumer-connect)])))
 (define-mlt* mlt-consumer-start (_fun _mlt-consumer-pointer -> [v : _bool]
-                                      -> (when v (raise-mlt-error mlt-consumer-start))))
+                                      -> (ret-error v)))
 (define-mlt* mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
-                                     -> (when v (raise-mlt-error mlt-consumer-stop))))
+                                     -> (ret-error v)))
 (define-mlt* mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool))
 
 ;; Producer
 (define-mlt* mlt-producer-close (_fun _mlt-producer-pointer -> _void))
 (define-mlt* mlt-producer-service (_fun _mlt-producer-pointer -> _mlt-service-pointer))
 (define-mlt* mlt-producer-optimise (_fun _mlt-producer-pointer -> [v : _bool]
-                                         -> (when v (raise-mlt-error mlt-producer-optimise))))
+                                         -> (ret-error v)))
 (define-mlt* mlt-producer-set-in-and-out (_fun _mlt-producer-pointer _mlt-position _mlt-position
                                                -> [v : _bool]
                                                -> (ret-error v)))
@@ -240,7 +241,8 @@
                                           -> (ret-error v)))
 
 ;; Playlist
-(define-mlt* mlt-playlist-init (_fun -> _mlt-playlist-pointer/null))
+(define-mlt* mlt-playlist-init (_fun -> [v : _mlt-playlist-pointer/null]
+                                     -> (null-error v)))
 (define-mlt* mlt-playlist-append (_fun _mlt-playlist-pointer _mlt-producer-pointer -> [v : _bool]
                                        -> (ret-error v)))
 (define-mlt* mlt-playlist-append-io (_fun _mlt-playlist-pointer
@@ -252,17 +254,19 @@
 (define-mlt* mlt-playlist-close (_fun _mlt-playlist-pointer -> _void))
 (define-mlt* mlt-playlist-properties (_fun _mlt-playlist-pointer -> _mlt-properties-pointer))
 (define-mlt* mlt-playlist-producer (_fun _mlt-playlist-pointer -> _mlt-producer-pointer))
-(define-mlt* mlt-playlist-blank (_fun _mlt-playlist _mlt-position -> [v : _bool]
+(define-mlt* mlt-playlist-blank (_fun _mlt-playlist-pointer _mlt-position -> [v : _bool]
                                       -> (ret-error v)))
-(define-mlt* mlt-playlist-count (_fun _mlt-playlist -> _int))
-(define-mlt* mlt-playlist-mix (_fun _mlt-playlist _int _int _mlt-transition -> [v : _bool]
+(define-mlt* mlt-playlist-count (_fun _mlt-playlist-pointer -> _int))
+(define-mlt* mlt-playlist-mix (_fun _mlt-playlist-pointer _int _int _mlt-transition-pointer
+                                    -> [v : _bool]
                                     -> (ret-error v)))
-(define-mlt* mlt-playlist-clip-length (_fun _mlt-playlist _int -> _int))
-(define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist _int -> _bool))
-(define-mlt* mlt-playlist-clip (_fun _mlt-playlist _mlt-whence _int -> _mlt-position))
+(define-mlt* mlt-playlist-clip-length (_fun _mlt-playlist-pointer _int -> _int))
+(define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist-pointer _int -> _bool))
+(define-mlt* mlt-playlist-clip (_fun _mlt-playlist-pointer _mlt-whence _int -> _mlt-position))
 
 ;; Tractor
-(define-mlt* mlt-tractor-new (_fun -> _mlt-tractor-pointer/null))
+(define-mlt* mlt-tractor-new (_fun -> [v : _mlt-tractor-pointer/null]
+                                   -> (null-error v)))
 (define-mlt* mlt-tractor-field (_fun _mlt-tractor-pointer -> [v : _mlt-field/null]
                                      -> (null-error v)))
 (define-mlt* mlt-tractor-multitrack (_fun _mlt-tractor-pointer -> [v : _mlt-multitrack-pointer]
