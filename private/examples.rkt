@@ -8,6 +8,8 @@
 
 (define demo "/Users/leif/demo.mkv")
 (define logo "/Users/leif/logo.png")
+(define hold:logo "hold:/Users/leif/logo.png")
+(define water "/Users/leif/water.txt")
 
 #;
 (render
@@ -137,6 +139,7 @@
   ;#:target (make-consumer)))
   ;#:target (make-consumer #:type 'xml #:target "output.xml")))
 
+#;
 (render
  (make-link
   #:source
@@ -147,4 +150,63 @@
                                                 (make-producer #:source demo
                                                                #:prop (hash "width" 200
                                                                             "height" 200)))))
+  #:target (make-consumer #:type 'xml)))
+
+#;
+(render
+ (make-link #:source (make-producer
+                      #:source demo
+                      #:filters (list
+                                 (make-filter #:type 'watermark #:source water)))
+            #:target (make-consumer)))
+
+#;
+(render
+ (make-link
+  #:source
+  (make-tractor
+   #:multitrack (make-multitrack #:tracks (list (make-producer #:source demo)
+                                                (make-producer #:source "pango:/Users/leif/water.txt"
+                                                               #:prop (hash "in" 0
+                                                                            "out" 200
+                                                                            "length" 200
+                                                                            "a_track" 0
+                                                                            "b_track" 1)))))
+  #:target (make-consumer)))
+
+#;
+(render
+ (make-link
+  #:source
+  (make-tractor
+   #:multitrack (make-multitrack
+                 #:tracks (list (make-producer #:source demo)
+                                (make-producer #:type 'hold #:source logo
+                                               #:prop (hash "in" 0
+                                                            "out" 200
+                                                            "length" 200
+                                                            "a_track" 0
+                                                            "b_track" 1)))))
+  #:target (make-consumer)))
+
+(render
+ (make-link
+  #:source
+  (make-tractor
+   #:multitrack
+   (make-multitrack
+    #:tracks (list (make-producer #:source demo)
+                   (make-producer #:source "pango:/Users/leif/water.txt"
+                                  #:prop (hash "in" 0
+                                               "out" 200
+                                               "length" 200
+                                               "a_track" 0
+                                               "b_track" 1))))
+   #:field (make-field
+            #:field-elements
+            (list (make-field-element
+                   #:element (make-transition #:type 'composit
+                                              #:source "10%/10%:15%x15%")
+                   #:track 0
+                   #:track-2 1))))
   #:target (make-consumer)))

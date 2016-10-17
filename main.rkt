@@ -70,8 +70,9 @@
       [(struct* consumer ([type type]
                           [target target]))
        (mlt-factory-consumer p type target)]
-      [(struct* filter ([type type]))
-       (mlt-factory-filter p type #f)] ;; TODO, should probably not be #f?
+      [(struct* filter ([type type]
+                        [source source]))
+       (mlt-factory-filter p type source)]
       [(struct* playlist ([producers producers]))
        (define playlist (mlt-playlist-init))
        (for ([i (in-list producers)])
@@ -82,13 +83,14 @@
       [(struct* playlist-producer ([producer producer]))
        (convert-to-mlt! producer)]
       [(struct* transition ([type type]
+                            [source source]
                             [playlist playlist]
                             [index index]
                             [length length]))
        (define opt? (optimise-playlists?))
        (parameterize ([optimise-playlists? #f])
          (define playlist* (convert-to-mlt! playlist))
-         (define transition* (mlt-factory-transition p type #f)) ; TODO, should probably not be #f?
+         (define transition* (mlt-factory-transition p type source))
          (mlt-playlist-mix playlist* index length transition*)
          #;(when opt?
            (mlt-producer-optimise playlist*))
