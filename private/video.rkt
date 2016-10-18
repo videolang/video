@@ -1,11 +1,26 @@
-#lang racket
+#lang racket/base
 
 (provide (all-defined-out))
-(require (for-syntax racket/base
+(require racket/dict
+         racket/match
+         "mlt.rkt"
+         (for-syntax racket/base
                      racket/list
                      racket/syntax
                      syntax/parse))
 
+;; Global tag table
+(define global-tag-table (make-hash))
+(define (add-tag-to-table! tag prop)
+  (when tag
+    (when (dict-has-key? global-tag-table tag)
+      (error 'video-tag "Tag ~a already exists in table" tag))
+    (dict-set! global-tag-table tag prop)))
+(define (find-tag tag)
+  (dict-ref global-tag-table tag
+            (λ () (error 'video-tag "Tag ~a does not exist in table" tag))))
+
+;; Constructor for video objects
 (define-syntax subclass-empty '(() . ()))
 (define-syntax (define-constructor stx)
   (syntax-parse stx
@@ -22,15 +37,32 @@
                                              [j (in-list all-defaults)])
                                     `(,(datum->syntax stx (string->keyword (symbol->string i)))
                                       [,i ,j]))))
-           (name #,@all-ids))
+           (define ret (name #,@all-ids))
+           (add-tag-to-table! tag ret)
+           ret)
          (define-syntax new-supers '#,(cons all-ids all-defaults)))]))
 
+;; Structs
 (struct video ([mlt-object #:mutable] tag))
 (define-constructor video empty [mlt-object #f] [tag #f])
 (struct link video (source target index))
 (define-constructor link video [source #f] [target #f] [index 0])
 (struct properties video (prop))
-(define-constructor properties video [prop (make-hash)])
+(define-constructor properties video [prop (hash)])
+(define (properties-ref dict key
+                        [default-type 'string])
+  (dict-ref (properties-prop dict) key
+            (λ ()
+              (define v (video-mlt-object dict))
+              (unless v
+                (error 'properties "MLT object for ~a not created, cannot get default property" dict))
+              (match default-type
+                ['string (mlt-properties-get v key)]
+                ['int (mlt-properties-get-int v key)]
+                ['int64 (mlt-properties-get-int64 v key)]
+                ['mlt-position (mlt-properties-get-position v key)]
+                ['double (mlt-properties-get-double v key)]
+                [else (error 'properties "Not a valid default-type ~a" default-type)]))))
 (struct anim-property video (value position length))
 (define-constructor anim-property video [value #f] [position #f] [length #f])
 (struct frame properties ())

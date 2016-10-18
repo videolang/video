@@ -135,21 +135,28 @@
     ;; Set properties
     (when (properties? data)
       (for ([(k v) (in-dict (properties-prop data))])
-        (cond
-          [(integer? v) (mlt-properties-set-int64 ret k v)]
-          [(real? v) (mlt-properties-set-double ret k v)]
-          [(string? v) (mlt-properties-set ret k v)]
-          [(boolean? v) (mlt-properties-set/bool k v)]
-          [(anim-property? v)
-           (match v
-             [(struct* anim-property ([value value]
-                                      [position position]
-                                      [length length]))
-              (cond
-                [(string? value)
-                 (mlt-properties-anim-set ret value position length)]
-                [else (error 'video "Anim Property type ~a not currently supported" value)])])]
-          [else (error 'video "Property type ~a not currently supported" v)])))
+        (let loop ([v v]
+                   [call-thunk? #t])
+          (cond
+            [(and (procedure? v)
+                  (procedure-arity-includes? v 0)
+                  call-thunk?)
+             (define data (v))
+             (loop data #f)]
+            [(integer? v) (mlt-properties-set-int64 ret k v)]
+            [(real? v) (mlt-properties-set-double ret k v)]
+            [(string? v) (mlt-properties-set ret k v)]
+            [(boolean? v) (mlt-properties-set/bool k v)]
+            [(anim-property? v)
+             (match v
+               [(struct* anim-property ([value value]
+                                        [position position]
+                                        [length length]))
+                (cond
+                  [(string? value)
+                   (mlt-properties-anim-set ret value position length)]
+                  [else (error 'video "Anim Property type ~a not currently supported" value)])])]
+            [else (error 'video "Property type ~a not currently supported" v)]))))
 
     ;; Attach filters
     (when (service? data)
