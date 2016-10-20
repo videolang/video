@@ -179,6 +179,18 @@
    [size* _int]
    [count* _int]
    [list* (_cpointer 'list (_cpointer 'list* _playlist-entry))]))
+(define-cstruct _mlt-playlist-clip-info
+  ([clip _int]
+   [producer _mlt-producer-pointer]
+   [cut _mlt-producer-pointer]
+   [start _mlt-position]
+   [resource _string]
+   [frame-in _mlt-position]
+   [frame-out _mlt-position]
+   [frame-count _mlt-position]
+   [length _mlt-position]
+   [fps _float]
+   [repeate _int]))
 (define-cstruct (_mlt-tractor _mlt-producer)
   ([producer* _mlt-service-pointer]))
 (define-cstruct _mlt-track
@@ -275,6 +287,11 @@
 (define-mlt* mlt-playlist-clip-length (_fun _mlt-playlist-pointer _int -> _int))
 (define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist-pointer _int -> _bool))
 (define-mlt* mlt-playlist-clip (_fun _mlt-playlist-pointer _mlt-whence _int -> _mlt-position))
+(define-mlt* mlt-playlist-get-clip-info (_fun _mlt-playlist-pointer
+                                              _mlt-playlist-clip-info-pointer
+                                              _int
+                                              -> [v : _bool]
+                                              -> (ret-error v)))
 
 ;; Tractor
 (define-mlt* mlt-tractor-new (_fun -> [v : _mlt-tractor-pointer/null]

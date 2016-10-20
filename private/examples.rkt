@@ -130,6 +130,12 @@
                                  (make-filter #:type 'watermark #:source water)))
             #:target (make-consumer)))
 
+;; Everything below this is currently scratch and should be cleaned up eventually!
+;; Everything below this is currently scratch and should be cleaned up eventually!
+;; Everything below this is currently scratch and should be cleaned up eventually!
+;; Everything below this is currently scratch and should be cleaned up eventually!
+
+
 #;
 (render
  (make-link
@@ -240,6 +246,7 @@
                                    #:elements (list (make-producer #:source demo))))))))
   #:target (make-consumer #:type 'xml #:target "out.xml")))
 
+#;
 (render
  (make-link
   #:source (make-tractor
@@ -257,8 +264,8 @@
                                                              (make-producer
                                                               #:source demo
                                                               #:prop (hash "in" 300))))))))))
-  #:target (make-consumer)))
-  ;#:target (make-consumer #:type 'xml #:target "out.xml")))
+  ;#:target (make-consumer)))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))
 
 #;
 (render
@@ -298,6 +305,7 @@
           #:end 300)))
   #:target (make-consumer #:type 'xml #:target "out.xml")))
 
+#;
 (render
  (make-link
   #:source
@@ -308,3 +316,43 @@
           #:start 0
           #:end 300)))
   #:target (make-consumer #:type 'xml #:target "out.xml")))
+
+#;
+(render
+ (make-link
+  #:source
+  (make-playlist
+   #:elements
+   (list
+    (make-tractor
+     #:multitrack (make-multitrack
+                   #:tracks
+                   (list
+                    (make-tractor
+                     #:multitrack (make-multitrack
+                                   #:tracks
+                                   (list (make-producer #:source demo
+                                                        #:prop (hash "out" 200))
+                                         (make-playlist
+                                          #:elements (list
+                                                      (make-blank #:length 200)
+                                                      (make-producer
+                                                       #:source demo
+                                                       #:prop (hash "in" 300))))))))))))
+  ;#:target (make-consumer)))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))
+
+
+#;
+(render
+ (make-link
+  #:source
+  (make-playlist
+   #:elements (list (make-tractor
+                     #:multitrack
+                     (make-multitrack
+                      #:tracks
+                      (list (make-producer #:source demo))))))
+  ;#:target (make-consumer)))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))
+ 
