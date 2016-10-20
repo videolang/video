@@ -56,13 +56,15 @@
               (define v (video-mlt-object dict))
               (unless v
                 (error 'properties "MLT object for ~a not created, cannot get default property" dict))
-              (match default-type
-                ['string (mlt-properties-get v key)]
-                ['int (mlt-properties-get-int v key)]
-                ['int64 (mlt-properties-get-int64 v key)]
-                ['mlt-position (mlt-properties-get-position v key)]
-                ['double (mlt-properties-get-double v key)]
-                [else (error 'properties "Not a valid default-type ~a" default-type)]))))
+              (define ret
+                (match default-type
+                  ['string (mlt-properties-get v key)]
+                  ['int (mlt-properties-get-int v key)]
+                  ['int64 (mlt-properties-get-int64 v key)]
+                  ['mlt-position (mlt-properties-get-position v key)]
+                  ['double (mlt-properties-get-double v key)]
+                  [else (error 'properties "Not a valid default-type ~a" default-type)]))
+              ret)))
 (struct anim-property video (value position length))
 (define-constructor anim-property video [value #f] [position #f] [length #f])
 (struct frame properties ())
@@ -81,6 +83,8 @@
 (define-constructor playlist producer [elements '()])
 (struct playlist-producer video (producer start end))
 (define-constructor playlist-producer video [producer #f] [start #f] [end #f])
+(struct blank video (length))
+(define-constructor blank video [length 0])
 (struct tractor producer (multitrack field))
 (define-constructor tractor producer [multitrack (make-multitrack)] [field (make-field)])
 (struct multitrack producer (tracks))

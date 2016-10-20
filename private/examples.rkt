@@ -201,6 +201,7 @@
                    #:track-2 1))))
   #:target (make-consumer)))
 
+#;
 (render
  (make-link
   #:source
@@ -224,3 +225,86 @@
                    #:track 0
                    #:track-2 1))))
   #:target (make-consumer)))
+
+
+#;
+(render
+ (make-link
+  #:source (make-playlist
+            #:elements
+            (list (make-tractor #:multitrack
+                                (make-multitrack
+                                 #:tracks
+                                 (list
+                                  (make-playlist
+                                   #:elements (list (make-producer #:source demo))))))))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))
+
+(render
+ (make-link
+  #:source (make-tractor
+            #:multitrack (make-multitrack
+                          #:tracks
+                          (list
+                           (make-tractor
+                            #:multitrack (make-multitrack
+                                          #:tracks
+                                          (list (make-producer #:source demo
+                                                               #:prop (hash "out" 200))
+                                                (make-playlist
+                                                 #:elements (list
+                                                             (make-blank #:length 200)
+                                                             (make-producer
+                                                              #:source demo
+                                                              #:prop (hash "in" 300))))))))))
+  #:target (make-consumer)))
+  ;#:target (make-consumer #:type 'xml #:target "out.xml")))
+
+#;
+(render
+ (make-link
+  #:source
+  (make-tractor
+   #:multitrack
+   (make-multitrack
+    #:tracks (list (make-producer #:source demo #:tag 'demo-reel)
+                   (make-producer #:source demo
+                                  #:prop (hash "in" 200
+                                               "out" 600))))
+   #:field (make-field
+            #:field-elements
+            (list (make-field-element
+                   #:element (make-transition #:type 'composite
+                                              #:source "10%/10%:15%x15%")
+                   #:track 0
+                   #:track-2 1))))
+  #:target (make-consumer)))
+
+
+#;
+(render
+ (make-link
+  #:source
+  (make-playlist
+   #:elements
+   (list (make-playlist-producer
+          #:producer (make-playlist
+                      #:elements (list
+                                  (make-playlist-producer
+                                   #:producer (make-producer #:source demo)
+                                   #:start 0
+                                   #:end 300)))
+          #:start 0
+          #:end 300)))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))
+
+(render
+ (make-link
+  #:source
+  (make-playlist
+   #:elements
+   (list (make-playlist-producer
+          #:producer (make-producer #:source demo)
+          #:start 0
+          #:end 300)))
+  #:target (make-consumer #:type 'xml #:target "out.xml")))

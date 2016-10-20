@@ -259,10 +259,15 @@
                                           -> [v : _bool]
                                           -> (ret-error v)))
 (define-mlt* mlt-playlist-close (_fun _mlt-playlist-pointer -> _void))
+(define-mlt* mlt-playlist-clear (_fun _mlt-playlist-pointer -> [v : _bool]
+                                      -> (ret-error v)))
 (define-mlt* mlt-playlist-properties (_fun _mlt-playlist-pointer -> _mlt-properties-pointer))
 (define-mlt* mlt-playlist-producer (_fun _mlt-playlist-pointer -> _mlt-producer-pointer))
 (define-mlt* mlt-playlist-blank (_fun _mlt-playlist-pointer _mlt-position -> [v : _bool]
                                       -> (ret-error v)))
+(define-mlt* mlt-playlist-blank-time (_fun _mlt-playlist-pointer _string -> [v : _bool]
+                                           -> (ret-error v)))
+(define-mlt* mlt-playlist-blanks-from (_fun _mlt-playlist-pointer _int _int -> _int))
 (define-mlt* mlt-playlist-count (_fun _mlt-playlist-pointer -> _int))
 (define-mlt* mlt-playlist-mix (_fun _mlt-playlist-pointer _int _int _mlt-transition-pointer
                                     -> [v : _bool]

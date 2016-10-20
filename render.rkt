@@ -10,6 +10,12 @@
                      racket/syntax
                      syntax/parse))
 
+;; Tests to see if v is a thunk
+;; Any -> Boolean
+(define (thunk? v)
+  (and (procedure? v)
+       (procedure-arity-includes? v 0)))
+
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
 ;; Service -> _mlt-service
@@ -22,6 +28,15 @@
     [(producer? video-object)
      (mlt-producer-service (video-mlt-object video-object))]
     [else (error 'video "Unsupported video: ~a" video-object)]))
+
+;; Runs a think to its value, if resulting value
+;;   is also a thunk it is also applied until a non-thunk
+;;   value is returned
+;; Any -> Any
+(define (run-to-value v)
+  (cond
+    [(thunk? v) (run-to-value (v))]
+    [else v]))
 
 ;; Connect target to source
 ;; Video-Object _mlt-service Integer -> Void
@@ -76,6 +91,8 @@
              [(struct* producer ())
               (mlt-playlist-append playlist* i*)]
              [(struct* transition ()) (void)] ;; Must be handled after clips are added
+             [(struct* blank ([length length]))
+              (mlt-playlist-blank playlist* (run-to-value length))]
              [_ (error 'playlist "Not a playlist element: ~a" i)]))
          (for ([e (in-list elements)]
                [i (in-naturals)])
@@ -87,6 +104,8 @@
          playlist*]
         [(struct* playlist-producer ([producer producer]))
          (convert-to-mlt! producer)]
+        [(struct* blank ())
+         #f] ;; Blanks don't have an MLT object
         [(struct* transition ([type type]
                               [source source]))
          (mlt-factory-transition p type source)]
@@ -114,11 +133,13 @@
                                       [track track]
                                       [track-2 track-2]))
               (define element* (convert-to-mlt! element))
+              (define track* (if (thunk? track) (track) track))
+              (define track-2* (if (thunk? track-2) (track-2) track-2))
               (cond
                 [(transition? element)
-                 (mlt-field-plant-transition field* element* track track-2)]
+                 (mlt-field-plant-transition field* element* track* track-2*)]
                 [(filter? element)
-                 (mlt-field-plant-filter field* element* track)])]))
+                 (mlt-field-plant-filter field* element* track*)])]))
          field*]
         [(struct* producer ([source source]
                             [type type]
@@ -135,14 +156,11 @@
     ;; Set properties
     (when (properties? data)
       (for ([(k v) (in-dict (properties-prop data))])
-        (let loop ([v v]
-                   [call-thunk? #t])
+        (let loop ([v v])
           (cond
-            [(and (procedure? v)
-                  (procedure-arity-includes? v 0)
-                  call-thunk?)
+            [(thunk? v)
              (define data (v))
-             (loop data #f)]
+             (loop data)]
             [(integer? v) (mlt-properties-set-int64 ret k v)]
             [(real? v) (mlt-properties-set-double ret k v)]
             [(string? v) (mlt-properties-set ret k v)]
@@ -169,7 +187,8 @@
   
     ret))
 
-(define (render data)
+(define (render data
+                #:timeout [timeout #f])
   
   (mlt-factory-init #f)
   (define p (mlt-profile-init #f))
@@ -179,7 +198,9 @@
 
   (mlt-consumer-start target)
  
-  (let loop ()
+  (let loop ([timeout timeout])
     (sleep 1)
+    (when (and timeout (zero? timeout))
+      (mlt-consumer-stop target))
     (unless (mlt-consumer-is-stopped target)
-      (loop))))
+      (loop (and timeout (sub1 timeout))))))
