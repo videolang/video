@@ -31,6 +31,8 @@
       (when (mlt-consumer-is-stopped v)
         (mlt-consumer-start (video-mlt-object internal-video)))
       (mlt-producer-set-speed (video-mlt-object video) 1.0))
+    (define/public (pause)
+      (set-speed 0))
     (define/public (stop)
         (mlt-consumer-stop (video-mlt-object internal-video)))
     (define/public (seek frame)
@@ -47,6 +49,8 @@
       (mlt-producer-position (video-mlt-object video)))
     (define/public (get-fps)
       (mlt-producer-get-fps (video-mlt-object video)))
+    (define/augment (on-close)
+      (stop))
     (define step-distance (* (get-fps) 20))
     (define top-row
       (new horizontal-pane%
@@ -68,7 +72,7 @@
     (new button%
        [parent top-row]
        [label (stop-icon #:color halt-icon-color #:height 50)]
-       [callback (λ _ (stop))])
+       [callback (λ _ (pause))])
     (new button%
          [parent top-row]
          [label (fast-forward-icon #:color syntax-icon-color #:height 50)]
@@ -89,10 +93,9 @@
               (define frame (send b get-value))
               (seek frame))]))
     (new timer%
-         [interval 100]
+         [interval 10000]
          [notify-callback
-          (λ ()
-            (send seek-bar set-value (get-position)))])
+          (λ () (send seek-bar set-value (get-position)))])
     (define seek-row
       (new horizontal-pane%
            [parent this]
