@@ -181,8 +181,8 @@
    [list* (_cpointer 'list (_cpointer 'list* _playlist-entry))]))
 (define-cstruct _mlt-playlist-clip-info
   ([clip _int]
-   [producer _mlt-producer-pointer]
-   [cut _mlt-producer-pointer]
+   [producer _mlt-producer-pointer/null]
+   [cut _mlt-producer-pointer/null]
    [start _mlt-position]
    [resource _string]
    [frame-in _mlt-position]
@@ -220,6 +220,12 @@
 ;; Profile
 (define-mlt* mlt-profile-init (_fun _string -> [v : _mlt-profile-pointer/null]
                                     -> (null-error v)))
+(define-mlt* mlt-profile-clone (_fun _mlt-profile-pointer -> [v : _mlt-profile-pointer]
+                                     -> (null-error v)))
+(define-mlt* mlt-profile-close (_fun _mlt-profile-pointer -> _void))
+(define-mlt* mlt-profile-dar (_fun _mlt-profile-pointer -> _double))
+(define-mlt* mlt-profile-fps (_fun _mlt-profile-pointer -> _double))
+(define-mlt* mlt-profile-from-producer (_fun _mlt-profile-pointer _mlt-producer-pointer -> _void))
 
 ;; Consumer
 (define-mlt* mlt-consumer-connect (_fun _mlt-consumer-pointer _mlt-service-pointer -> (v : _int)
@@ -253,11 +259,26 @@
                                           -> (ret-error v)))
 (define-mlt* mlt-producer-get-length (_fun _mlt-producer-pointer -> _mlt-position))
 (define-mlt* mlt-producer-get-length-time (_fun _mlt-producer-pointer _mlt-time-format -> _string))
+(define-mlt* mlt-producer-get-in (_fun _mlt-producer-pointer -> _mlt-position))
+(define-mlt* mlt-producer-get-out (_fun _mlt-producer-pointer -> _mlt-position))
 (define-mlt* mlt-producer-get-playtime (_fun _mlt-producer-pointer -> _mlt-position))
 (define-mlt* mlt-producer-get-speed (_fun _mlt-producer-pointer -> _double))
+(define-mlt* mlt-producer-get-fps (_fun _mlt-producer-pointer -> _double))
 (define-mlt* mlt-producer-is-mix (_fun _mlt-producer-pointer -> _bool))
 (define-mlt* mlt-producer-is-blank (_fun _mlt-producer-pointer -> _bool))
 (define-mlt* mlt-producer-is-cut (_fun _mlt-producer-pointer -> _bool))
+(define-mlt* mlt-producer-cut (_fun _mlt-producer-pointer _int _int
+                                    -> [v : _mlt-producer-pointer/null]
+                                    -> (null-error v)))
+(define-mlt* mlt-producer-cut-parent (_fun _mlt-producer-pointer -> [v : _mlt-producer-pointer/null]
+                                           -> (null-error v)))
+(define-mlt* mlt-producer-seek (_fun _mlt-producer-pointer _mlt-position -> [v : _bool]
+                                     -> (ret-error v)))
+(define-mlt* mlt-producer-seek-time (_fun _mlt-producer-pointer _string -> [v : _bool]
+                                          -> (ret-error v)))
+(define-mlt* mlt-producer-frame (_fun _mlt-producer-pointer -> _mlt-position))
+(define-mlt* mlt-producer-frame-time (_fun _mlt-producer-pointer -> _string))
+(define-mlt* mlt-producer-position (_fun _mlt-producer-pointer -> _mlt-position))
 
 ;; Playlist
 (define-mlt* mlt-playlist-init (_fun -> [v : _mlt-playlist-pointer/null]
@@ -288,10 +309,12 @@
 (define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist-pointer _int -> _bool))
 (define-mlt* mlt-playlist-clip (_fun _mlt-playlist-pointer _mlt-whence _int -> _mlt-position))
 (define-mlt* mlt-playlist-get-clip-info (_fun _mlt-playlist-pointer
-                                              _mlt-playlist-clip-info-pointer
+                                              [res : (_ptr o _mlt-playlist-clip-info)]
                                               _int
                                               -> [v : _bool]
-                                              -> (ret-error v)))
+                                              -> (begin
+                                                   (ret-error v)
+                                                   res)))
 
 ;; Tractor
 (define-mlt* mlt-tractor-new (_fun -> [v : _mlt-tractor-pointer/null]

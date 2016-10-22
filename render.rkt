@@ -1,7 +1,7 @@
 #lang racket/base
 
 (provide render
-         preview
+         play
          convert-to-mlt!)
 (require racket/match
          racket/dict
@@ -56,7 +56,8 @@
 
 ;; Convert a video object into an MLT object
 ;; Video -> MLT-Object
-(define (convert-to-mlt! data p)
+(define (convert-to-mlt! data [profile #f])
+  (define p (or profile (mlt-profile-init #f)))
   (define current-tractor (make-parameter #f))
   (let loop ([data data])
     (let/ec continue
@@ -189,22 +190,20 @@
 ;; Render a video object (including the links
 ;; Video (#:profile string #:timeout Number) -> Void
 (define (render data
-                #:profile [profile-name #f]
+                #:profile-name [profile-name #f]
+                #:width [width 720]
+                #:height [height 576]
+                #;fps [fps 25]
                 #:timeout [timeout #f])
- 
+
+  (define fps* (rationalize (inexact->exact fps) 1/1000000))
   (define p (mlt-profile-init profile-name))
+  (set-mlt-profile-width! p width)
+  (set-mlt-profile-height! p height)
+  (set-mlt-profile-frame-rate-den! p (denominator fps*))
+  (set-mlt-profile-frame-rate-num! p (numerator fps*))
   (define target (convert-to-mlt! data p))
   (play target #:timeout timeout))
-
-;; Preview a Producer in an SDL window
-;; Video -> Void
-(define (preview data)
-  (define target (make-consumer))
-  (define to-render
-    (make-link
-     #:source data
-     #:target target))
-  (render data))
 
 ;; Play a video that has already been converted to an MLT object
 ;; _mlt_properties (#:timeout Number) -> Void
