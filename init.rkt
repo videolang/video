@@ -8,6 +8,7 @@
 
 (void (mlt-factory-init #f))
 
+#|
 ;; This module must be instantiated only once:
 (define scheme_register_process_global
   (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer)))
@@ -16,3 +17,4 @@
                                          (cast 1 _scheme _pointer))])
   (when v
     (error "cannot instantiate `video/init' a second time in the same process")))
+|#
