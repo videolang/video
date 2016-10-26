@@ -383,7 +383,7 @@
 
 (define vp
   (new video-player%
-       [video (make-producer #:source demo)]))
+         [video (make-producer #:source demo)]))
 
 (send vp show #t)
 (send vp play)

@@ -1,13 +1,12 @@
 #lang racket/base
 
-(provide video-player%)
+(provide video-player%
+         preview)
 (require (except-in racket/class field)
-         (prefix-in class: racket/class)
          racket/gui/base
          images/icons/style
          images/icons/control
          "render.rkt"
-         (prefix-in render: "render.rkt")
          "lib.rkt"
          "private/mlt.rkt" ; :(, we should remove this
          "private/video.rkt")
@@ -93,7 +92,7 @@
               (define frame (send b get-value))
               (seek frame))]))
     (new timer%
-         [interval 10000]
+         [interval 1000]
          [notify-callback
           (λ () (send seek-bar set-value (get-position)))])
     (define seek-row
@@ -143,3 +142,11 @@
     (new message%
          [parent this]
          [label (format "FPS: ~a" (get-fps))])))
+
+(define (preview clip)
+  (define vp
+    (new video-player%
+         [video clip]))
+  (send vp show #t)
+  (send vp play)
+  vp)
