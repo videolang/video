@@ -216,6 +216,7 @@
 (define-mlt* mlt-factory-transition (_fun _mlt-profile-pointer _symbol-or-null _string
                                           -> [v : _mlt-transition-pointer/null]
                                           -> (null-error v)))
+(define-mlt* mlt-factory-close (_fun -> _void))
 
 ;; Profile
 (define-mlt* mlt-profile-init (_fun _string -> [v : _mlt-profile-pointer/null]
@@ -246,6 +247,8 @@
 (define-mlt* mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
                                      -> (ret-error v)))
 (define-mlt* mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool))
+(define-mlt* mlt-consumer-close (_fun _mlt-consumer-pointer -> _void))
+(define-mlt* mlt-consumer-purge (_fun _mlt-consumer-pointer -> _void))
 
 ;; Producer
 (define-mlt* mlt-producer-close (_fun _mlt-producer-pointer -> _void))
@@ -326,11 +329,13 @@
                                           -> (null-error v)))
 (define-mlt* mlt-tractor-producer (_fun _mlt-tractor-pointer -> [v : _mlt-producer-pointer]
                                         -> (null-error v)))
+(define-mlt* mlt-tractor-close (_fun _mlt-tractor-pointer -> _void))
 
 ;; MultiTrack
 (define-mlt* mlt-multitrack-connect (_fun _mlt-multitrack-pointer _mlt-producer-pointer _int
                                           -> [v : _bool]
                                           -> (ret-error v)))
+(define-mlt* mlt-multitrack-close (_fun _mlt-multitrack-pointer -> _void))
 
 ;; Properties
 (define-mlt* mlt-properties-set (_fun _mlt-properties-pointer _string _string -> [v : _bool]
@@ -366,6 +371,7 @@
                                       -> [v : _bool]
                                       -> (ret-error v)))
 (define-mlt* mlt-filter-service (_fun _mlt-filter-pointer -> _mlt-service-pointer))
+(define-mlt* mlt-filter-close (_fun _mlt-filter-pointer -> _void))
 
 ;; Service
 (define-mlt* mlt-service-attach (_fun _mlt-service-pointer _mlt-filter-pointer -> [v : _bool]
@@ -382,3 +388,20 @@
                                               -> (ret-error v)))
 (define-mlt* mlt-field-plant-filter (_fun _mlt-field _mlt-transition-pointer _int -> [v : _bool]
                                           -> (ret-error v)))
+(define-mlt* mlt-field-close (_fun _mlt-field -> _void))
+
+;; Transitions
+(define-mlt* mlt-transition-close (_fun _mlt-transition-pointer -> _void))
+(define-mlt* mlt-transition-get-a-track (_fun _mlt-transition-pointer -> _int))
+(define-mlt* mlt-transition-get-b-track (_fun _mlt-transition-pointer -> _int))
+(define-mlt* mlt-transition-connect (_fun _mlt-transition-pointer _mlt-service-pointer _int _int
+                                          -> [v : _bool]
+                                          -> (ret-error v)))
+(define-mlt* mlt-transition-get-in (_fun _mlt-transition-pointer -> _mlt-position))
+(define-mlt* mlt-transition-get-out (_fun _mlt-transition-pointer -> _mlt-position))
+(define-mlt* mlt-transition-get-length (_fun _mlt-transition-pointer -> _mlt-position))
+(define-mlt* mlt-transition-get-position (_fun _mlt-transition-pointer _mlt-frame-pointer
+                                               -> _mlt-position))
+(define-mlt* mlt-transition-get-progress (_fun _mlt-transition-pointer _mlt-frame-pointer -> _double))
+(define-mlt* mlt-transition-set-in-and-out (_fun _mlt-transition-pointer _mlt-position _mlt-position
+                                                 -> _void))

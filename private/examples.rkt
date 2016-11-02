@@ -19,7 +19,6 @@
 (define pdf "/Users/leif/demo.pdf")
 
 ;; A simple HELLO world MLT program that renders the demo file
-#;
 (render
  (make-link #:source (make-producer #:source demo)
             #:target (make-consumer)))

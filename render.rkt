@@ -5,6 +5,7 @@
          convert-to-mlt!)
 (require racket/match
          racket/dict
+         "private/init-mlt.rkt"
          "init.rkt"
          "private/mlt.rkt"
          "private/video.rkt"
@@ -78,10 +79,12 @@
            target*]
           [(struct* consumer ([type type]
                               [target target]))
-           (mlt-factory-consumer p type target)]
+           (define c (mlt-factory-consumer p type target))
+           (register-mlt-close mlt-consumer-close c)]
           [(struct* filter ([type type]
                             [source source]))
-           (mlt-factory-filter p type source)]
+           (define f (mlt-factory-filter p type source))
+           (register-mlt-close mlt-filter-close f)]
           [(struct* playlist ([elements elements]))
            (define playlist* (mlt-playlist-init))
            (for ([i (in-list elements)])
@@ -104,20 +107,22 @@
                                  (- i 1)
                                  (transition-length e)
                                  (video-mlt-object e))))
-           playlist*]
+           (register-mlt-close mlt-playlist-close playlist*)]
           [(struct* playlist-producer ([producer producer]))
            (loop producer)]
           [(struct* blank ())
            #f] ;; Blanks don't have an MLT object
           [(struct* transition ([type type]
                                 [source source]))
-           (mlt-factory-transition p type source)]
+           (define t (mlt-factory-transition p type source))
+           (register-mlt-close mlt-transition-close t)]
           [(struct* tractor ([multitrack multitrack]
                              [field field]))
            (define tractor* (mlt-tractor-new))
            (parameterize ([current-tractor tractor*])
              (loop multitrack)
              (loop field)
+             (register-mlt-close mlt-tractor-close tractor*)
              (mlt-tractor-producer tractor*))]
           [(struct* multitrack ([tracks tracks]))
            (define t (current-tractor))
@@ -126,7 +131,7 @@
                  [i (in-naturals)])
              (define track* (loop track))
              (mlt-multitrack-connect multitrack* track* i))
-           multitrack*]
+           (register-mlt-close mlt-multitrack-close multitrack*)]
           [(struct* field ([field-elements field-elements]))
            (define t (current-tractor))
            (define field* (mlt-tractor-field t))
@@ -143,7 +148,7 @@
                    (mlt-field-plant-transition field* element* track* track-2*)]
                   [(filter? element)
                    (mlt-field-plant-filter field* element* track*)])]))
-           field*]
+           (register-mlt-close mlt-field-close field*)]
           [(struct* producer ([source source]
                               [type type]
                               [start start]
@@ -154,7 +159,7 @@
              (mlt-producer-set-in-and-out producer* start end))
            (when seek
              (mlt-producer-seek producer* seek))
-           producer*]
+           (register-mlt-close mlt-producer-close producer*)]
           [_ (error 'video "Unsuported data ~a" data)]))
       (when (video? data)
         (set-video-mlt-object! data ret))
