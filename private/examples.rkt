@@ -19,6 +19,7 @@
 (define pdf "/Users/leif/demo.pdf")
 
 ;; A simple HELLO world MLT program that renders the demo file
+#;
 (render
  (make-link #:source (make-producer #:source demo)
             #:target (make-consumer)))
@@ -380,13 +381,12 @@
   #:source (make-producer #:source "/Users/leif/demo.pdf")
   #:target (make-consumer)))
 
-#;
 (define vp
   (new video-player%
          [video (make-producer #:source demo)]))
 
-;(send vp show #t)
-;(send vp play)
+(send vp show #t)
+(send vp play)
 
 #;
 (render

@@ -2,8 +2,9 @@
 
 ;; Library to initialize the MLT framework.
 ;; Alternatively your program can just call `mlt-factory-init` on its own.
+;;   If you do this though, do make sure to shut things down with mlt-factory-init
 
-(provide ;mlt-executor
+(provide mlt-executor
          register-mlt-close)
 (require "mlt.rkt"
          "once.rkt")
@@ -14,7 +15,9 @@
 ;; Close MLT factory on program exit
 (void
  (plumber-add-flush!
-  (current-plumber) (λ (p) (mlt-factory-close))))
+  (current-plumber) (λ (p)
+                      (collect-garbage)
+                      (mlt-factory-close))))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))

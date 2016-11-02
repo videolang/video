@@ -33,7 +33,7 @@
     (define/public (pause)
       (set-speed 0))
     (define/public (stop)
-        (mlt-consumer-stop (video-mlt-object internal-video)))
+      (mlt-consumer-stop (video-mlt-object internal-video)))
     (define/public (seek frame)
       (define frame* (max 0 (inexact->exact (round frame))))
       (mlt-producer-seek (video-mlt-object video) frame*))
@@ -49,6 +49,7 @@
     (define/public (get-fps)
       (mlt-producer-get-fps (video-mlt-object video)))
     (define/augment (on-close)
+      (send seek-bar-updater stop)
       (stop))
     (define step-distance (* (get-fps) 20))
     (define top-row
@@ -91,10 +92,11 @@
             (λ (b e)
               (define frame (send b get-value))
               (seek frame))]))
-    (new timer%
-         [interval 1000]
-         [notify-callback
-          (λ () (send seek-bar set-value (get-position)))])
+    (define seek-bar-updater
+      (new timer%
+           [interval 100]
+           [notify-callback
+            (λ () (send seek-bar set-value (get-position)))]))
     (define seek-row
       (new horizontal-pane%
            [parent this]
