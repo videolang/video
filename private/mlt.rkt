@@ -306,6 +306,7 @@
                                     -> [v : _bool]
                                     -> (ret-error v)))
 (define-mlt* mlt-playlist-clip-length (_fun _mlt-playlist-pointer _int -> _int))
+(define-mlt* mlt-playlist-clip-start (_fun _mlt-playlist-pointer _int -> _int))
 (define-mlt* mlt-playlist-clip-is-mix (_fun _mlt-playlist-pointer _int -> _bool))
 (define-mlt* mlt-playlist-clip (_fun _mlt-playlist-pointer _mlt-whence _int -> _mlt-position))
 (define-mlt* mlt-playlist-get-clip-info (_fun _mlt-playlist-pointer

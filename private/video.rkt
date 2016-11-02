@@ -3,22 +3,25 @@
 (provide (all-defined-out))
 (require racket/dict
          racket/match
+         racket/set
          "mlt.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
                      syntax/parse))
 
-;; Global tag table
-(define global-tag-table (make-hash))
-(define (add-tag-to-table! tag prop)
-  (when tag
-    (when (dict-has-key? global-tag-table tag)
-      (error 'video-tag "Tag ~a already exists in table" tag))
-    (dict-set! global-tag-table tag prop)))
-(define (find-tag tag)
-  (dict-ref global-tag-table tag
-            (λ () (error 'video-tag "Tag ~a does not exist in table" tag))))
+;; Video tag
+(define (tag-video v tag)
+  (set-add! (video-tag v) tag)
+  v)
+(define (find-tag v tag)
+  (if (set-member? (video-tag v) tag)
+      v
+      (match v
+        [(struct* link ([source source]
+                        [target target]))
+         (or (find-tag source) (find-tag target))]
+        [else (error 'find-tag "Not currently supported for video type: ~a" v)])))
 
 ;; Constructor for video objects
 (define-syntax subclass-empty '(() . ()))
@@ -38,13 +41,12 @@
                                     `(,(datum->syntax stx (string->keyword (symbol->string i)))
                                       [,i ,j]))))
            (define ret (name #,@all-ids))
-           (add-tag-to-table! tag ret)
            ret)
          (define-syntax new-supers '#,(cons all-ids all-defaults)))]))
 
 ;; Structs
 (struct video ([mlt-object #:mutable] tag))
-(define-constructor video empty [mlt-object #f] [tag #f])
+(define-constructor video empty [mlt-object #f] [tag (mutable-set)])
 (struct link video (source target index))
 (define-constructor link video [source #f] [target #f] [index 0])
 (struct properties video (prop))
@@ -77,8 +79,8 @@
 (define-constructor transition service [type #f] [source #f] [length #f])
 (struct consumer service (type target))
 (define-constructor consumer service [type #f] [target #f])
-(struct producer service (type source start end speed))
-(define-constructor producer service [type #f] [source #f] [start #f] [end #f] [speed #f])
+(struct producer service (type source start end speed seek))
+(define-constructor producer service [type #f] [source #f] [start #f] [end #f] [speed #f] [seek #f])
 (struct playlist producer (elements))
 (define-constructor playlist producer [elements '()])
 (struct playlist-producer video (producer start end))

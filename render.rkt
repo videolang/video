@@ -147,10 +147,13 @@
           [(struct* producer ([source source]
                               [type type]
                               [start start]
-                              [end end]))
+                              [end end]
+                              [seek seek]))
            (define producer* (mlt-factory-producer p type source))
            (when (and start end)
              (mlt-producer-set-in-and-out producer* start end))
+           (when seek
+             (mlt-producer-seek producer* seek))
            producer*]
           [_ (error 'video "Unsuported data ~a" data)]))
       (when (video? data)
@@ -193,7 +196,7 @@
                 #:profile-name [profile-name #f]
                 #:width [width 720]
                 #:height [height 576]
-                #;fps [fps 25]
+                #:fps [fps 25]
                 #:timeout [timeout #f])
 
   (define fps* (rationalize (inexact->exact fps) 1/1000000))

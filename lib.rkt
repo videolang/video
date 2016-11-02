@@ -22,3 +22,13 @@
 ;; Converted-Producer -> Number
 (define (producer-length/unedited producer)
   (mlt-producer-get-length (video-mlt-object producer)))
+
+;; Get the durration of a clip length in a playslit
+;; Converted-Playlist Integer -> Integer
+(define (playlist-clip-length playlist index)
+  (mlt-playlist-clip-length (video-mlt-object playlist) index))
+
+;; Get the start time of a clip in a playlist
+;; Converted-playlist Integer -> Integer
+(define (playlist-clip-start playlist index)
+  (mlt-playlist-clip-start (video-mlt-object playlist) index))
