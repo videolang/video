@@ -6,11 +6,14 @@
          racket/gui/base
          images/icons/style
          images/icons/control
+         ffi/unsafe/atomic
          "render.rkt"
          "lib.rkt"
          "private/mlt.rkt" ; :(, we should remove this
          "private/video.rkt")
 
+;; Probably not threadsafe when changing videos?
+;; Sadly not entirely sure.
 (define video-player%
   (class frame%
     (init-field video)
@@ -20,9 +23,10 @@
                [stretchable-height #f]
                [min-width 500]
                [min-height 100])
-    (define internal-video
-      (make-link #:source video
+    (define (video->internal-video v)
+      (make-link #:source v
                  #:target (make-consumer)))
+    (define internal-video (video->internal-video video))
     (convert-to-mlt! internal-video)
     (define play-time (producer-length video))
     (define/public (play)
@@ -30,6 +34,8 @@
       (when (mlt-consumer-is-stopped v)
         (mlt-consumer-start (video-mlt-object internal-video)))
       (mlt-producer-set-speed (video-mlt-object video) 1.0))
+    (define/public (is-stopped?)
+      (mlt-consumer-is-stopped (video-mlt-object internal-video)))
     (define/public (pause)
       (set-speed 0))
     (define/public (stop)
@@ -48,6 +54,16 @@
       (mlt-producer-position (video-mlt-object video)))
     (define/public (get-fps)
       (mlt-producer-get-fps (video-mlt-object video)))
+    (define/public (set-video v)
+      ;; Really should be atomic.... :/
+      (call-as-atomic
+       (λ ()
+         (stop)
+         (set! video v)
+         (set! internal-video (video->internal-video v))
+         (convert-to-mlt! internal-video)
+         (seek 0)
+         (set-speed 1))))
     (define/augment (on-close)
       (send seek-bar-updater stop)
       (stop))
@@ -94,7 +110,7 @@
               (seek frame))]))
     (define seek-bar-updater
       (new timer%
-           [interval 100]
+           [interval 500]
            [notify-callback
             (λ () (send seek-bar set-value (get-position)))]))
     (define seek-row

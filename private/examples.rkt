@@ -7,7 +7,7 @@
 
 (require "../render.rkt"
          "video.rkt"
-         "../preview.rkt")
+         "../player.rkt")
 
 ;; Some constants that rely on files in my hard drive
 ;; change them for your own tests
@@ -387,6 +387,10 @@
 
 (send vp show #t)
 (send vp play)
+(displayln "sleeping")
+(sleep 3)
+(displayln "slept")
+(send vp set-video (make-producer #:source demo))
 
 #;
 (render

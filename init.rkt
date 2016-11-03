@@ -17,6 +17,9 @@
     (namespace-attach-module (namespace-anchor->empty-namespace anchor)
                              'racket/gui/base
                              ns)
+    (namespace-attach-module (namespace-anchor->empty-namespace anchor)
+                             'video/core
+                             ns)
     ns))
 
 (define (make-video-namespace)
@@ -27,6 +30,6 @@
       (namespace-require 'racket/class)
       (namespace-require 'video/init)
       (namespace-require 'video/render)
-      (namespace-require 'video/preview)
+      (namespace-require 'video/player)
       (namespace-require 'video/core))
     ns))
