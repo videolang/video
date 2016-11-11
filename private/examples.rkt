@@ -381,16 +381,16 @@
   #:source (make-producer #:source "/Users/leif/demo.pdf")
   #:target (make-consumer)))
 
+#;
 (define vp
   (new video-player%
          [video (make-producer #:source demo)]))
 
+#|
 (send vp show #t)
 (send vp play)
-(displayln "sleeping")
-(sleep 3)
-(displayln "slept")
 (send vp set-video (make-producer #:source demo))
+|#
 
 #;
 (render
@@ -398,4 +398,10 @@
                                     #:filters (list (make-filter #:type 'avfilter.afade
                                                                  #:source "in"
                                                                  #:prop (hash "av.duration" 100))))
+            #:target (make-consumer)))
+
+(render
+ (make-link #:source (make-producer #:type 'loader
+                                    #:source "pango"
+                                    #:prop (hash "text" "Hello World"))
             #:target (make-consumer)))

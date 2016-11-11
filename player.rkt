@@ -28,7 +28,8 @@
                  #:target (make-consumer)))
     (define internal-video (video->internal-video video))
     (convert-to-mlt! internal-video)
-    (define play-time (producer-length video))
+    (define/public (get-video-length)
+      (producer-length video))
     (define/public (play)
       (define v (video-mlt-object internal-video))
       (when (mlt-consumer-is-stopped v)
@@ -42,14 +43,15 @@
       (mlt-consumer-stop (video-mlt-object internal-video)))
     (define/public (seek frame)
       (define frame* (max 0 (inexact->exact (round frame))))
-      (mlt-producer-seek (video-mlt-object video) frame*))
+      (mlt-producer-seek (video-mlt-object video) frame*)
+      (update-seek-bar-and-labels))
     (define/public (set-speed speed)
       (define speed* (exact->inexact speed))
       (mlt-producer-set-speed (video-mlt-object video) speed*))
     (define/public (rewind)
-      (set-speed -2))
+      (set-speed -5))
     (define/public (fast-forward)
-      (set-speed 2))
+      (set-speed 5))
     (define/public (get-position)
       (mlt-producer-position (video-mlt-object video)))
     (define/public (get-fps)
@@ -63,7 +65,8 @@
          (set! internal-video (video->internal-video v))
          (convert-to-mlt! internal-video)
          (seek 0)
-         (set-speed 1))))
+         (set-speed 1)
+         (update-seek-bar-and-labels))))
     (define/augment (on-close)
       (send seek-bar-updater stop)
       (stop))
@@ -97,22 +100,40 @@
          [parent top-row]
          [label (step-icon #:color run-icon-color #:height 50)]
          [callback (λ _ (seek (+ (get-position) step-distance)))])
+    (define seek-bar-max 10000)
     (define seek-bar
       (new slider%
            [parent this]
            [label "Play Time"]
            [min-value 0]
-           [max-value play-time]
+           [max-value seek-bar-max]
            [min-width 500]
+           [style '(plain horizontal)]
            [callback
             (λ (b e)
-              (define frame (send b get-value))
+              (define v (send b get-value))
+              (define frame (floor (* (get-video-length) (/ v seek-bar-max))))
               (seek frame))]))
+    (define (update-seek-bar-and-labels)
+      (define len (get-video-length))
+      (define frame (floor (* seek-bar-max (/ (get-position) len))))
+      (send seek-bar set-value frame)
+      (send seek-message set-label (make-frame-string frame len)))
     (define seek-bar-updater
       (new timer%
-           [interval 500]
-           [notify-callback
-            (λ () (send seek-bar set-value (get-position)))]))
+           [interval 1000]
+           [notify-callback update-seek-bar-and-labels]))
+    (define/private (make-frame-string frame len)
+      (format "Frame: ~a/~a" frame len))
+    (define frame-row
+      (new horizontal-pane%
+           [parent this]
+           [alignment '(center center)]))
+    (define seek-message
+      (new message%
+           [parent frame-row]
+           [label (make-frame-string 0 0)]
+           [stretchable-width #t]))
     (define seek-row
       (new horizontal-pane%
            [parent this]

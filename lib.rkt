@@ -1,8 +1,11 @@
 #lang racket/base
 
 (provide (all-defined-out))
-(require "private/video.rkt"
-         "private/mlt.rkt")
+(require racket/dict
+         "private/video.rkt"
+         "private/mlt.rkt"
+         (for-syntax racket/base
+                     syntax/parse))
 
 ;; Tests to see if a video has been converted, generally by
 ;;    being passed into convert-to-mlt!
@@ -32,3 +35,15 @@
 ;; Converted-playlist Integer -> Integer
 (define (playlist-clip-start playlist index)
   (mlt-playlist-clip-start (video-mlt-object playlist) index))
+
+;; Given a video struct, determine what its type is, and
+;;   return an identifier associated with the type of struct
+;; Video -> Identifier
+(define (video-type video)
+  (define type
+    (for/fold ([acc #f])
+              ([(pred type) (in-dict global-struct-type-predicate-table)]
+               #:break acc)
+      (and (pred video) type)))
+  (or type
+      (error 'video-type "~a is not a video struct" video)))
