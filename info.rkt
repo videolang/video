@@ -4,7 +4,10 @@
                "rackunit-lib"
                "gui-lib"
                "images-lib"))
-(define build-deps '("scribble-lib" "racket-doc"))
+(define build-deps '("scribble-lib"
+                     "racket-doc"
+                     "gui-doc"
+                     "ppict"))
 (define scribblings '(("scribblings/video.scrbl" ())))
 (define pkg-desc "Description Here")
 (define version "0.0")

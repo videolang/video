@@ -56,7 +56,7 @@
     [else (error 'video "Unsupported target ~a" target)]))
 
 ;; Convert a video object into an MLT object
-;; Video -> MLT-Object
+;; Video [(U _mlt-profile #f)] -> MLT-Object
 (define (convert-to-mlt! data [profile #f])
   (define p (or profile (mlt-profile-init #f)))
   (define current-tractor (make-parameter #f))
