@@ -266,13 +266,71 @@ here. Examples are found in @tt{private/examples.rkt}.
                                 [source (or/c string? #f)]
                                 [start exact-nonnegative-integer?]
                                 [end exact-nonnegative-integer?]
-                                [speed integer?]
-                                [seek exact-nonnegative-integer?])]
-@defstruct*[(playlist producer) ([elements (listof producer)])]
+                                [speed number?]
+                                [seek exact-nonnegative-integer?])]{
+                                                                    
+ A @racket[producer] feeds data to consumers or filters. A
+ producer can be a video, or an image, or an audio clip.
+ 
+ @racket[type] stores the type of video being inputted.
+ Unlike with consumers, this should typically be left as the
+ default @racket[#f] or @racket['loader].@margin-note{Yes,
+  yes, I know, this is really kludgy. It is currently this way
+  to deal with @tt{MLT} bugs.}
+
+ @racket[source] is a URI for producer's source. Some example values are:
+ @itemlist[
+ @item{"color:blue"}
+ @item{"hold:picture.png"}
+ @item{"video.mp4"}
+ @item{"xml:mltxml.xml}]
+
+ The @racket[start] and @racket[end] of the producer is
+ given, or is the length of the producer when it is
+ @racket[#f]. Note that some producers, such as still images,
+ do not have a natural start or end, and will fill up as much
+ time as needed.
+
+ The @racket[speed] of the producer sets the speed the
+ producer feeds frames into its consumer. A speed of
+ @racket[1] is regular playing speed. @racket[0] is paused
+ and will continuously output the same frame. Values greater
+ than @racket[1] play faster than the producers speed, and
+ values less than @racket[0] rewind the producer. Finally,
+ values between @racket[0] and @racket[1] play at a slower
+ than normal rate.
+
+ @racket[seek] can be combined with @racket[speed] to alter
+ the way the video is played. @racket[seek] determines the
+ point where the producer begins to play. Normally this is
+ the same position as @racket[start], but could be set to the
+ middle of the clip and @racket[speed] set to a negative
+ value, to simulate a rewinding clip.}
+
+@defstruct*[(playlist producer)
+            ([elements (listof (or/c producer transition blank playlist-producer))])]{
+                                                                                                   
+ A playlist is a list of producers that play one after the
+ other.
+
+ Transitions can also be put in a playlist and are used to
+ combine two clips, such as to fade from one video to
+ another. A transition shortens its two surrounding clips and
+ producers a new clip for the transition. Note that a
+ playlist with transitions in it will be shortened by the
+ length of the transition.
+
+ @racket[elements] is the list of producers and transitions in the video.}
+
 @defstruct*[(playlist-producer video) ([producer producer?]
                                        [start exact-nonnegative-integer?]
-                                       [end exact-nonnegative-integer?])]
-@defstruct*[(blank video) ([length exact-nonnegative-integer?])]
+                                       [end exact-nonnegative-integer?])]{
+ Don't use this for now. I'm still not entirely sure how its
+ supposed to work.}
+
+@defstruct*[(blank video) ([length exact-nonnegative-integer?])]{
+ Similar to a producer, but is blank. These can be inserted into playlists.}
+
 @defstruct*[(multitrack producer) ([tracks (listof producer)]
                                    [field (listof field-element?)])]
 @defstruct*[(field-element video) ([element (or/c transition? filter? #f)]
@@ -308,11 +366,24 @@ here. Examples are found in @tt{private/examples.rkt}.
  @racket[producer] is the video who's length will be tested.}
 
 @defproc[(producer-length/uneditied [producer (and/c video? converted-video?)])
-         number?]
+         number?]{
+                  
+ Similar to @racket[producer-length]. However, it returns
+ the unedited length of the producer. This is the length of
+ the producer if it was not shortened.
+
+ @racket[producer] is the video who's length will be tested.}
+
 @defproc[(playlist-clip-length [playlist playlist?] [index exact-nonnegative-integer?])
-         exact-nonnegative-integer?]
+         exact-nonnegative-integer?]{
+                                     
+ Gives the total play time of the @racket[index] clip in the given @racket[playlist]. Compare
+ to @racket[producer-length].}
+
 @defproc[(playlist-clip-start [playlist playlist?] [index exact-nonnegative-integer?])
-         exact-nonnegative-integer?]
+         exact-nonnegative-integer?]{ Returns the length of
+ the @racket[index] clip in the given @racket[playlist].
+ Compare to @racket[playlist-clip-length].}
 
 @defproc[(video-type [video video?]) identifier?]{
                                                   
