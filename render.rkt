@@ -59,7 +59,6 @@
 ;; Video [(U _mlt-profile #f)] -> MLT-Object
 (define (convert-to-mlt! data [profile #f])
   (define p (or profile (mlt-profile-init #f)))
-  (define current-tractor (make-parameter #f))
   (let loop ([data data])
     (let/ec continue
 
@@ -116,6 +115,7 @@
                                 [source source]))
            (define t (mlt-factory-transition p type source))
            (register-mlt-close mlt-transition-close t)]
+          #;
           [(struct* tractor ([multitrack multitrack]
                              [field field]))
            (define tractor* (mlt-tractor-new))
@@ -124,18 +124,17 @@
              (loop field)
              (register-mlt-close mlt-tractor-close tractor*)
              (mlt-tractor-producer tractor*))]
-          [(struct* multitrack ([tracks tracks]))
-           (define t (current-tractor))
-           (define multitrack* (mlt-tractor-multitrack t))
+          [(struct* multitrack ([tracks tracks]
+                                [field field]))
+           (define tractor* (mlt-tractor-new))                    ; Tractor
+           (define multitrack* (mlt-tractor-multitrack tractor*)) ; Multitrack
            (for ([track (in-list tracks)]
                  [i (in-naturals)])
              (define track* (loop track))
              (mlt-multitrack-connect multitrack* track* i))
-           (register-mlt-close mlt-multitrack-close multitrack*)]
-          [(struct* field ([field-elements field-elements]))
-           (define t (current-tractor))
-           (define field* (mlt-tractor-field t))
-           (for ([element (in-list field-elements)])
+           (register-mlt-close mlt-multitrack-close multitrack*)
+           (define field* (mlt-tractor-field tractor*))           ; Field
+           (for ([element (in-list field)])
              (match element
                [(struct* field-element ([element element]
                                         [track track]
@@ -148,7 +147,8 @@
                    (mlt-field-plant-transition field* element* track* track-2*)]
                   [(filter? element)
                    (mlt-field-plant-filter field* element* track*)])]))
-           (register-mlt-close mlt-field-close field*)]
+           (register-mlt-close mlt-field-close field*)
+           tractor*]
           [(struct* producer ([source source]
                               [type type]
                               [start start]

@@ -142,71 +142,60 @@
 (render
  (make-link
   #:source
-  (make-tractor
-   #:multitrack (make-multitrack #:tracks (list (make-producer #:source demo)
-                                                (make-producer #:source "pango:/Users/leif/water.txt"
-                                                               #:prop (hash "in" 0
-                                                                            "out" 200
-                                                                            "length" 200
-                                                                            "a_track" 0
-                                                                            "b_track" 1)))))
+  (make-multitrack #:tracks (list (make-producer #:source demo)
+                                  (make-producer #:source "pango:/Users/leif/water.txt"
+                                                 #:prop (hash "in" 0
+                                                              "out" 200
+                                                              "length" 200
+                                                              "a_track" 0
+                                                              "b_track" 1))))
   #:target (make-consumer)))
 
 #;
 (render
  (make-link
   #:source
-  (make-tractor
-   #:multitrack (make-multitrack
-                 #:tracks (list (make-producer #:source demo)
-                                (make-producer #:type 'hold #:source logo
-                                               #:prop (hash "in" 0
-                                                            "out" 200
-                                                            "length" 200
-                                                            "a_track" 0
-                                                            "b_track" 1)))))
+  (make-multitrack
+   #:tracks (list (make-producer #:source demo)
+                  (make-producer #:type 'hold #:source logo
+                                 #:prop (hash "in" 0
+                                              "out" 200
+                                              "length" 200
+                                              "a_track" 0
+                                              "b_track" 1))))
   #:target (make-consumer)))
 
 #;
 (render
  (make-link
   #:source
-  (make-tractor
-   #:multitrack
-   (make-multitrack
-    #:tracks (list (make-producer #:source demo)
-                   (make-producer #:source hold:logo
-                                  #:prop (hash "in" 0
-                                               "out" 300
-                                               ))))
-   #:field (make-field
-            #:field-elements
-            (list (make-field-element
-                   #:element (make-transition #:type 'composite
+  (make-multitrack
+   #:tracks (list (make-producer #:source demo)
+                  (make-producer #:source hold:logo
+                                 #:prop (hash "in" 0
+                                              "out" 300)))
+   #:field (list (make-field-element
+                  #:element (make-transition #:type 'composite
                                              #:source "10%/10%:15%x15%")
-                   #:track 0
-                   #:track-2 1))))
+                  #:track 0
+                  #:track-2 1)))
   #:target (make-consumer)))
 
 #;
 (render
  (make-link
   #:source
-  (make-tractor
-   #:multitrack
-   (make-multitrack
-    #:tracks (list (make-producer #:source demo)
-                   (make-producer #:source "pixbuf:/Users/leif/logo.png"
-                                  #:prop (hash "in" 0
-                                               "out" 300
-                                               ))))
-   #:field (make-field
-            #:field-elements
-            (list (make-field-element
-                   #:element (make-transition #:type 'composite
-                                              #:source "10%/10%:15%x15%")
-                   #:track 0
-                   #:track-2 1))))
+  (make-multitrack
+   #:tracks (list (make-producer #:source demo)
+                  (make-producer #:source "pixbuf:/Users/leif/logo.png"
+                                 #:prop (hash "in" 0
+                                              "out" 300
+                                              )))
+   #:field (list (make-field-element
+                  #:element (make-transition #:type 'composite
+                                             #:source "10%/10%:15%x15%")
+                  #:track 0
+                  #:track-2 1)))
   #:target (make-consumer)))
 
 #;
@@ -400,6 +389,7 @@
                                                                  #:prop (hash "av.duration" 100))))
             #:target (make-consumer)))
 
+#;
 (render
  (make-link #:source (make-producer #:type 'loader
                                     #:source "pango"
