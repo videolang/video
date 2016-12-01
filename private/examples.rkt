@@ -199,30 +199,29 @@
   #:target (make-consumer)))
 
 #;
-(render
- (make-link
-  #:source
-  (make-tractor
-   #:multitrack
-   (make-multitrack
-    #:tracks (list (make-producer #:source demo #:tag 'demo-reel)
-                   (make-producer #:source "pixbuf:/Users/leif/logo.png"
-                                  #:prop (hash "in" 0
-                                               "out" (λ ()
-                                                       (floor
-                                                        (/ (properties-ref (find-tag 'demo-reel)
-                                                                           "length"
-                                                                           'mlt-position)
-                                                           10)))))))
-   #:field (make-field
-            #:field-elements
-            (list (make-field-element
-                   #:element (make-transition #:type 'composite
-                                              #:source "10%/10%:15%x15%")
-                   #:track 0
-                   #:track-2 1))))
-  #:target (make-consumer)))
-
+(let ()
+  (define demo-reel
+    (make-producer #:source demo))
+  (render
+   (make-link
+    #:source
+    (make-multitrack
+     #:tracks (list demo-reel
+                    (make-producer #:source "pixbuf:/Users/leif/logo.png"
+                                   #:prop (hash "in" 0
+                                                "out" (let ()
+                                                        (floor
+                                                         (/ (properties-ref demo-reel
+                                                                            "length"
+                                                                            'mlt-position)
+                                                            10))))))
+     #:field
+     (list (make-field-element
+            #:element (make-transition #:type 'composite
+                                       #:source "10%/10%:15%x15%")
+            #:track 0
+            #:track-2 1)))
+   #:target (make-consumer))))
 
 #;
 (render

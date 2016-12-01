@@ -14,21 +14,6 @@
 
 (define profile (mlt-profile-init #f))
 
-;; Tests to see if v is a thunk
-;; Any -> Boolean
-(define (thunk? v)
-  (and (procedure? v)
-       (procedure-arity-includes? v 0)))
-
-;; Runs a think to its value, if resulting value
-;;   is also a thunk it is also applied until a non-thunk
-;;   value is returned
-;; Any -> Any
-(define (run-to-value v)
-  (cond
-    [(thunk? v) (run-to-value (v))]
-    [else v]))
-
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
 ;; Service -> _mlt-service
@@ -60,8 +45,7 @@
   (define mlt-object (video-mlt-object video))
   ;; Set properties
   (when (properties? video)
-    (for ([(k v-raw) (in-dict (properties-prop video))])
-      (define v (run-to-value v-raw))
+    (for ([(k v) (in-dict (properties-prop video))])
       (cond
         [(integer? v) (mlt-properties-set-int64 mlt-object k v)]
         [(real? v) (mlt-properties-set-double mlt-object k v)]
@@ -204,7 +188,7 @@
        (mlt-playlist-append playlist* i*)]
       [(struct* transition ()) (void)] ;; Must be handled after clips are added
       [(struct* blank ([length length]))
-       (mlt-playlist-blank playlist* (run-to-value length))]
+       (mlt-playlist-blank playlist* length)]
       [_ (error 'playlist "Not a playlist element: ~a" i)]))
   (for ([e (in-list elements)]
         [i (in-naturals)])
@@ -238,13 +222,11 @@
                                [track track]
                                [track-2 track-2]))
        (define element* (video-mlt-object element))
-       (define track* (run-to-value track))
-       (define track-2* (run-to-value track-2))
        (cond
          [(transition? element)
-          (mlt-field-plant-transition field* element* track* track-2*)]
+          (mlt-field-plant-transition field* element* track track-2)]
          [(filter? element)
-          (mlt-field-plant-filter field* element* track*)])]))
+          (mlt-field-plant-filter field* element* track)])]))
   (register-mlt-close mlt-field-close field*)
   tractor*)
 
