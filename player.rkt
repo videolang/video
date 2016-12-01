@@ -27,7 +27,6 @@
       (make-link #:source v
                  #:target (make-consumer)))
     (define internal-video (video->internal-video video))
-    (convert-to-mlt! internal-video)
     (define/public (get-video-length)
       (producer-length video))
     (define/public (play)
@@ -63,7 +62,6 @@
          (stop)
          (set! video v)
          (set! internal-video (video->internal-video v))
-         (convert-to-mlt! internal-video)
          (seek 0)
          (set-speed 1)
          (update-seek-bar-and-labels))))

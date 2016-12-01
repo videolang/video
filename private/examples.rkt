@@ -370,12 +370,11 @@
   #:source (make-producer #:source "/Users/leif/demo.pdf")
   #:target (make-consumer)))
 
-#;
+#|
 (define vp
   (new video-player%
          [video (make-producer #:source demo)]))
 
-#|
 (send vp show #t)
 (send vp play)
 (send vp set-video (make-producer #:source demo))

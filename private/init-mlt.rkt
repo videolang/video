@@ -21,7 +21,6 @@
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))
-#;
 (void
  (thread
   (λ ()
@@ -32,5 +31,5 @@
 ;; For convience, return the mlt-object when done
 ;; (_mlt-properties -> any) _mlt-properties -> _mlt-properties
 (define (register-mlt-close proc v)
-  ;(will-register mlt-executor v (λ (v) (proc v)))
+  (will-register mlt-executor v (λ (v) (proc v)))
   v)
