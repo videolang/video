@@ -12,3 +12,7 @@
 (define pkg-desc "Description Here")
 (define version "0.0")
 (define pkg-authors '(leif))
+(define raco-commands '(("video"
+                         (submod video/raco main)
+                         "Preview or Render a Racket Video"
+                         #f)))

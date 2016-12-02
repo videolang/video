@@ -70,22 +70,8 @@
   (when (producer? video)
     (mlt-producer-optimise (video-mlt-object video))))
 
-;; Video tag
-(define (tag-video v tag)
-  (set-add! (video-tag v) tag)
-  v)
-(define (find-tag v tag)
-  (if (set-member? (video-tag v) tag)
-      v
-      (match v
-        [(struct* link ([source source]
-                        [target target]))
-         (or (find-tag source) (find-tag target))]
-        [else (error 'find-tag "Not currently supported for video type: ~a" v)])))
-
 ;; Predicate table for determining types
 (define global-struct-type-predicate-table '())
-
 
 ;; Constructor for video objects
 (define-syntax subclass-empty '(() . ()))

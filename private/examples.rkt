@@ -209,12 +209,11 @@
      #:tracks (list demo-reel
                     (make-producer #:source "pixbuf:/Users/leif/logo.png"
                                    #:prop (hash "in" 0
-                                                "out" (let ()
-                                                        (floor
+                                                "out" (floor
                                                          (/ (properties-ref demo-reel
                                                                             "length"
                                                                             'mlt-position)
-                                                            10))))))
+                                                            10)))))
      #:field
      (list (make-field-element
             #:element (make-transition #:type 'composite

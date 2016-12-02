@@ -11,7 +11,6 @@
                     video/render
                     video/player
                     video/init
-                    video/tag
                     video/lib]]
 
 @title{Video Language}
@@ -336,14 +335,6 @@ here. Examples are found in @tt{private/examples.rkt}.
 @defstruct*[(field-element video) ([element (or/c transition? filter? #f)]
                                    [track (or/c exact-nonnegative-integer? #f)]
                                    [track-2 (or/c exact-nonnegative-integer? #f)])]
-
-@section{Tagging Videos}
-@defmodule[video/tag]
-@defproc[(tag-video [video video?] [tag any/c])
-         video?]
-
-@defproc[(find-tag [video video?] [tag any/c])
-         video?]
 
 @section{Video Lib}
 @defmodule[video/lib]
