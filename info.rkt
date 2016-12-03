@@ -3,6 +3,7 @@
 (define deps '("base"
                "rackunit-lib"
                "gui-lib"
+               "draw-lib"
                "images-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"

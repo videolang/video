@@ -2,9 +2,10 @@
 
 (provide (except-out (all-from-out racket/base) #%module-begin)
          (rename-out [~module-begin #%module-begin])
-         (all-from-out video/core))
+         (all-from-out video/base))
 
 (require video/core
+         video/base
          (for-syntax racket/base
                      racket/syntax
                      syntax/parse
