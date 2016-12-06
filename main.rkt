@@ -4,7 +4,7 @@
          (rename-out [~module-begin #%module-begin])
          (all-from-out video/base))
 
-(require video/core
+(require (prefix-in core: video/core)
          video/base
          (for-syntax racket/base
                      racket/syntax
@@ -21,9 +21,7 @@
   (syntax-parse stx
     [(_ id:id post-process exprs)
      #`(begin
-         (define id (make-playlist
-                     #:elements
-                     (post-process (list . #,(reverse (syntax->list #'exprs))))))
+         (define id (render (post-process (list . #,(reverse (syntax->list #'exprs))))))
          (provide id))]
     [(_ id:id post-process exprs . body)
      (syntax-parse #'body
@@ -52,3 +50,6 @@
           [_
            #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
         
+
+(define (render videos)
+  (core:make-playlist #:elements videos))
