@@ -5,9 +5,9 @@
 
 ;; Uncomment the test you wish to use
 
-(require "../../render.rkt"
-         "../video.rkt"
-         "../../player.rkt")
+(require "../render.rkt"
+         "video.rkt"
+         "../player.rkt")
 
 ;; Some constants that rely on files in my hard drive
 ;; change them for your own tests
