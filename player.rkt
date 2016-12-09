@@ -7,6 +7,7 @@
          images/icons/style
          images/icons/control
          ffi/unsafe/atomic
+         file/convertible
          "render.rkt"
          "lib.rkt"
          "private/mlt.rkt" ; :(, we should remove this
@@ -27,34 +28,36 @@
       (make-link #:source v
                  #:target (make-consumer)))
     (define internal-video (video->internal-video video))
+    (define video-mlt (convert video 'mlt))
+    (define internal-video-mlt (convert video 'mlt))
     (define/public (get-video-length)
       (producer-length video))
     (define/public (play)
-      (define v (video-mlt-object internal-video))
+      (define v internal-video-mlt)
       (when (mlt-consumer-is-stopped v)
-        (mlt-consumer-start (video-mlt-object internal-video)))
-      (mlt-producer-set-speed (video-mlt-object video) 1.0))
+        (mlt-consumer-start internal-video-mlt))
+      (mlt-producer-set-speed video-mlt 1.0))
     (define/public (is-stopped?)
-      (mlt-consumer-is-stopped (video-mlt-object internal-video)))
+      (mlt-consumer-is-stopped internal-video-mlt))
     (define/public (pause)
       (set-speed 0))
     (define/public (stop)
-      (mlt-consumer-stop (video-mlt-object internal-video)))
+      (mlt-consumer-stop internal-video-mlt))
     (define/public (seek frame)
       (define frame* (max 0 (inexact->exact (round frame))))
-      (mlt-producer-seek (video-mlt-object video) frame*)
+      (mlt-producer-seek video-mlt frame*)
       (update-seek-bar-and-labels))
     (define/public (set-speed speed)
       (define speed* (exact->inexact speed))
-      (mlt-producer-set-speed (video-mlt-object video) speed*))
+      (mlt-producer-set-speed video-mlt speed*))
     (define/public (rewind)
       (set-speed -5))
     (define/public (fast-forward)
       (set-speed 5))
     (define/public (get-position)
-      (mlt-producer-position (video-mlt-object video)))
+      (mlt-producer-position video-mlt))
     (define/public (get-fps)
-      (mlt-producer-get-fps (video-mlt-object video)))
+      (mlt-producer-get-fps video-mlt))
     (define/public (set-video v)
       ;; Really should be atomic.... :/
       (call-as-atomic
@@ -62,6 +65,8 @@
          (stop)
          (set! video v)
          (set! internal-video (video->internal-video v))
+         (set! video-mlt (convert video 'mlt))
+         (set! internal-video (convert internal-video 'mlt))
          (seek 0)
          (set-speed 1)
          (update-seek-bar-and-labels))))

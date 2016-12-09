@@ -5,9 +5,9 @@
 
 ;; Uncomment the test you wish to use
 
-(require "../render.rkt"
-         "video.rkt"
-         "../player.rkt")
+(require "../../render.rkt"
+         "../video.rkt"
+         "../../player.rkt")
 
 ;; Some constants that rely on files in my hard drive
 ;; change them for your own tests
@@ -19,10 +19,7 @@
 (define pdf "/Users/leif/demo.pdf")
 
 ;; A simple HELLO world MLT program that renders the demo file
-#;
-(render
- (make-link #:source (make-producer #:source demo)
-            #:target (make-consumer)))
+(render (make-producer #:source demo))
 
 ;; Simple example of a more complex setup, with a video
 ;;  Passed into a grayscale filter, and then played

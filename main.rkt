@@ -5,7 +5,11 @@
          (all-from-out video/base))
 
 (require (prefix-in core: video/core)
+         (except-in video/core blank)
          video/base
+         racket/list
+         (except-in pict clip frame blank)
+         racket/draw
          (for-syntax racket/base
                      racket/syntax
                      syntax/parse
@@ -49,7 +53,17 @@
            #`(begin #,expanded (video-begin id post-process exprs . body))]
           [_
            #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
-        
 
 (define (render videos)
-  (core:make-playlist #:elements videos))
+  (define videos*
+    (append*
+     (for/list ([v videos])
+       (cond
+         [(producer? v)
+          (list v)]
+         [(list? v)
+          (map render v)]
+         [(pict? v)
+          (error "TODO")]
+         [else (error "Unkown type")]))))
+  (core:make-playlist #:elements videos*))
