@@ -11,7 +11,8 @@
 
 (define video-editor%
   (class pasteboard%
-    (init-field [track-height 100])
+    (init-field [track-height 200]
+                [draw-background? #t])
     (super-new)
     (define adjusting-clip? #f)
     (match-define-values (track-width _) (send this get-max-view-size))
@@ -44,17 +45,21 @@
          (λ () (set! adjusting-clip? #f)))))
 
     (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
-      (when before?
+      (when (and before? draw-background?)
+        (define-values (local-dx local-dy)
+          (send this dc-location-to-editor-location dx dy))
+        (define-values (local-0x local-0y)
+          (send this dc-location-to-editor-location 0 0))
         (define-values (width height)
           (send this get-max-view-size))
         (unless (= width track-width)
           (set! track-width width)
           (update-track-pict!))
         (for ([i (in-naturals)]
-              #:break (>= (+ (* i track-height) dy) height))
-          (send dc draw-bitmap track-pict 0 (+ (* i track-height) dy)))
+              #:break (>= (+ (* i track-height) local-dy) height))
+          (send dc draw-bitmap track-pict (- local-0x) (- (+ (* i track-height) local-dy) local-0y)))
         (define possible-ruler-length
-          (- width dx))
+          (- width local-dx))
         (void))) ;; TODO: Draw frames
 
     (define/augment (on-insert snip before x y)
@@ -87,12 +92,17 @@
                              (make-object editor-snip% pb)
                              x
                              (round-to-nearest-track y))
-                                              (define t (new text%))
+                       (define t (new text%))
                        (send t set-max-undo-history 100)
                        (send t insert "Hello World")
 
                        (send pb insert (make-object editor-snip% t) 0 0)
                        )])
+      (new menu-item%
+           [parent p]
+           [label "Delete Video"]
+           [callback (λ (item event)
+                       (void))])
       p)
 
     (define/override (on-default-event event)
