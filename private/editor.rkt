@@ -54,7 +54,7 @@
       (let* ([acc (min n (* (- (gvector-count tracks) 1) track-height))]
              [acc (max acc 0)]
              [acc (/ acc track-height)]
-             [acc (round acc)])
+             [acc (floor acc)])
         acc))
 
     ;; Determine the pixel position of an object given
@@ -83,7 +83,6 @@
          (λ ()
            (define track (position->track y))
            (move-video-to-track s track x)
-           (displayln tracks)
            (send this move-to s x (track->position track)))
          (λ () (set! adjusting-clip? #f)))))
 
@@ -110,6 +109,20 @@
       (gvector-add! tracks (make-hasheq))
       (send this set-min-height (* (gvector-count tracks) track-height))
       
+      (send this invalidate-bitmap-cache))
+
+    ;; Delete all snips in the current track, and move all snips below it up one
+    ;; Integer -> Void
+    (define (delete-track track#)
+      (define track (gvector-ref tracks track#))
+      (for ([vid (in-list (hash-keys snip-table))])
+        (define t (hash-ref snip-table vid))
+        (when (= t track#)
+          (send this delete vid))
+        (when (> t track#)
+          (hash-update! snip-table vid sub1)
+          (send this move vid 0 (- track-height))))
+      (gvector-remove! tracks track#)
       (send this invalidate-bitmap-cache))
 
     (define/augment (on-insert snip before x y)
@@ -147,7 +160,8 @@
            [parent p]
            [label "Delete Track"]
            [callback (λ (item event)
-                       (error "TODO"))])
+                       (define current-track (position->track y))
+                       (delete-track current-track))])
       (new separator-menu-item% [parent p])
       (new menu-item%
            [parent p]
