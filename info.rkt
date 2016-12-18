@@ -5,6 +5,8 @@
                "gui-lib"
                "draw-lib"
                "images-lib"
+               "drracket-plugin-lib"
+               "data-lib"
                "pict-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
@@ -18,3 +20,7 @@
                          (submod video/raco main)
                          "Preview or Render a Racket Video"
                          #f)))
+
+(define drracket-tools '(("private/tool.rkt")))
+(define drracket-tool-names '("Video"))
+(define drracket-tool-icons '(#f))

@@ -12,9 +12,10 @@
 
 (define video-editor%
   (class pasteboard%
-    (init-field [track-height 200]
+    (init-field [track-height 100]
                 [draw-background? #t]
-                [initial-tracks 3])
+                [minimum-width 200]
+                [initial-tracks 2])
     (super-new)
     (define adjusting-clip? #f)
     (match-define-values (track-width _) (send this get-max-view-size))
@@ -30,8 +31,8 @@
     ;; GVector[Hash[Snip, (start)Integer]]
     (define tracks (vector->gvector (build-vector initial-tracks
                                                   (λ (i) (make-hasheq)))))
-
     (send this set-min-height (* (gvector-count tracks) track-height))
+    (send this set-min-width minimum-width)
 
     ;; -> Void
     (define (update-track-pict!)
@@ -54,7 +55,8 @@
       (let* ([acc (min n (* (- (gvector-count tracks) 1) track-height))]
              [acc (max acc 0)]
              [acc (/ acc track-height)]
-             [acc (floor acc)])
+             [acc (floor acc)]
+             [acc (inexact->exact acc)])
         acc))
 
     ;; Determine the pixel position of an object given
@@ -108,7 +110,6 @@
     (define (add-track)
       (gvector-add! tracks (make-hasheq))
       (send this set-min-height (* (gvector-count tracks) track-height))
-      
       (send this invalidate-bitmap-cache))
 
     ;; Delete all snips in the current track, and move all snips below it up one
@@ -123,6 +124,7 @@
           (hash-update! snip-table vid sub1)
           (send this move vid 0 (- track-height))))
       (gvector-remove! tracks track#)
+      (send this set-min-height (* (gvector-count tracks) track-height))
       (send this invalidate-bitmap-cache))
 
     (define/augment (on-insert snip before x y)
@@ -216,6 +218,8 @@
                  local-x local-y))]
         [_ (super on-default-event event)]))))
 
+
+
 (define video:text%
   (class racket:text%
     (init-field [track-height 100])
@@ -256,4 +260,11 @@
            (send admin popup-menu
                  (make-right-click-menu local-x local-y)
                  local-x local-y))]
-        [_ (super on-event event)]))))
+        [_ (super on-event event)]))
+
+    (define/override (copy-self-to dest)
+      ;(super copy-self-to dest)
+      (displayln "WOOT"))
+
+    (define/override (do-copy time extend?)
+      (displayln "OH"))))
