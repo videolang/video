@@ -25,7 +25,7 @@
   (syntax-parse stx
     [(_ id:id post-process exprs)
      #`(begin
-         (define id (render (post-process (list . #,(reverse (syntax->list #'exprs))))))
+         (define id (post-process (list . #,(reverse (syntax->list #'exprs)))))
          (provide id))]
     [(_ id:id post-process exprs . body)
      (syntax-parse #'body
@@ -53,17 +53,3 @@
            #`(begin #,expanded (video-begin id post-process exprs . body))]
           [_
            #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
-
-(define (render videos)
-  (define videos*
-    (append*
-     (for/list ([v videos])
-       (cond
-         [(producer? v)
-          (list v)]
-         [(list? v)
-          (map render v)]
-         [(pict? v)
-          (error "TODO")]
-         [else (error "Unkown type")]))))
-  (core:make-playlist #:elements videos*))
