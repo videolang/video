@@ -1,11 +1,12 @@
 #lang racket/base
 
-(provide video-editor%)
+(provide (all-defined-out))
 (require data/gvector
          racket/class
          racket/gui/base
          racket/match
          racket/list
+         racket/format
          pict
          framework
          images/icons/style)
@@ -248,8 +249,21 @@
         (set-field! tracks dest (vector->gvector (gvector->vector tracks)))
         (send dest set-min-height (* (gvector-count tracks) track-height))
         (send dest set-min-width minimum-width)
-        (send dest invalidate-bitmap-cache)))))
+        (send dest invalidate-bitmap-cache))
 
+      (define/override (get-snip-data snip)
+        (define sup (super get-snip-data snip))
+        (define data (new video-editor-data%))
+        (send data set-next sup)
+        data)
+
+      (define/override (set-snip-data name data)
+        (let loop ([data data])
+          (when data
+            (define data-class (send data get-dataclass))
+            (when (equal? data video-data-class-name)
+              (displayln "Yay?"))
+            (loop (send data get-next))))))))
 
 (define video:text%
   (class racket:text%
@@ -292,3 +306,22 @@
                  (make-right-click-menu local-x local-y)
                  local-x local-y))]
         [_ (super on-event event)]))))
+
+(define video-data-class-name "wxvid")
+
+(define video-editor-data%
+  (class editor-data%
+    (inherit set-dataclass)
+    (super-new)
+    (set-dataclass video-editor-data-class)
+    (define/override (write f)
+      #t)))
+
+(define video-editor-data-class%
+  (class editor-data-class%
+    (inherit set-classname)
+    (super-new)
+    (set-classname video-data-class-name)))
+
+(define video-editor-data-class
+  (new video-editor-data-class%))
