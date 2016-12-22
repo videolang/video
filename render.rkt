@@ -47,7 +47,7 @@
          [width width]
          [height height]
          [fps fps]))
-  (let* ([res (send renderer setup-profile!)]
+  (let* ([res (send renderer setup-profile)]
          [res (send renderer prepare video)]
          [res (send renderer render res)]
          [res (send renderer play res timeout)])
@@ -69,7 +69,7 @@
       (begin0 (format "resource~a" res-counter)
               (set! res-counter (add1 res-counter))))
               
-    (define/public (setup-profile!)
+    (define/public (setup-profile)
       (define fps* (rationalize (inexact->exact fps) 1/1000000))
       (set-mlt-profile-width! profile width)
       (set-mlt-profile-height! profile height)
