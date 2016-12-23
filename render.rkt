@@ -5,7 +5,7 @@
          racket/dict
          racket/class
          racket/file
-         file/convertible
+         (prefix-in file: file/convertible)
          (only-in pict pict? pict->bitmap)
          "private/init-mlt.rkt"
          "init.rkt"
@@ -19,7 +19,7 @@
 (provide
  (contract-out
   ;; Render a video object (including the links
-  [render (->* [convertible?]
+  [render (->* [any/c]
                [(or/c path-string? path? #f)
                 #:render-mixin (-> class? class?)
                 #:profile-name (or/c string? #f)
@@ -77,21 +77,19 @@
       (set-mlt-profile-frame-rate-num! profile (numerator fps*)))
     
     (define/public (prepare source)
-      (cond
-        [(list? source)
-         (convert
-          (make-playlist #:elements (for/list ([i (in-list source)])
-                                      (prepare i)))
-          'mlt)]
-        [(pict? source)
-         (define pict-name
+      (parameterize ([current-renderer this])
+        (cond
+          [(list? source)
+           (prepare (make-playlist #:elements source))]
+          [(pict? source)
+           (define pict-name
            (build-path dest-dir (get-current-filename)))
-         (send (pict->bitmap source) save-file pict-name 'png 100)
-         (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
-        [(convertible? source)
-         (define ret (convert source 'mlt))
-         (or ret (error "Not convertible to video data"))]
-        [else (raise-user-error 'render "~a is not convertible" source)]))
+           (send (pict->bitmap source) save-file pict-name 'png 100)
+           (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
+          [(file:convertible? source)
+           (define ret (file:convert source 'mlt))
+           (or ret (error "Not convertible to video data"))]
+          [else (raise-user-error 'render "~a is not convertible" source)])))
 
     (define/public (render source)
       (mlt-*-connect (make-consumer) source))
@@ -104,3 +102,8 @@
           (mlt-consumer-stop target))
         (unless (mlt-consumer-is-stopped target)
           (loop (and timeout (sub1 timeout))))))))
+
+;; Set the current renderer
+(let ([r (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)])])
+  (send r setup-profile)
+  (current-renderer r))

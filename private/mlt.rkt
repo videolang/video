@@ -319,6 +319,7 @@
                                               -> (begin
                                                    (ret-error v)
                                                    res)))
+(define-mlt* mlt-playlist-service (_fun _mlt-playlist-pointer -> _mlt-service-pointer))
 
 ;; Tractor
 (define-mlt* mlt-tractor-new (_fun -> [v : _mlt-tractor-pointer/null]

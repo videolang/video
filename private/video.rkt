@@ -4,7 +4,9 @@
 (require racket/dict
          racket/match
          racket/set
+         racket/class
          file/convertible
+         (prefix-in file: file/convertible)
          "mlt.rkt"
          "init-mlt.rkt"
          (for-syntax racket/base
@@ -15,6 +17,15 @@
 
 (define profile (mlt-profile-init #f))
 
+;; MUST BE INSTANTIATED WITH A render% OBJECT!
+(define current-renderer (make-parameter #f))
+
+(define (convert source)
+  (define renderer (current-renderer))
+  (unless renderer
+    (error 'current-renderer "No renderer set"))
+  (send renderer prepare source))
+
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
 ;; Service -> _mlt-service
@@ -22,16 +33,21 @@
   (cond
     [(link? video-object)
      (mlt-*-service (link-target video-object))]
-    [(filter? video-object)
-     (mlt-filter-service (convert video-object 'mlt))]
-    [(producer? video-object)
-     (mlt-producer-service (convert video-object 'mlt))]
-    [else (error 'video "Unsupported video: ~a" video-object)]))
+    [else
+     (define video-object* (convert video-object))
+     (cond
+       [(mlt-filter? video-object*)
+        (mlt-filter-service video-object*)]
+       [(mlt-playlist? video-object*)
+        (mlt-playlist-service video-object*)]
+       [(mlt-producer? video-object*)
+        (mlt-producer-service video-object*)]
+       [else (error 'video "Unsupported video: ~a" video-object)])]))
 
 ;; Connect target to source
 ;; Video-Object _mlt-service Integer -> _mlt-consumer
 (define (mlt-*-connect target source-service [index #f])
-  (define target* (convert target 'mlt))
+  (define target* (convert target))
   (cond
     [(consumer? target)
      (mlt-consumer-connect target*
@@ -65,7 +81,7 @@
   ;; Attach filters
   (when (service? video)
     (for ([f (in-list (service-filters video))])
-      (mlt-service-attach mlt-object (convert f 'mlt))))
+      (mlt-service-attach mlt-object (convert f))))
   ;; Optimise if possible
   #;
   (when (producer? video)
@@ -123,7 +139,7 @@
                         [default-type 'string])
   (dict-ref (properties-prop dict) key
             (λ ()
-              (define v (convert dict 'mlt))
+              (define v (convert dict))
               (unless v
                 (error 'properties "MLT object for ~a not created, cannot get default property" dict))
               (match default-type
@@ -163,7 +179,7 @@
 (define-constructor playlist producer ([elements '()])
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
-    (define i* (convert i 'mlt))
+    (define i* (convert i))
     (match i
       [(struct* playlist-producer ([start start]
                                    [end end]))
@@ -181,11 +197,11 @@
       (mlt-playlist-mix playlist*
                         (- i 1)
                         (transition-length e)
-                        (convert e 'mlt))))
+                        (convert e))))
   (register-mlt-close mlt-playlist-close playlist*))
 
 (define-constructor playlist-producer video ([producer #f] [start #f] [end #f])
-  (convert producer 'mlt))
+  (convert producer))
 
 (define-constructor blank video ([length 0]))
 
@@ -194,7 +210,7 @@
   (define multitrack* (mlt-tractor-multitrack tractor*)) ; Multitrack
   (for ([track (in-list tracks)]
         [i (in-naturals)])
-    (define track* (convert track 'mlt))
+    (define track* (convert track))
     (mlt-multitrack-connect multitrack* track* i))
   (register-mlt-close mlt-multitrack-close multitrack*)
   (define field* (mlt-tractor-field tractor*))           ; Field
@@ -203,7 +219,7 @@
       [(struct* field-element ([element element]
                                [track track]
                                [track-2 track-2]))
-       (define element* (convert element 'mlt))
+       (define element* (convert element))
        (cond
          [(transition? element)
           (mlt-field-plant-transition field* element* track track-2)]

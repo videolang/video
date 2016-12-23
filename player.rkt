@@ -7,7 +7,7 @@
          images/icons/style
          images/icons/control
          ffi/unsafe/atomic
-         file/convertible
+         racket/file
          "render.rkt"
          "lib.rkt"
          "private/mlt.rkt" ; :(, we should remove this
@@ -24,12 +24,17 @@
                [stretchable-height #f]
                [min-width 500]
                [min-height 100])
+    (define renderer
+      (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)]))
+    (send renderer setup-profile)
+    (define (convert source)
+      (send renderer prepare source))
     (define (video->internal-video v)
       (make-link #:source v
                  #:target (make-consumer)))
     (define internal-video (video->internal-video video))
-    (define video-mlt (convert video 'mlt))
-    (define internal-video-mlt (convert video 'mlt))
+    (define video-mlt (convert video))
+    (define internal-video-mlt (convert internal-video))
     (define/public (get-video-length)
       (producer-length video))
     (define/public (play)
@@ -65,8 +70,8 @@
          (stop)
          (set! video v)
          (set! internal-video (video->internal-video v))
-         (set! video-mlt (convert video 'mlt))
-         (set! internal-video (convert internal-video 'mlt))
+         (set! video-mlt (convert video))
+         (set! internal-video-mlt (convert internal-video))
          (seek 0)
          (set-speed 1)
          (update-seek-bar-and-labels))))

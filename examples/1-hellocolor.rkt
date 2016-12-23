@@ -1,3 +1,3 @@
 #lang video
 
-(clip "green")
+(color "green")
