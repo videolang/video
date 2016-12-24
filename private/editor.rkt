@@ -250,13 +250,15 @@
         (send dest set-min-height (* (gvector-count tracks) track-height))
         (send dest set-min-width minimum-width)
         (send dest invalidate-bitmap-cache))
-
+      
+      #;
       (define/override (get-snip-data snip)
         (define sup (super get-snip-data snip))
         (define data (new video-editor-data%))
         (send data set-next sup)
         data)
 
+      #;
       (define/override (set-snip-data name data)
         (let loop ([data data])
           (when data
@@ -309,6 +311,7 @@
 
 (define video-data-class-name "wxvid")
 
+#;
 (define video-editor-data%
   (class editor-data%
     (inherit set-dataclass)
@@ -317,11 +320,13 @@
     (define/override (write f)
       #t)))
 
+#;
 (define video-editor-data-class%
   (class editor-data-class%
     (inherit set-classname)
     (super-new)
     (set-classname video-data-class-name)))
 
+#;
 (define video-editor-data-class
   (new video-editor-data-class%))

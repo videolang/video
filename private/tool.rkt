@@ -31,4 +31,4 @@
 
 (drracket:get/extend:extend-unit-frame video-frame-mixin)
 
-(send (get-the-editor-data-class-list) add video-editor-data-class)
+;(send (get-the-editor-data-class-list) add video-editor-data-class)
