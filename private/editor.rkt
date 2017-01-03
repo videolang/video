@@ -1,6 +1,9 @@
 #lang racket/base
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         (rename-out [video-snip-class
+                      snip-class]))
+
 (require data/gvector
          racket/class
          racket/gui/base
@@ -22,7 +25,8 @@
       track-pict
       ruler-height
       snip-table
-      tracks)
+      tracks
+      update-track-pict!)
     (class pasteboard%
       (init-field [track-height 100]
                   [draw-background? #t]
@@ -46,7 +50,7 @@
       (send this set-min-width minimum-width)
 
       ;; -> Void
-      (define (update-track-pict!)
+      (define/public (update-track-pict!)
         (set! track-pict
               (bitmap-render-icon
                (pict->bitmap (filled-rectangle track-width track-height
@@ -151,8 +155,11 @@
         (set-box! h track-height)
         (super interactive-adjust-resize s w h))
 
-      (define (insert-video video track position)
-        (define vid-snip (make-object editor-snip% video))
+      (define/public (insert-video video track position)
+        (define vid-snip
+          (cond [(is-a? video snip%)
+                 video]
+                [else (make-object video-snip% video)]))
         (send this insert vid-snip position (track->position track))
         (move-video-to-track vid-snip track position))
 
@@ -239,33 +246,72 @@
         vid)
 
       (define/override (copy-self-to dest)
-        (super copy-self-to dest)
+        ;(super copy-self-to dest)
         (set-field! track-width dest track-width)
         (set-field! frames-per-pixel dest frames-per-pixel)
         (set-field! line-frequency dest line-frequency)
         (set-field! track-pict dest track-pict)
         (set-field! ruler-height dest ruler-height)
-        (set-field! snip-table dest (hash-copy snip-table))
-        (set-field! tracks dest (vector->gvector (gvector->vector tracks)))
+        (set-field! snip-table dest (make-hasheq))
+        (set-field! tracks dest (vector->gvector (build-vector (gvector-count tracks)
+                                                               (λ (i) (make-hasheq)))))
+        (for ([track (in-gvector tracks)]
+              [i (in-naturals)])
+          (for ([(video start) (in-hash track)])
+            (send dest insert-video (send video copy) i start)))
         (send dest set-min-height (* (gvector-count tracks) track-height))
         (send dest set-min-width minimum-width)
+        (send dest update-track-pict!)
         (send dest invalidate-bitmap-cache))
-      
-      #;
-      (define/override (get-snip-data snip)
-        (define sup (super get-snip-data snip))
-        (define data (new video-editor-data%))
-        (send data set-next sup)
-        data)
 
-      #;
-      (define/override (set-snip-data name data)
-        (let loop ([data data])
-          (when data
-            (define data-class (send data get-dataclass))
-            (when (equal? data video-data-class-name)
-              (displayln "Yay?"))
-            (loop (send data get-next))))))))
+      (define/override (write-to-file str)
+        ;(super write-to-file str)
+        (define (put-exact num)
+          (send str put (inexact->exact num)))
+        (put-exact track-width)
+        (put-exact frames-per-pixel)
+        (put-exact line-frequency)
+        (put-exact ruler-height)
+        (put-exact (hash-count snip-table))
+        (put-exact (gvector-count tracks))
+        (for ([track (in-gvector tracks)]
+              [track# (in-naturals)])
+          (for ([(snip start-time) (in-hash track)])
+            (put-exact track#)
+            (put-exact start-time)
+            (define snipclass (send snip get-snipclass))
+            (define classname (send snipclass get-classname))
+            (send str put (string->bytes/utf-8 classname))
+            (send snip write str)))
+        #t)
+
+      (define/override (read-from-file str [overwrite-style #f])
+        (let/ec return
+          ;(super read-from-file str overwrite-style)
+          (set-field! track-width this (send str get-exact))
+          (set-field! frames-per-pixel this (send str get-exact))
+          (set-field! line-frequency this (send str get-exact))
+          (set-field! ruler-height this (send str get-exact))
+          (define snip-count (send str get-exact))
+          (define track-count (send str get-exact))
+          (set-field! tracks this (vector->gvector
+                                   (build-vector track-count
+                                                 (λ (i) (make-hasheq)))))
+          (set-field! snip-table this (make-hasheq))
+          (for ([i (in-range snip-count)])
+            (define track# (send str get-exact))
+            (define start-time (send str get-exact))
+            (define classname (bytes->string/utf-8 (send str get-bytes)))
+            (define snipclass (send (get-the-snip-class-list) find classname))
+            (unless snipclass
+              (return #f))
+            (define snip (send snipclass read str))
+            (define track (gvector-ref tracks track#))
+            (hash-set! track snip start-time)
+            (hash-set! snip-table snip track#))
+          (update-track-pict!)
+          (send this invalidate-bitmap-cache)
+          #t)))))
 
 (define video:text%
   (class racket:text%
@@ -286,7 +332,7 @@
            [callback (λ (item event)
                        (define pb (new video-editor%
                                        [track-height track-height]))
-                       (send this insert (make-object editor-snip% pb)))])
+                       (send this insert (make-object video-snip% pb)))])
       (new separator-menu-item% [parent p])
       (new menu-item%
            [parent p]
@@ -309,24 +355,33 @@
                  local-x local-y))]
         [_ (super on-event event)]))))
 
-(define video-data-class-name "wxvid")
+(define video-snip-class-name "wxvid")
 
-#;
-(define video-editor-data%
-  (class editor-data%
-    (inherit set-dataclass)
-    (super-new)
-    (set-dataclass video-editor-data-class)
+(define video-snip%
+  (class editor-snip%
+    (init-field [editor #f] [min-width 'none] [min-height 'none])
+    (super-new [editor editor])
+    (send this set-snipclass video-snip-class)
+    (send (get-the-snip-class-list) add video-snip-class)
+
+    (define/override (copy)
+      (define new-editor (send editor copy-self))
+      (define other
+        (new video-snip%
+             [editor (send editor copy-self)]))
+      other)
+    
     (define/override (write f)
-      #t)))
+      (send editor write-to-file f))))
 
-#;
-(define video-editor-data-class%
-  (class editor-data-class%
-    (inherit set-classname)
+(define video-snip-class%
+  (class snip-class%
     (super-new)
-    (set-classname video-data-class-name)))
+    (send this set-classname video-snip-class-name)
+    (define/override (read f)
+      (define vid (new video-editor%))
+      (send vid read-from-file f)
+      (define sn (new video-snip% [editor vid]))
+      sn)))
 
-#;
-(define video-editor-data-class
-  (new video-editor-data-class%))
+(define video-snip-class (new video-snip-class%))
