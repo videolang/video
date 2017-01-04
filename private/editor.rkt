@@ -28,10 +28,10 @@
       tracks
       update-track-pict!)
     (class pasteboard%
-      (init-field [track-height 100]
+      (init-field [track-height 200]
                   [draw-background? #t]
-                  [minimum-width 200]
-                  [initial-tracks 2])
+                  [minimum-width 600]
+                  [initial-tracks 3])
       (super-new)
       (field [adjusting-clip? #f]
              [track-width (let-values ([(w h) (send this get-max-view-size)])
@@ -119,6 +119,17 @@
                   track-pict
                   (- local-0x)
                   (- (+ (* i track-height) local-dy) local-0y)))))
+
+      ;; Set the number of tracks stored in the editor
+      ;; WARNING: WIPES OUT ALL EXISTING CLIPS!
+      (define/public (set-tracks! track-count)
+        (set! snip-table (make-hasheq))
+        (set! tracks (vector->gvector (build-vector
+                                       track-count
+                                       (λ (i) (make-hasheq)))))
+        (send this set-min-height (* (gvector-count tracks) track-height))
+        (send this invalidate-bitmap-cache))
+
 
       ;; Append a new track to the end of the gvector
       ;; -> Void
@@ -246,15 +257,15 @@
         vid)
 
       (define/override (copy-self-to dest)
-        ;(super copy-self-to dest)
+        (super copy-self-to dest)
+        (send dest select-all) ;; hack because this also copies all
+        (send dest clear)      ;;    of our snips
         (set-field! track-width dest track-width)
         (set-field! frames-per-pixel dest frames-per-pixel)
         (set-field! line-frequency dest line-frequency)
         (set-field! track-pict dest track-pict)
         (set-field! ruler-height dest ruler-height)
-        (set-field! snip-table dest (make-hasheq))
-        (set-field! tracks dest (vector->gvector (build-vector (gvector-count tracks)
-                                                               (λ (i) (make-hasheq)))))
+        (send dest set-tracks! (gvector-count tracks))
         (for ([track (in-gvector tracks)]
               [i (in-naturals)])
           (for ([(video start) (in-hash track)])
@@ -265,7 +276,7 @@
         (send dest invalidate-bitmap-cache))
 
       (define/override (write-to-file str)
-        ;(super write-to-file str)
+        (super write-to-file str)
         (define (put-exact num)
           (send str put (inexact->exact num)))
         (put-exact track-width)
@@ -287,17 +298,14 @@
 
       (define/override (read-from-file str [overwrite-style #f])
         (let/ec return
-          ;(super read-from-file str overwrite-style)
+          (super read-from-file str overwrite-style)
           (set-field! track-width this (send str get-exact))
           (set-field! frames-per-pixel this (send str get-exact))
           (set-field! line-frequency this (send str get-exact))
           (set-field! ruler-height this (send str get-exact))
           (define snip-count (send str get-exact))
           (define track-count (send str get-exact))
-          (set-field! tracks this (vector->gvector
-                                   (build-vector track-count
-                                                 (λ (i) (make-hasheq)))))
-          (set-field! snip-table this (make-hasheq))
+          (set-tracks! track-count)
           (for ([i (in-range snip-count)])
             (define track# (send str get-exact))
             (define start-time (send str get-exact))
@@ -359,8 +367,26 @@
 
 (define video-snip%
   (class editor-snip%
-    (init-field [editor #f] [min-width 'none] [min-height 'none])
-    (super-new [editor editor])
+    (init-field [editor #f]
+                [with-border? #t]
+                [left-margin 5]
+                [top-margin 5]
+                [right-margin 5]
+                [bottom-margin 5]
+                [left-inset 1]
+                [top-inset 1]
+                [right-inset 1]
+                [bottom-inset 1]
+                [min-width 'none]
+                [max-width 'none]
+                [min-height 'none]
+                [max-height 'none])
+    (super-make-object editor
+                       with-border?
+                       left-margin top-margin right-margin bottom-margin
+                       left-inset top-inset right-inset bottom-inset
+                       min-width max-width
+                       min-height max-height)
     (send this set-snipclass video-snip-class)
     (send (get-the-snip-class-list) add video-snip-class)
 
@@ -372,6 +398,23 @@
       other)
     
     (define/override (write f)
+      (if with-border? (send f put 1) (send f put 0))
+      (send f put left-margin)
+      (send f put top-margin)
+      (send f put right-margin)
+      (send f put bottom-margin)
+      (send f put left-inset)
+      (send f put top-inset)
+      (send f put right-inset)
+      (send f put bottom-inset)
+      (define (maybe-put num)
+        (if (eq? num 'none)
+            (send f put -1)
+            (send f put num)))
+      (maybe-put min-width)
+      (maybe-put max-width)
+      (maybe-put min-height)
+      (maybe-put max-height)
       (send editor write-to-file f))))
 
 (define video-snip-class%
@@ -380,8 +423,30 @@
     (send this set-classname video-snip-class-name)
     (define/override (read f)
       (define vid (new video-editor%))
+      (define with-border? (= (send f get-exact) 1))
+      (define left-margin (send f get-exact))
+      (define top-margin (send f get-exact))
+      (define right-margin (send f get-exact))
+      (define bottom-margin (send f get-exact))
+      (define left-inset (send f get-exact))
+      (define top-inset (send f get-exact))
+      (define right-inset (send f get-exact))
+      (define bottom-inset (send f get-exact))
+      (define (maybe-get-exact)
+        (define v (send f get-exact))
+        (if (negative? v) 'none v))
+      (define min-width (maybe-get-exact))
+      (define max-width (maybe-get-exact))
+      (define min-height (maybe-get-exact))
+      (define max-height (maybe-get-exact))
       (send vid read-from-file f)
-      (define sn (new video-snip% [editor vid]))
+      (define sn (make-object video-snip%
+                   vid
+                   with-border?
+                   left-margin top-margin right-margin bottom-margin
+                   left-inset top-inset right-inset bottom-inset
+                   min-width max-width
+                   min-height max-height))
       sn)))
 
 (define video-snip-class (new video-snip-class%))
