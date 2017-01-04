@@ -14,6 +14,10 @@
          framework
          images/icons/style)
 
+(struct video-prop (start
+                    length)
+  #:transparent)
+
 (define video-editor%
   (let ()
     (define-local-member-name
@@ -31,7 +35,8 @@
       (init-field [track-height 150]
                   [draw-background? #t]
                   [minimum-width 600]
-                  [initial-tracks 3])
+                  [initial-tracks 3]
+                  [initial-snip-length 100])
       (super-new)
       (field [adjusting-clip? #f]
              [track-width (let-values ([(w h) (send this get-max-view-size)])
@@ -43,7 +48,7 @@
              [ruler-height 100]
              ;; Hash[Snip, (track)Integer]
              [snip-table (make-hasheq)]
-             ;; GVector[Hash[Snip, (start)Integer]]
+             ;; GVector[Hash[Snip, VideoProp[(start)Integer, (length)Integer]]
              [tracks (vector->gvector (build-vector initial-tracks
                                                     (λ (i) (make-hasheq))))])
       (send this set-min-height (* (gvector-count tracks) track-height))
@@ -82,16 +87,28 @@
 
       ;; Update the internal representation of the editor
       ;;   to move a video to the correct track
-      ;; Snip% Integer Integer -> Void
-      (define (move-video-to-track video track#* position)
+      ;; Snip% Integer (U Integer #f) (U Integer #f) -> Void
+      (define (move-video-to-track video track#* [position #f] [length #f])
         (define track# (inexact->exact track#*))
         (define current-track# (hash-ref snip-table video #f))
         (when current-track#
           (define current-track (gvector-ref tracks current-track#))
+          (define current-prop (hash-ref current-track video))
+          (unless position
+            (set! position (video-prop-start current-prop)))
+          (unless length
+            (set! length (video-prop-length current-prop)))
           (hash-remove! current-track video))
         (hash-set! snip-table video track#)
         (define new-track (gvector-ref tracks track#))
-        (hash-set! new-track video position))
+        (hash-set! new-track video (video-prop position length)))
+
+      (define/augment (after-resize s w h r?)
+        (when r?
+          (define track# (hash-ref snip-table s))
+          (define track (gvector-ref tracks track#))
+          (define start-time (video-prop-start (hash-ref track s)))
+          (hash-set! track s (video-prop start-time w))))
       
       (define/augment (after-move-to s x y d)
         (unless (or d adjusting-clip?)
@@ -166,13 +183,16 @@
         (set-box! h track-height)
         (super interactive-adjust-resize s w h))
 
-      (define/public (insert-video video track position)
+      ;; Insert a video into the track
+      ;; (U VideoSnip ViedoEditor) Integer Integer Integer -> Void
+      (define/public (insert-video video track position length)
         (define vid-snip
           (cond [(is-a? video snip%)
                  video]
                 [else (make-object video-snip% video)]))
+        (move-video-to-track vid-snip track position length)
         (send this insert vid-snip position (track->position track))
-        (move-video-to-track vid-snip track position))
+        (send this resize vid-snip length track-height))
 
       (define (make-right-click-menu x y)
         (define p (new popup-menu%))
@@ -206,15 +226,16 @@
                          (define t (new video:text%
                                         [track-height track-height]))
                          (send t set-max-undo-history 100)
-                         (insert-video t (position->track y) x))])
+                         (insert-video t (position->track y) x initial-snip-length))])
         (new menu-item%
              [parent p]
              [label "Insert Graphical"]
              [callback (λ (item event)
                          (define pb (new video-editor%
                                          [track-height (/ track-height initial-tracks)]
-                                         [initial-tracks initial-tracks]))
-                         (insert-video pb (position->track y) x))])
+                                         [initial-tracks initial-tracks]
+                                         [initial-snip-length (/ initial-snip-length initial-tracks)]))
+                         (insert-video pb (position->track y) x initial-snip-length))])
         (new separator-menu-item% [parent p])
         (new menu-item%
              [parent p]
@@ -270,8 +291,10 @@
         (send dest set-tracks! (gvector-count tracks))
         (for ([track (in-gvector tracks)]
               [i (in-naturals)])
-          (for ([(video start) (in-hash track)])
-            (send dest insert-video (send video copy) i start)))
+          (for ([(video vprop) (in-hash track)])
+            (define start (video-prop-start vprop))
+            (define length (video-prop-length vprop))
+            (send dest insert-video (send video copy) i start length)))
         (send dest update-track-pict!)
         (send dest invalidate-bitmap-cache))
 
@@ -288,9 +311,10 @@
         (put-exact (gvector-count tracks))
         (for ([track (in-gvector tracks)]
               [track# (in-naturals)])
-          (for ([(snip start-time) (in-hash track)])
+          (for ([(snip vprop) (in-hash track)])
             (put-exact track#)
-            (put-exact start-time)
+            (put-exact (video-prop-start vprop))
+            (put-exact (video-prop-length vprop))
             (define snipclass (send snip get-snipclass))
             (define classname (send snipclass get-classname))
             (send str put (string->bytes/utf-8 classname))
@@ -311,14 +335,13 @@
           (for ([i (in-range snip-count)])
             (define track# (send str get-exact))
             (define start-time (send str get-exact))
+            (define length (send str get-exact))
             (define classname (bytes->string/utf-8 (send str get-bytes)))
             (define snipclass (send (get-the-snip-class-list) find classname))
             (unless snipclass
               (return #f))
             (define snip (send snipclass read str))
-            (define track (gvector-ref tracks track#))
-            (hash-set! track snip start-time)
-            (hash-set! snip-table snip track#))
+            (insert-video snip track# start-time length))
           (update-track-pict!)
           (send this invalidate-bitmap-cache)
           #t)))))
