@@ -28,7 +28,7 @@
       tracks
       update-track-pict!)
     (class pasteboard%
-      (init-field [track-height 200]
+      (init-field [track-height 150]
                   [draw-background? #t]
                   [minimum-width 600]
                   [initial-tracks 3])
@@ -212,7 +212,8 @@
              [label "Insert Graphical"]
              [callback (λ (item event)
                          (define pb (new video-editor%
-                                         [track-height (/ track-height 4)]))
+                                         [track-height (/ track-height initial-tracks)]
+                                         [initial-tracks initial-tracks]))
                          (insert-video pb (position->track y) x))])
         (new separator-menu-item% [parent p])
         (new menu-item%
@@ -265,13 +266,12 @@
         (set-field! line-frequency dest line-frequency)
         (set-field! track-pict dest track-pict)
         (set-field! ruler-height dest ruler-height)
+        (set-field! track-height dest track-height)
         (send dest set-tracks! (gvector-count tracks))
         (for ([track (in-gvector tracks)]
               [i (in-naturals)])
           (for ([(video start) (in-hash track)])
             (send dest insert-video (send video copy) i start)))
-        (send dest set-min-height (* (gvector-count tracks) track-height))
-        (send dest set-min-width minimum-width)
         (send dest update-track-pict!)
         (send dest invalidate-bitmap-cache))
 
@@ -283,6 +283,7 @@
         (put-exact frames-per-pixel)
         (put-exact line-frequency)
         (put-exact ruler-height)
+        (put-exact track-height)
         (put-exact (hash-count snip-table))
         (put-exact (gvector-count tracks))
         (for ([track (in-gvector tracks)]
@@ -303,6 +304,7 @@
           (set-field! frames-per-pixel this (send str get-exact))
           (set-field! line-frequency this (send str get-exact))
           (set-field! ruler-height this (send str get-exact))
+          (set-field! track-height this (send str get-exact))
           (define snip-count (send str get-exact))
           (define track-count (send str get-exact))
           (set-tracks! track-count)
@@ -393,8 +395,13 @@
     (define/override (copy)
       (define new-editor (send editor copy-self))
       (define other
-        (new video-snip%
-             [editor (send editor copy-self)]))
+        (make-object video-snip%
+             (send editor copy-self)
+                   with-border?
+                   left-margin top-margin right-margin bottom-margin
+                   left-inset top-inset right-inset bottom-inset
+                   min-width max-width
+                   min-height max-height))
       other)
     
     (define/override (write f)
