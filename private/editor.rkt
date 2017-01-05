@@ -22,7 +22,7 @@
   (let ()
     (define-local-member-name
       adjusting-clip?
-      track-wdith
+      track-width
       frames-per-pixel
       line-frequency
       line-number-frequency
@@ -38,14 +38,14 @@
                   [initial-tracks 3]
                   [initial-snip-length 100])
       (super-new)
-      (field [adjusting-clip? #f]
+      (field [adjusting-clip? (make-parameter #f)]
              [track-width (let-values ([(w h) (send this get-max-view-size)])
                             w)]
              [frames-per-pixel 1]
              [line-frequency 25]
              [line-number-frequency 4]
-             [track-pict #f]
              [ruler-height 100]
+             [track-pict #f]
              ;; Hash[Snip, (track)Integer]
              [snip-table (make-hasheq)]
              ;; GVector[Hash[Snip, VideoProp[(start)Integer, (length)Integer]]
@@ -111,14 +111,11 @@
           (hash-set! track s (video-prop start-time w))))
       
       (define/augment (after-move-to s x y d)
-        (unless (or d adjusting-clip?)
-          (dynamic-wind
-           (λ () (set! adjusting-clip? #t))
-           (λ ()
-             (define track (position->track y))
-             (move-video-to-track s track x)
-             (send this move-to s x (track->position track)))
-           (λ () (set! adjusting-clip? #f)))))
+        (unless (or d (adjusting-clip?))
+          (parameterize ([adjusting-clip? #t])
+            (define track (position->track y))
+            (move-video-to-track s track x)
+            (send this move-to s x (track->position track)))))
 
       (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
         (when (and before? draw-background?)
@@ -128,6 +125,8 @@
             (send this dc-location-to-editor-location 0 0))
           (define-values (width height)
             (send this get-max-view-size))
+          ;; Weird to re-render the background on paint
+          ;; is it possible to do it when editor is resized?
           (unless (= width track-width)
             (set! track-width width)
             (update-track-pict!))
@@ -171,7 +170,18 @@
         (send this invalidate-bitmap-cache))
 
       (define/augment (on-insert snip before x y)
-        (send snip resize 100 track-height))
+        (define track# (hash-ref snip-table snip #f))
+        (define snip-len
+          (let/ec use-default
+            (unless track#
+              (use-default initial-snip-length))
+            (define track (gvector-ref tracks track#))
+            (define vprop (hash-ref track snip))
+            (define length (video-prop-length vprop))
+            (unless length
+              (use-default initial-snip-length))
+            length))
+        (send snip resize snip-len track-height))
       
       (define/augment (on-delete snip)
         (define current-track (hash-ref snip-table snip))
@@ -179,6 +189,8 @@
         (define track-table (gvector-ref tracks current-track))
         (hash-remove! track-table snip))
 
+      ;; Overwritten to prevent changing snips height.
+      ;;   (It should always be the track height.)
       (define/override (interactive-adjust-resize s w h)
         (set-box! h track-height)
         (super interactive-adjust-resize s w h))
@@ -279,9 +291,9 @@
         vid)
 
       (define/override (copy-self-to dest)
-        (super copy-self-to dest)
-        (send dest select-all) ;; hack because this also copies all
-        (send dest clear)      ;;    of our snips
+        ;(super copy-self-to dest)
+        ;(send dest select-all) ;; hack because this also copies all
+        ;(send dest clear)      ;;    of our snips
         (set-field! track-width dest track-width)
         (set-field! frames-per-pixel dest frames-per-pixel)
         (set-field! line-frequency dest line-frequency)
@@ -299,7 +311,7 @@
         (send dest invalidate-bitmap-cache))
 
       (define/override (write-to-file str)
-        (super write-to-file str)
+        ;(super write-to-file str)
         (define (put-exact num)
           (send str put (inexact->exact num)))
         (put-exact track-width)
@@ -323,7 +335,7 @@
 
       (define/override (read-from-file str [overwrite-style #f])
         (let/ec return
-          (super read-from-file str overwrite-style)
+          ;(super read-from-file str overwrite-style)
           (set-field! track-width this (send str get-exact))
           (set-field! frames-per-pixel this (send str get-exact))
           (set-field! line-frequency this (send str get-exact))
