@@ -54,7 +54,7 @@
     (void)))
 
 (define render<%>
-  (interface () setup-profile prepare render play))
+  (interface () get-profile setup-profile prepare render play))
 
 (define render%
   (class* object% (render<%>)
@@ -65,11 +65,17 @@
                 [fps 25])
     
     (define res-counter 0)
+    (define profile #f)
+    
     (define/private (get-current-filename)
       (begin0 (format "resource~a" res-counter)
               (set! res-counter (add1 res-counter))))
-              
+
+    (define/public (get-profile)
+      profile)
+    
     (define/public (setup-profile)
+      (set! profile (mlt-profile-init #f))
       (define fps* (rationalize (inexact->exact fps) 1/1000000))
       (set-mlt-profile-width! profile width)
       (set-mlt-profile-height! profile height)
@@ -77,7 +83,8 @@
       (set-mlt-profile-frame-rate-num! profile (numerator fps*)))
     
     (define/public (prepare source)
-      (parameterize ([current-renderer this])
+      (parameterize ([current-renderer this]
+                     [current-profile profile])
         (cond
           [(list? source)
            (prepare (make-playlist #:elements source))]

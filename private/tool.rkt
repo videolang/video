@@ -31,4 +31,8 @@
 
 (drracket:get/extend:extend-unit-frame video-frame-mixin)
 
+(namespace-require 'video/init)
+(namespace-require 'video/core)
+(namespace-require 'video/base)
+
 ;(send (get-the-snip-class-list) add video-snip-class)

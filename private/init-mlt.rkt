@@ -6,11 +6,17 @@
 
 (provide mlt-executor
          register-mlt-close)
-(require "mlt.rkt"
-         "once.rkt")
+(require ffi/unsafe
+         "mlt.rkt")
 
-;; Init MLT factory
-(void (mlt-factory-init #f))
+;; Init MLT factory (ONCE PER PROCESS)
+(define scheme_register_process_global
+  (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer)))
+
+(let ([v (scheme_register_process_global "mlt-support-initialized"
+                                         (cast 1 _racket _pointer))])
+  (unless v
+    (void (mlt-factory-init #f))))
 
 ;; Close MLT factory on program exit
 (void

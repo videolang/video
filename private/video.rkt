@@ -15,10 +15,9 @@
                      racket/function
                      syntax/parse))
 
-(define profile (mlt-profile-init #f))
-
 ;; MUST BE INSTANTIATED WITH A render% OBJECT!
 (define current-renderer (make-parameter #f))
+(define current-profile (make-parameter #f))
 
 (define (convert source)
   (define renderer (current-renderer))
@@ -157,19 +156,19 @@
 (define-constructor service properties ([filters '()]))
 
 (define-constructor filter service ([type #f] [source #f])
-  (define f (mlt-factory-filter profile type source))
+  (define f (mlt-factory-filter (current-profile) type source))
   (register-mlt-close mlt-filter-close f))
 
 (define-constructor transition service ([type #f] [source #f] [length #f])
-  (define t (mlt-factory-transition profile type source))
+  (define t (mlt-factory-transition (current-profile) type source))
   (register-mlt-close mlt-transition-close t))
 
 (define-constructor consumer service ([type #f] [target #f])
-  (define c (mlt-factory-consumer profile type target))
+  (define c (mlt-factory-consumer (current-profile) type target))
   (register-mlt-close mlt-consumer-close c))
 
 (define-constructor producer service ([type #f] [source #f] [start #f] [end #f] [speed #f] [seek #f])
-  (define producer* (mlt-factory-producer profile type source))
+  (define producer* (mlt-factory-producer (current-profile) type source))
   (when (and start end)
     (mlt-producer-set-in-and-out producer* start end))
   (when seek

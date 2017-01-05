@@ -235,7 +235,7 @@
              [parent p]
              [label "Insert Text"]
              [callback (λ (item event)
-                         (define t (new video:text%
+                         (define t (new video-text%
                                         [track-height track-height]))
                          (send t set-max-undo-history 100)
                          (insert-video t (position->track y) x initial-snip-length))])
@@ -358,7 +358,7 @@
           (send this invalidate-bitmap-cache)
           #t)))))
 
-(define video:text%
+(define video-text%
   (class racket:text%
     (init-field [track-height 100])
     (super-new)
@@ -402,6 +402,8 @@
 
 (define video-snip-class-name "wxvid")
 
+(define video-editor-const 1)
+(define video-text-const 2)
 (define video-snip%
   (class editor-snip%
     (init-field [editor #f]
@@ -440,6 +442,9 @@
       other)
     
     (define/override (write f)
+      (if (editor . is-a? . video-editor%)
+          (send f put video-editor-const)
+          (send f put video-text-const))
       (if with-border? (send f put 1) (send f put 0))
       (send f put left-margin)
       (send f put top-margin)
@@ -464,7 +469,10 @@
     (super-new)
     (send this set-classname video-snip-class-name)
     (define/override (read f)
-      (define vid (new video-editor%))
+      (define type (send f get-exact))
+      (define vid (if (= type video-editor-const)
+                      (new video-editor%)
+                      (new video-text%)))
       (define with-border? (= (send f get-exact) 1))
       (define left-margin (send f get-exact))
       (define top-margin (send f get-exact))
