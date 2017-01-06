@@ -7,6 +7,6 @@ video
   (case key
     [(drracket:toolbar-buttons)
      (define camera-button
-       (dynamic-require 'video/private/res/camera-icon 'camera-button))
+       (dynamic-require 'video/private/camera-icon 'camera-button))
      (list camera-button)]
     [else (use-default key default)]))

@@ -8,7 +8,8 @@
                "drracket-plugin-lib"
                "data-lib"
                "pict-lib"
-               "wxme-lib"))
+               "wxme-lib"
+               "sandbox-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
