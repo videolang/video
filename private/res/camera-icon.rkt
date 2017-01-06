@@ -4,8 +4,11 @@
          camera-button)
 (require racket/class
          racket/draw
+         racket/gui/base
          images/icons/style
-         mrlib/switchable-button)
+         mrlib/switchable-button
+         racket/sandbox
+         "../../player.rkt")
 
 (define height (toolbar-icon-height))
 (define width (* height 2))
@@ -37,6 +40,15 @@
   (list
    "Preview Video"
    camera-icon
-   (λ (drr-frame) (void))
+   (λ (drr-frame)
+     (define t (send drr-frame get-definitions-text))
+     (define vid-port (open-input-text-editor t 0 'end (λ (s) s) t #t))
+     (define program (parameterize ([read-accept-lang #t]
+                                    [read-accept-reader #t])
+                       (read vid-port)))
+     (define video-eval
+       (make-module-evaluator program))
+     (define vid (video-eval 'vid))
+     (void (preview vid)))
    #f))
 

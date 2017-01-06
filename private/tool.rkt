@@ -3,7 +3,7 @@
 (require drracket/tool
          framework
          racket/class
-         racket/gui
+         racket/gui/base
          racket/draw
          "res/camera-icon.rkt"
          "editor.rkt")
