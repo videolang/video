@@ -7,7 +7,8 @@
                "images-lib"
                "drracket-plugin-lib"
                "data-lib"
-               "pict-lib"))
+               "pict-lib"
+               "wxme-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"

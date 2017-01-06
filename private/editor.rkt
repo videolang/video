@@ -5,14 +5,18 @@
                       snip-class]))
 
 (require data/gvector
+         racket/dict
          racket/class
          racket/gui/base
          racket/match
          racket/list
          racket/format
-         pict
+         file/convertible
+         (except-in pict frame blank clip)
          framework
-         images/icons/style)
+         wxme
+         images/icons/style
+         "../base.rkt")
 
 (struct video-prop (start
                     length)
@@ -31,7 +35,7 @@
       snip-table
       tracks
       update-track-pict!)
-    (class pasteboard%
+    (class* pasteboard% (readable<%>)
       (init-field [track-height 150]
                   [draw-background? #t]
                   [minimum-width 600]
@@ -243,10 +247,11 @@
              [parent p]
              [label "Insert Graphical"]
              [callback (λ (item event)
-                         (define pb (new video-editor%
-                                         [track-height (/ track-height initial-tracks)]
-                                         [initial-tracks initial-tracks]
-                                         [initial-snip-length (/ initial-snip-length initial-tracks)]))
+                         (define pb
+                           (new video-editor%
+                                [track-height (/ track-height initial-tracks)]
+                                [initial-tracks initial-tracks]
+                                [initial-snip-length (/ initial-snip-length initial-tracks)]))
                          (insert-video pb (position->track y) x initial-snip-length))])
         (new separator-menu-item% [parent p])
         (new menu-item%
@@ -356,10 +361,44 @@
             (insert-video snip track# start-time length))
           (update-track-pict!)
           (send this invalidate-bitmap-cache)
-          #t)))))
+          #t))
+
+      ;; Converts the contents of the editor into a video object
+      ;; -> Video
+      (define/public (read-special source line column position)
+        ;; because hygiene is for wimps
+        (define data
+          `(let ()
+             (define make-multitrack (dynamic-require 'video/core 'make-multitrack))
+             (define make-playlist (dynamic-require 'video/core 'make-playlist))
+             (define blank (dynamic-require 'video/base 'blank))
+             (make-multitrack
+              #:tracks (list ,@(for/list ([i (in-gvector tracks)])
+                                 (define track-queue
+                                   (sort (hash->list i) <
+                                         #:cache-keys? #t
+                                         #:key (λ (x)
+                                                 (define vprop (cdr x))
+                                                 (video-prop-start vprop))))
+                                 (define-values (playlist trash)
+                                   (for/fold ([acc '()]
+                                              [time 0])
+                                             ([(snip vprop) (in-dict track-queue)])
+                                     (define start-delta (- (video-prop-start vprop) time))
+                                     (define length (video-prop-length vprop))
+                                     (define acc*
+                                       (if (zero? start-delta)
+                                           acc
+                                           (cons (blank start-delta) acc)))
+                                     (define snip-stx
+                                       (send snip read-special source line column position))
+                                     (values (cons snip-stx acc*) time)))
+                                 `(make-playlist 
+                                   #:elements (list ,@(reverse playlist))))))))
+        (datum->syntax #f data (list source line column position #f))))))
 
 (define video-text%
-  (class racket:text%
+  (class* racket:text% (readable<%>)
     (init-field [track-height 100])
     (super-new)
     
@@ -398,14 +437,27 @@
            (send admin popup-menu
                  (make-right-click-menu local-x local-y)
                  local-x local-y))]
-        [_ (super on-event event)]))))
+        [_ (super on-event event)]))
 
-(define video-snip-class-name "wxvid")
+    (define/override (copy-self)
+      (define vid (new video-text% [track-height track-height]))
+      (send this copy-self-to vid)
+      vid)
+
+    (define/public (read-special source line column position)
+      (define stx (read-syntax source (open-input-text-editor this 0 'end values source)))
+      (datum->syntax #f
+                     `(let () ,stx)
+                     (list source line column position #f)))))
+
+(define video-snip-class-name
+  (~s '(lib "video/private/editor.rkt")))
+;"wxvid")
 
 (define video-editor-const 1)
 (define video-text-const 2)
 (define video-snip%
-  (class editor-snip%
+  (class* editor-snip% (readable-snip<%>)
     (init-field [editor #f]
                 [with-border? #t]
                 [left-margin 5]
@@ -428,6 +480,9 @@
                        min-height max-height)
     (send this set-snipclass video-snip-class)
     (send (get-the-snip-class-list) add video-snip-class)
+
+    (define/public (read-special source line column position)
+      (send editor read-special source line column position))
 
     (define/override (copy)
       (define new-editor (send editor copy-self))
