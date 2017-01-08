@@ -10,6 +10,11 @@
 
 (provide
  (contract-out
+  ;; Creates a multitrack (tracks playing in parallel
+  ;;   (not quite sure what right interface for this function
+  ;;   looks like yet)
+  [multitrack (-> any/c ... producer?)]
+  
   ;; Creates a blank video, for offsetting
   ;;  clips in a playlist
   [blank (-> nonnegative-integer? blank?)]
@@ -66,6 +71,9 @@
                                   (number->2string (send c* blue))
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
                  #:prop prop*))
+
+(define (multitrack . tracks)
+  (make-multitrack #:tracks tracks))
 
 (define (picture p #:length [length #f])
   (error "TODO"))

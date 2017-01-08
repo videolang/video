@@ -369,32 +369,30 @@
         ;; because hygiene is for wimps
         (define data
           `(let ()
-             (define make-multitrack (dynamic-require 'video/core 'make-multitrack))
-             (define make-playlist (dynamic-require 'video/core 'make-playlist))
+             (define multitrack (dynamic-require 'video/base 'multitrack))
              (define blank (dynamic-require 'video/base 'blank))
-             (make-multitrack
-              #:tracks (list ,@(for/list ([i (in-gvector tracks)])
-                                 (define track-queue
-                                   (sort (hash->list i) <
-                                         #:cache-keys? #t
-                                         #:key (λ (x)
-                                                 (define vprop (cdr x))
-                                                 (video-prop-start vprop))))
-                                 (define-values (playlist trash)
-                                   (for/fold ([acc '()]
-                                              [time 0])
-                                             ([(snip vprop) (in-dict track-queue)])
-                                     (define start-delta (- (video-prop-start vprop) time))
-                                     (define length (video-prop-length vprop))
-                                     (define acc*
-                                       (if (zero? start-delta)
-                                           acc
-                                           (cons (blank start-delta) acc)))
-                                     (define snip-stx
-                                       (send snip read-special source line column position))
-                                     (values (cons snip-stx acc*) time)))
-                                 `(make-playlist 
-                                   #:elements (list ,@(reverse playlist))))))))
+             (multitrack
+              ,@(for/list ([i (in-gvector tracks)])
+                  (define track-queue
+                    (sort (hash->list i) <
+                          #:cache-keys? #t
+                          #:key (λ (x)
+                                  (define vprop (cdr x))
+                                  (video-prop-start vprop))))
+                  (define-values (playlist trash)
+                    (for/fold ([acc '()]
+                               [time 0])
+                              ([(snip vprop) (in-dict track-queue)])
+                      (define start-delta (- (video-prop-start vprop) time))
+                      (define length (video-prop-length vprop))
+                      (define acc*
+                        (if (zero? start-delta)
+                            acc
+                            (cons (blank start-delta) acc)))
+                      (define snip-stx
+                        (send snip read-special source line column position))
+                      (values (cons snip-stx acc*) time)))
+                  (reverse playlist)))))
         (datum->syntax #f data (list source line column position #f))))))
 
 (define video-text%
