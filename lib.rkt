@@ -9,8 +9,10 @@
 
 ;; Determine the length of an already converted producer.
 ;; Producer -> Number
-(define (producer-length producer)
-  (define internal (convert producer))
+(define (producer-length producer
+                         #:renderer renderer)
+  (define internal (convert producer
+                            #:renderer renderer))
   (define out (mlt-producer-get-out internal))
   (define in (mlt-producer-get-in internal))
   (- out in))
@@ -18,8 +20,9 @@
 ;; Determine the unedited length of an already converted producer.
 ;;   In and Out cut points are ignored
 ;; Producer -> Number
-(define (producer-length/unedited producer)
-  (mlt-producer-get-length (convert producer)))
+(define (producer-length/unedited producer
+                                  #:renderer renderer)
+  (mlt-producer-get-length (convert producer #:renderer renderer)))
 
 ;; Get the durration of a clip length in a playslit
 ;; Converted-Playlist Integer -> Integer

@@ -15,12 +15,12 @@
                      racket/function
                      syntax/parse))
 
-;; MUST BE INSTANTIATED WITH A render% OBJECT!
 (define current-renderer (make-parameter #f))
 (define current-profile (make-parameter #f))
 
-(define (convert source)
-  (define renderer (current-renderer))
+(define (convert source
+                 #:renderer [renderer* #f])
+  (define renderer (or renderer* (current-renderer)))
   (unless renderer
     (error 'current-renderer "No renderer set"))
   (send renderer prepare source))

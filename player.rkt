@@ -36,7 +36,7 @@
     (define video-mlt (convert video))
     (define internal-video-mlt (convert internal-video))
     (define/public (get-video-length)
-      (producer-length video))
+      (producer-length video #:renderer renderer))
     (define/public (play)
       (define v internal-video-mlt)
       (when (mlt-consumer-is-stopped v)

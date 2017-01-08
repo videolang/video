@@ -5,7 +5,6 @@
          racket/class
          racket/gui/base
          racket/draw
-         "res/camera-icon.rkt"
          "editor.rkt")
 
 

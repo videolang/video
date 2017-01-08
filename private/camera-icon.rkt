@@ -7,8 +7,7 @@
          racket/gui/base
          images/icons/style
          mrlib/switchable-button
-         racket/sandbox
-         "../../player.rkt")
+         racket/list)
 
 (define height (toolbar-icon-height))
 (define width (* height 2))
@@ -46,9 +45,12 @@
      (define program (parameterize ([read-accept-lang #t]
                                     [read-accept-reader #t])
                        (read vid-port)))
-     (define video-eval
-       (make-module-evaluator program))
-     (define vid (video-eval 'vid))
-     (void (preview vid)))
+     (parameterize ([current-namespace (make-gui-namespace)])
+       (define mod-name (second program))
+       (eval program)
+       (eval `(require ',mod-name))
+       (eval '(require video/player))
+       (eval '(void (preview vid)))))
    #f))
 
+(require video/base)

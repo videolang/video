@@ -60,12 +60,13 @@
   (class* object% (render<%>)
     (super-new)
     (init-field dest-dir
+                [prof-name #f]
                 [width 720]
                 [height 576]
                 [fps 25])
     
     (define res-counter 0)
-    (define profile #f)
+    (define profile (mlt-profile-init prof-name))
     
     (define/private (get-current-filename)
       (begin0 (format "resource~a" res-counter)
@@ -75,7 +76,6 @@
       profile)
     
     (define/public (setup-profile)
-      (set! profile (mlt-profile-init #f))
       (define fps* (rationalize (inexact->exact fps) 1/1000000))
       (set-mlt-profile-width! profile width)
       (set-mlt-profile-height! profile height)
@@ -111,6 +111,8 @@
           (loop (and timeout (sub1 timeout))))))))
 
 ;; Set the current renderer
+#;
 (let ([r (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)])])
   (send r setup-profile)
-  (current-renderer r))
+  (current-renderer r)
+  (current-profile (send r get-profile)))
