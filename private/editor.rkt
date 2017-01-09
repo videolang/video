@@ -392,7 +392,7 @@
                       (define snip-stx
                         (send snip read-special source line column position))
                       (values (cons snip-stx acc*) time)))
-                  (reverse playlist)))))
+                  `(list ,@(reverse playlist))))))
         (datum->syntax #f data (list source line column position #f))))))
 
 (define video-text%
