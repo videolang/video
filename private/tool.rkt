@@ -36,4 +36,4 @@
 
 (drracket:get/extend:extend-unit-frame video-frame-mixin)
 
-;(send (get-the-snip-class-list) add video-snip-class)
+(send (get-the-snip-class-list) add video-snip-class)

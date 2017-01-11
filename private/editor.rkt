@@ -1,8 +1,8 @@
 #lang racket/base
 
 (provide (all-defined-out)
-         (rename-out [video-snip-class
-                      snip-class]))
+         (rename-out [video-snip-class snip-class]
+                     [video-snip-reader reader]))
 
 (require data/gvector
          racket/dict
@@ -443,14 +443,14 @@
       vid)
 
     (define/public (read-special source line column position)
-      (define stx (read-syntax source (open-input-text-editor this 0 'end values source)))
+      (define stx (read-syntax source (open-input-text-editor this 0 'end values source #t)))
       (datum->syntax #f
                      `(let () ,stx)
                      (list source line column position #f)))))
 
 (define video-snip-class-name
-  (~s '(lib "video/private/editor.rkt")))
-;"wxvid")
+  (~s '((lib "private/editor.rkt" "video")
+        (lib "private/editor.rkt" "video"))))
 
 (define video-editor-const 1)
 (define video-text-const 2)
@@ -553,3 +553,27 @@
       sn)))
 
 (define video-snip-class (new video-snip-class%))
+
+(define editor-stream-adapter%
+  (class object%
+    (init-field stream)
+    (super-new)
+    (define/public (get-exact)
+      (send stream read-integer 'video-editor))
+    (define/public (read-bytes)
+      (send stream read-raw-bytes 'video-editor))))
+
+(define video-snip-reader%
+  (class* object% (snip-reader<%>)
+    (super-new)
+    (define/public (read-header version stream) (void))
+    (define/public (read-snip text-only? version stream)
+      (define adapted-stream (make-object editor-stream-adapter% stream))
+      (define video-snip (read-snip-from-port video-snip-class-name 'video adapted-stream))
+      (cond
+        [text-only?
+         (define code (send video-snip read-special #f #f #f))
+         (string->bytes/utf-8 (~s (syntax->datum code)))]
+        [else video-snip]))))
+
+(define video-snip-reader (new video-snip-reader%))
