@@ -4,12 +4,19 @@
          framework
          racket/class
          racket/gui/base
-         racket/draw
-         "editor.rkt")
-
+         racket/draw)
 
 (import drracket:tool^)
 (export drracket:tool-exports^)
+
+(define-values (video-editor%
+                video-snip%
+                video-snip-class)
+  (with-handlers ([exn:fail? (values #f #f #f)])
+    (values
+     (dynamic-require "editor.rkt" 'video-editor%)
+     (dynamic-require "editor.rkt" 'video-snip%)
+     (dynamic-require "editor.rkt" 'video-snip-class))))
 
 (define video-frame-mixin
   (mixin (drracket:unit:frame<%>) ()
@@ -34,6 +41,6 @@
 (define (phase1) (void))
 (define (phase2) (void))
 
-(drracket:get/extend:extend-unit-frame video-frame-mixin)
-
-(send (get-the-snip-class-list) add video-snip-class)
+(when video-editor%
+  (drracket:get/extend:extend-unit-frame video-frame-mixin)
+  (send (get-the-snip-class-list) add video-snip-class))
