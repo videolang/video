@@ -12,7 +12,7 @@
 (define-values (video-editor%
                 video-snip%
                 video-snip-class)
-  (with-handlers ([exn:fail? (values #f #f #f)])
+  (with-handlers ([exn:fail? (lambda (e) (values #f #f #f))])
     (values
      (dynamic-require "editor.rkt" 'video-editor%)
      (dynamic-require "editor.rkt" 'video-snip%)
