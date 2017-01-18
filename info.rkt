@@ -23,6 +23,6 @@
                          "Preview or Render a Racket Video"
                          #f)))
 
-(define drracket-tools '(("private/tool.rkt")))
-(define drracket-tool-names '("Video"))
-(define drracket-tool-icons '(#f))
+;(define drracket-tools '(("private/tool.rkt")))
+;(define drracket-tool-names '("Video"))
+;(define drracket-tool-icons '(#f))
