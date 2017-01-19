@@ -1,7 +1,12 @@
 #lang s-exp syntax/module-reader
 video
+
+#:read read
+#:read-syntax read-syntax
 #:wrapper1 (λ (x) (list* 'vid 'values '() (x)))
 #:info make-info
+
+(require scribble/reader)
 
 (define (make-info key default use-default)
   (case key
