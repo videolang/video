@@ -13,6 +13,7 @@
          racket/format
          file/convertible
          (except-in pict frame blank clip)
+         (prefix-in pict: pict)
          framework
          wxme
          images/icons/style
@@ -31,6 +32,7 @@
       line-frequency
       line-number-frequency
       track-pict
+      ruler-pict
       ruler-height
       snip-table
       tracks
@@ -47,9 +49,10 @@
                             w)]
              [frames-per-pixel 1]
              [line-frequency 25]
-             [line-number-frequency 4]
-             [ruler-height 100]
+             [line-number-frequency 5]
+             [ruler-height 25]
              [track-pict #f]
+             [ruler-pict #f]
              ;; Hash[Snip, (track)Integer]
              [snip-table (make-hasheq)]
              ;; GVector[Hash[Snip, VideoProp[(start)Integer, (length)Integer]]
@@ -64,7 +67,19 @@
               (bitmap-render-icon
                (pict->bitmap (filled-rectangle track-width track-height
                                                #:color "white"))
-               3/10)))
+               3/10))
+        (define line-count (inexact->exact (+ 1 (floor (/ track-width line-frequency)))))
+        (define lines (apply hc-append line-frequency
+                             (make-list line-count (vline 0 ruler-height))))
+        (define number-count (inexact->exact (floor (/ line-count line-number-frequency))))
+        (set! ruler-pict
+              (vl-append
+               (apply hc-append
+                      (build-list number-count
+                                  (λ (n) (lc-superimpose
+                                          (pict:blank (* line-frequency line-number-frequency) 1)
+                                          (text (number->string (* line-number-frequency n)))))))
+               lines)))
       (update-track-pict!)
 
       ;; Determine relevent Y position for the track
@@ -138,7 +153,11 @@
             (send dc draw-bitmap
                   track-pict
                   (- local-0x)
-                  (- (+ (* i track-height) local-dy) local-0y)))))
+                  (- (+ (* i track-height) local-dy) local-0y)))
+          (send dc draw-bitmap
+                (pict->bitmap ruler-pict)
+                (- local-0x)
+                (- (* (gvector-count tracks) track-height) (pict-height ruler-pict) local-0y))))
 
       ;; Set the number of tracks stored in the editor
       ;; WARNING: WIPES OUT ALL EXISTING CLIPS!
