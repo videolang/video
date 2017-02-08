@@ -21,6 +21,7 @@
   ;; Render a video object (including the links
   [render (->* [any/c]
                [(or/c path-string? path? #f)
+                #:dest-filename (or/c path-string? path? #f)
                 #:render-mixin (-> class? class?)
                 #:profile-name (or/c string? #f)
                 #:width (and/c integer? positive?)
@@ -33,6 +34,7 @@
 
 (define (render video
                 [dest #f]
+                #:dest-filename [dest-filename #f]
                 #:render-mixin [render-mixin values]
                 #:profile-name [profile-name #f]
                 #:width [width 720]
@@ -44,6 +46,7 @@
   (define renderer
     (new r%
          [dest-dir dest*]
+         [dest-filename dest-filename]
          [width width]
          [height height]
          [fps fps]))
@@ -60,6 +63,7 @@
   (class* object% (render<%>)
     (super-new)
     (init-field dest-dir
+                [dest-filename #f]
                 [prof-name #f]
                 [width 720]
                 [height 576]
@@ -99,7 +103,8 @@
           [else (raise-user-error 'render "~a is not convertible" source)])))
 
     (define/public (render source)
-      (mlt-*-connect (make-consumer) source))
+      (parameterize ([current-renderer this])
+        (mlt-*-connect (make-consumer) source)))
     
     (define/public (play target timeout)
       (mlt-consumer-start target)
