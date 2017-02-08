@@ -5,15 +5,27 @@
          racket/draw
          racket/match
          racket/format
+         racket/list
          (except-in pict frame blank)
-         "private/video.rkt")
+         "private/video.rkt"
+         (prefix-in core: "private/video.rkt"))
 
 (provide
  (contract-out
   ;; Creates a multitrack (tracks playing in parallel
   ;;   (not quite sure what right interface for this function
   ;;   looks like yet)
-  [multitrack (-> any/c ... producer?)]
+  [multitrack (->* []
+                   [#:transitions (listof transition?)]
+                   #:rest (listof any/c)
+                   producer?)]
+
+  ;; Creates a playlist (tracks playing in sequence)
+  ;;   (syntactic sugar for list)
+  [playlist (->* []
+                 [#:transitions (listof transition?)]
+                 #:rest (listof any/c)
+                 producer?)]
   
   ;; Creates a blank video, for offsetting
   ;;  clips in a playlist
@@ -22,7 +34,8 @@
   ;; Creates a producer that plays a clip from a file
   [clip (->* [(or/c path-string? path?)]
              [#:in (or/c nonnegative-integer? #f)
-              #:out (or/c nonnegative-integer? #f)]
+              #:out (or/c nonnegative-integer? #f)
+              #:length (or/c nonnegative-integer? #f)]
              producer?)]
 
   ;; Creates a producer that is a solid color
@@ -36,16 +49,42 @@
   [attach-filter (-> service? filter? ... producer?)]
 
   ;; Creates a clip who's producer is a pict
-  [picture (->* [pict?]
+  [image (->* [pict?]
                 [#:length (or/c nonnegative-integer? #f)]
-                producer?)]))
+                producer?)]
+
+  [fade-transition (->* [#:length nonnegative-integer? #f]
+                        [#:start any/c
+                         #:end any/c]
+                        transition?)]
+
+  ;; Creates a composite transition where the top track is
+  ;;   placed above the bottom track
+  [composite-transition (->* [(between/c 0 1)
+                              (between/c 0 1)
+                              (between/c 0 1)
+                              (between/c 0 1)]
+                             [#:top (or/c any/c #f)
+                              #:bottom (or/c any/c #f)]
+                             transition?)]
+
+  [swipe-transition (->* [#:direction symbol?
+                          #:length integer?]
+                         [#:top (or/c any/c #f)
+                          #:bottom (or/c any/c #f)]
+                         transition?)]
+  
+  [scale-filter (case-> (-> (and/c number? positive?) (and/c number? positive?) filter?)
+                        (-> service? (and/c number? positive?) (and/c number? positive?) service?))]))
 
 (define (blank length)
   (make-blank #:length length))
 
 (define (clip path
               #:in [in #f]
-              #:out [out #f])
+              #:out [out* #f]
+              #:length [other-out #f])
+  (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
   (define prop*
     (let* ([prop (hash)]
@@ -72,15 +111,66 @@
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
                  #:prop prop*))
 
-(define (multitrack . tracks)
-  (make-multitrack #:tracks tracks))
+(define (multitrack #:transitions [transitions '()] . tracks)
+  (make-multitrack #:tracks tracks
+                   #:transitions (map transition->field-element transitions)))
 
-(define (picture p #:length [length #f])
-  (error "TODO"))
+(define (playlist #:transitions [transitions '()] . clips)
+  (for/fold ([acc clips])
+            ([t (in-list transitions)])
+    (define start (transition-start transition))
+    (define end (transition-end transition))
+    (append*
+     (for/list ([clip (in-list clips)])
+       (cond
+        [(equal? start clip)
+         (list clip (transition-transition t))]
+        [(and (not start) (equal? end clip))
+         (list (transition-transition t) clip)]
+        [else (list clip)])))))
+
+(define (image path #:length [length #f])
+  (define image-path (path->string (path->complete-path path)))
+  (define prop*
+    (let* ([prop (hash)]
+           [prop (if length (hash-set prop "in" length) prop)]
+           [prop (if length (hash-set prop "out" length) prop)])
+      prop))
+  (make-producer #:source (format "pixbuf:~a" image-path)
+                 #:prop prop*))
 
 (define (attach-filter obj . f)
   (error "TODO"))
 
+(define (fade-transition #:length length
+                         #:start [start #f]
+                         #:end [end #f])
+  (transition (make-transition #:type 'luma
+                               #:length length)
+              start
+              end))
+
+(define (composite-transition x y w h
+                              #:top [top #f]
+                              #:bottom [bottom #f])
+  (transition (make-transition #:type 'composite
+                               #:source (format "~a%/~a%:~a%x~a%"
+                                                (inexact->exact (round (* x 100)))
+                                                (inexact->exact (round (* y 100)))
+                                                (inexact->exact (round (* w 100)))
+                                                (inexact->exact (round (* h 100)))))
+              bottom
+              top))
+
+(define (swipe-transition x y w h
+                          #:top [top #f]
+                          #:bottom [bottom #f])
+  (error "TODO"))
+
+(define scale-filter
+  (case-lambda
+    [(p w h) (error "TODO")]
+    [(w h) (error "TODO")]))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
@@ -105,3 +195,14 @@
 ;; Given: 2.5 Expect: #f
 (define nonnegative-integer?
   (or/c (and/c (>=/c 0) integer?)))
+
+(struct transition (transition
+                    start
+                    end))
+
+;; Converts a transition into a field element (for multitracks)
+;; (-> transition? field-element?)
+(define (transition->field-element transition)
+  (make-field-element #:transition (transition-transition transition)
+                      #:track (transition-start transition)
+                      #:track-2 (transition-end transition)))
