@@ -37,9 +37,9 @@
           #:literals (begin)
           [(begin b1 ...)
            #'(video-begin id post-process exprs b1 ... . body)]
-          [(id . rest) ; this bit taken froms cribble
-           #:when (and (identifier? #'id)
-                       (ormap (lambda (kw) (free-identifier=? #'id kw))
+          [(id* . rest) ; this bit taken from scribble
+           #:when (and (identifier? #'id*)
+                       (ormap (lambda (kw) (free-identifier=? #'id* kw))
                               (syntax->list #'(require
                                                 provide
                                                 define-values

@@ -49,7 +49,7 @@
                             w)]
              [frames-per-pixel 1]
              [line-frequency 25]
-             [line-number-frequency 5]
+             [line-number-frequency 4]
              [ruler-height 25]
              [track-pict #f]
              [ruler-pict #f]
@@ -78,7 +78,10 @@
                       (build-list number-count
                                   (λ (n) (lc-superimpose
                                           (pict:blank (* line-frequency line-number-frequency) 1)
-                                          (text (number->string (* line-number-frequency n)))))))
+                                          (text (number->string (* frames-per-pixel
+                                                                   line-frequency
+                                                                   line-number-frequency
+                                                                   n)))))))
                lines)))
       (update-track-pict!)
 
@@ -137,13 +140,13 @@
             (send this move-to s x (track->position track)))))
 
       (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
+        (define-values (local-dx local-dy)
+          (send this dc-location-to-editor-location dx dy))
+        (define-values (local-0x local-0y)
+          (send this dc-location-to-editor-location 0 0))
+        (define-values (width height)
+          (send this get-max-view-size))
         (when (and before? draw-background?)
-          (define-values (local-dx local-dy)
-            (send this dc-location-to-editor-location dx dy))
-          (define-values (local-0x local-0y)
-            (send this dc-location-to-editor-location 0 0))
-          (define-values (width height)
-            (send this get-max-view-size))
           ;; Weird to re-render the background on paint
           ;; is it possible to do it when editor is resized?
           (unless (= width track-width)
@@ -153,7 +156,8 @@
             (send dc draw-bitmap
                   track-pict
                   (- local-0x)
-                  (- (+ (* i track-height) local-dy) local-0y)))
+                  (- (+ (* i track-height) local-dy) local-0y))))
+        (when (and (not before?) draw-background?)
           (send dc draw-bitmap
                 (pict->bitmap ruler-pict)
                 (- local-0x)
