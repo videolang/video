@@ -169,7 +169,7 @@
 
 (define scale-filter
   (case-lambda
-    [(p w h) (error "TODO")]
+    [(p w h) (attach-filter p (scale-filter w h))]
     [(w h) (error "TODO")]))
 
 ;; ===================================================================================================

@@ -98,7 +98,8 @@
            (send (pict->bitmap source) save-file pict-name 'png 100)
            (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
           [(file:convertible? source)
-           (define ret (file:convert source 'mlt))
+           (define ret (or (file:convert source 'mlt)
+                           (file:convert source 'video)))
            (or ret (error "Not convertible to video data"))]
           [else (raise-user-error 'render "~a is not convertible" source)])))
 

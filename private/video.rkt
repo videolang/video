@@ -58,7 +58,7 @@
     [else (error 'video "Unsupported target ~a" target)])
   target*)
 
-(define (finish-mlt-object-init! mlt-object)
+(define (finish-mlt-object-init! mlt-object video)
   ;; Set properties
   (when (properties? video)
     (for ([(k v) (in-dict (properties-prop video))])
@@ -112,11 +112,12 @@
              (λ (v request def)
                (match request
                  ['mlt
-                  (define mlt-object
-                    (hash-ref! memo-table v (λ () (convert-name))))
-                  (when mlt-object
-                    (finish-mlt-object-init! mlt-object))
-                  mlt-object]
+                  (hash-ref! memo-table v
+                             (λ ()
+                               (define ret (convert-name))
+                               (when ret
+                                 (finish-mlt-object-init! ret v))
+                               ret))]
                  [_ def]))))
          (define (constructor #,@(append*
                                   (for/list ([i (in-list all-ids)]
