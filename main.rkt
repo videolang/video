@@ -5,7 +5,7 @@
          (all-from-out video/base))
 
 (require (prefix-in core: video/core)
-         (except-in video/core blank multitrack)
+         (except-in video/core blank multitrack playlist)
          video/base
          racket/list
          (except-in pict clip frame blank)
