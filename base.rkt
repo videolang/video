@@ -139,8 +139,25 @@
   (make-producer #:source (format "pixbuf:~a" image-path)
                  #:prop prop*))
 
+;; TODO, sigh, we should really not have a closed
+;;    world assumption here. :'(
 (define (attach-filter obj . f)
-  (error "TODO"))
+  (define new-filters (append f (service-filters obj)))
+  (cond
+    [(filter? obj)
+     (struct-copy filter obj [filters #:parent service new-filters])]
+    [(core:transition? obj)
+     (struct-copy core:transition obj [filters #:parent service new-filters])]
+    [(playlist? obj)
+     (struct-copy core:playlist obj [filters #:parent service new-filters])]
+    [(multitrack? obj)
+     (struct-copy core:multitrack obj [filters #:parent service new-filters])]
+    [(consumer? obj)
+     (struct-copy consumer obj [filters #:parent service new-filters])]
+    [(producer? obj)
+     (struct-copy producer obj [filters #:parent service new-filters])]
+    [else
+     (struct-copy service obj [filters new-filters])]))
 
 (define (fade-transition #:length length
                          #:start [start #f]
@@ -170,7 +187,8 @@
 (define scale-filter
   (case-lambda
     [(p w h) (attach-filter p (scale-filter w h))]
-    [(w h) (error "TODO")]))
+    [(w h) (make-filter #:type 'frei0r.scale0tilt
+                        #:prop (hash "4" w "5" h))]))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
