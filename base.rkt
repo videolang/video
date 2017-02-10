@@ -50,10 +50,10 @@
 
   ;; Creates a clip who's producer is a pict
   [image (->* [pict?]
-                [#:length (or/c nonnegative-integer? #f)]
-                producer?)]
+              [#:length (or/c nonnegative-integer? #f)]
+              producer?)]
 
-  [fade-transition (->* [#:length nonnegative-integer? #f]
+  [fade-transition (->* [#:length nonnegative-integer?]
                         [#:start any/c
                          #:end any/c]
                         transition?)]
@@ -69,7 +69,7 @@
                              transition?)]
 
   [swipe-transition (->* [#:direction symbol?
-                          #:length integer?]
+                          #:length nonnegative-integer?]
                          [#:top (or/c any/c #f)
                           #:bottom (or/c any/c #f)]
                          transition?)]
@@ -179,7 +179,8 @@
               bottom
               top))
 
-(define (swipe-transition x y w h
+(define (swipe-transition #:direction dir
+                          #:length length
                           #:top [top #f]
                           #:bottom [bottom #f])
   (error "TODO"))
