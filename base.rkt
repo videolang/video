@@ -75,7 +75,10 @@
                          transition?)]
   
   [scale-filter (case-> (-> (and/c number? positive?) (and/c number? positive?) filter?)
-                        (-> service? (and/c number? positive?) (and/c number? positive?) service?))]))
+                        (-> service? (and/c number? positive?) (and/c number? positive?) service?))]
+
+  [grayscale-filter (case-> (-> filter?)
+                            (-> service? service?))]))
 
 (define (blank length)
   (make-blank #:length length))
@@ -195,6 +198,11 @@
     [(p w h) (attach-filter p (scale-filter w h))]
     [(w h) (make-filter #:type 'frei0r.scale0tilt
                         #:prop (hash "4" w "5" h))]))
+
+(define grayscale-filter
+  (case-lambda
+    [(p) (attach-filter p (grayscale-filter))]
+    [() (make-filter #:type 'grayscale)]))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
