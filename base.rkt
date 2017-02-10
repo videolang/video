@@ -116,18 +116,20 @@
                    #:field (map transition->field-element transitions)))
 
 (define (playlist #:transitions [transitions '()] . clips)
-  (for/fold ([acc clips])
-            ([t (in-list transitions)])
-    (define start (transition-start transition))
-    (define end (transition-end transition))
-    (append*
-     (for/list ([clip (in-list clips)])
-       (cond
-        [(equal? start clip)
-         (list clip (transition-transition t))]
-        [(and (not start) (equal? end clip))
-         (list (transition-transition t) clip)]
-        [else (list clip)])))))
+  (make-playlist
+   #:elements
+   (for/fold ([acc clips])
+             ([t (in-list transitions)])
+     (define start (transition-start transition))
+     (define end (transition-end transition))
+     (append*
+      (for/list ([clip (in-list clips)])
+        (cond
+          [(equal? start clip)
+           (list clip (transition-transition t))]
+          [(and (not start) (equal? end clip))
+           (list (transition-transition t) clip)]
+          [else (list clip)]))))))
 
 (define (image path #:length [length #f])
   (define image-path (path->string (path->complete-path path)))
