@@ -133,7 +133,7 @@
   (define image-path (path->string (path->complete-path path)))
   (define prop*
     (let* ([prop (hash)]
-           [prop (if length (hash-set prop "in" length) prop)]
+           [prop (if length (hash-set prop "in" 0) prop)]
            [prop (if length (hash-set prop "out" length) prop)])
       prop))
   (make-producer #:source (format "pixbuf:~a" image-path)
