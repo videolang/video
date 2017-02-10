@@ -48,8 +48,8 @@
   ;; filters attached to it
   [attach-filter (-> service? filter? ... producer?)]
 
-  ;; Creates a clip who's producer is a pict
-  [image (->* [pict?]
+  ;; Creates a clip who's producer is path
+  [image (->* [(or/c path-string? path-for-some-system?)]
               [#:length (or/c nonnegative-integer? #f)]
               producer?)]
 
