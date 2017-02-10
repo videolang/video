@@ -110,22 +110,22 @@
 
 (define (multitrack #:transitions [transitions '()] . tracks)
   (make-multitrack #:tracks tracks
-                   #:field (map transition->field-element transitions)))
+                   #:field transitions))
 
 (define (playlist #:transitions [transitions '()] . clips)
   (make-playlist
    #:elements
    (for/fold ([acc clips])
              ([t (in-list transitions)])
-     (define start (transition-start transition))
-     (define end (transition-end transition))
+     (define start (field-element-track transition))
+     (define end (field-element-track-2 transition))
      (append*
       (for/list ([clip (in-list clips)])
         (cond
           [(equal? start clip)
-           (list clip (transition-transition t))]
+           (list clip (field-element-element t))]
           [(and (not start) (equal? end clip))
-           (list (transition-transition t) clip)]
+           (list (field-element-element t) clip)]
           [else (list clip)]))))))
 
 (define (image path #:length [length #f])
@@ -161,22 +161,28 @@
 (define (fade-transition #:length length
                          #:start [start #f]
                          #:end [end #f])
-  (transition (make-transition #:type 'luma
-                               #:length length)
-              start
-              end))
+  (define trans
+    (make-transition #:type 'luma
+                     #:length length))
+  (if (and start end)
+      (make-field-element #:element trans #:track start #:track-2 end)
+      trans))
 
 (define (composite-transition x y w h
                               #:top [top #f]
                               #:bottom [bottom #f])
-  (transition (make-transition #:type 'composite
-                               #:source (format "~a%/~a%:~a%x~a%"
-                                                (inexact->exact (round (* x 100)))
-                                                (inexact->exact (round (* y 100)))
-                                                (inexact->exact (round (* w 100)))
-                                                (inexact->exact (round (* h 100)))))
-              bottom
-              top))
+ (define trans
+   (make-transition #:type 'composite
+                    #:source (format "~a%/~a%:~a%x~a%"
+                                     (inexact->exact (round (* x 100)))
+                                     (inexact->exact (round (* y 100)))
+                                     (inexact->exact (round (* w 100)))
+                                     (inexact->exact (round (* h 100))))))
+  (if (and top bottom)
+      (make-field-element #:element trans
+                          #:track bottom
+                          #:track-2 top)
+      trans))
 
 (define (swipe-transition #:direction dir
                           #:length length
@@ -213,14 +219,3 @@
 ;; Given: 2.5 Expect: #f
 (define nonnegative-integer?
   (or/c (and/c (>=/c 0) integer?)))
-
-(struct transition (transition
-                    start
-                    end))
-
-;; Converts a transition into a field element (for multitracks)
-;; (-> transition? field-element?)
-(define (transition->field-element transition)
-  (make-field-element #:transition (transition-transition transition)
-                      #:track (transition-start transition)
-                      #:track-2 (transition-end transition)))
