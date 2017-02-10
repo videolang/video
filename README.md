@@ -1,5 +1,6 @@
-Video
+# Video [![Build Status](https://travis-ci.org/LeifAndersen/racket-video.svg?branch=master)](https://travis-ci.org/LeifAndersen/racket-video)
 =====
+
 Video is a DSL for describing videos. It is still very much in development and backwards breaking changes are made frequently.
 
 Install
