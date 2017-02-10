@@ -26,7 +26,7 @@
                  [#:transitions (listof transition?)]
                  #:rest (listof any/c)
                  producer?)]
-  
+
   ;; Creates a blank video, for offsetting
   ;;  clips in a playlist
   [blank (-> nonnegative-integer? blank?)]
@@ -113,7 +113,7 @@
 
 (define (multitrack #:transitions [transitions '()] . tracks)
   (make-multitrack #:tracks tracks
-                   #:transitions (map transition->field-element transitions)))
+                   #:field (map transition->field-element transitions)))
 
 (define (playlist #:transitions [transitions '()] . clips)
   (for/fold ([acc clips])
