@@ -99,17 +99,14 @@
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
       [_ (make-object color% c)]))
-  (define prop*
-    (let* ([prop (hash)]
-           [prop (if length (hash-set prop "out" length) prop)])
-      prop))
   (make-producer #:type 'color
                  #:source (format "0x~a~a~a~a"
                                   (number->2string (send c* red))
                                   (number->2string (send c* green))
                                   (number->2string (send c* blue))
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-                 #:prop prop*))
+                 #:start (and length 0)
+                 #:end length))
 
 (define (multitrack #:transitions [transitions '()] . tracks)
   (make-multitrack #:tracks tracks

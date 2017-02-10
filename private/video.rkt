@@ -87,7 +87,7 @@
     (mlt-producer-optimise (video-mlt-object video))))
 
 ;; Constructor for video objects
-(define-syntax subclass-empty '(() . ()))
+(define-syntax subclass-empty '(() () ()))
 (define-syntax (define-constructor stx)
   (syntax-parse stx
     [(_ name:id super* ([ids:id default] ...) body ...)
@@ -99,11 +99,12 @@
      #:with predicate (format-id stx "~a?" #'name)
      #:with convert-name (format-id stx "convert-~a" #'name)
      (define super-vals (syntax-local-value #'super))
-     (define all-ids (append (car super-vals) (syntax->datum #'(ids ...))))
-     (define all-defaults (append (cdr super-vals) (syntax-e #'(default ...))))
+     (define all-structs (append (first super-vals) (make-list (length (syntax->list #'(ids ...)))
+                                                               (syntax->datum #'name))))
+     (define all-ids (append (second super-vals) (syntax->datum #'(ids ...))))
+     (define all-defaults (append (third super-vals) (syntax-e #'(default ...))))
      (quasisyntax/loc stx
        (begin
-         (define convert-name #f)
          (struct name #,@(if (identifier? #'super*) (list #'super*) '())
            (ids ...)
            #:transparent
@@ -114,7 +115,11 @@
                  ['mlt
                   (hash-ref! memo-table v
                              (λ ()
-                               (define ret (convert-name))
+                               (define ret (let #,(for/list ([i (in-list all-structs)]
+                                                             [j (in-list all-ids)])
+                                                    #`[#,(datum->syntax stx j)
+                                                       (#,(format-id stx "~a-~a" i j) v)])
+                                             #f body ...))
                                (when ret
                                  (finish-mlt-object-init! ret v))
                                ret))]
@@ -124,9 +129,8 @@
                                              [j (in-list all-defaults)])
                                     `(,(datum->syntax stx (string->keyword (symbol->string i)))
                                       [,(datum->syntax stx i) ,j]))))
-           (set! convert-name (λ () #f body ...))
            (name #,@(map (curry datum->syntax stx) all-ids)))
-         (define-syntax new-supers '#,(cons all-ids all-defaults))))]))
+         (define-syntax new-supers '#,(list all-structs all-ids all-defaults))))]))
 
 ;; Structs
 (define-constructor video #f ())
