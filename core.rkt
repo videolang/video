@@ -7,7 +7,7 @@
 (provide
  (contract-out
   [convert (->* [any/c]
-                [#:renderer (or/c (is-a? render%))]
+                [#:renderer (or/c (is-a?/c render%))]
                 any/c)])
   make-video
   video?
