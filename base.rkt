@@ -79,7 +79,11 @@
                         (-> service? (and/c number? positive?) (and/c number? positive?) service?))]
 
   [grayscale-filter (case-> (-> filter?)
-                            (-> service? service?))]))
+                            (-> service? service?))]
+
+  [get-property (->* [properties? string?]
+                     [symbol?]
+                     any/c)]))
 
 (define (blank length)
   (make-blank #:length length))

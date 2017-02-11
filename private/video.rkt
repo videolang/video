@@ -142,8 +142,8 @@
   (mlt-*-connect target (mlt-*-service source) index))
 
 (define-constructor properties video ([prop (hash)]))
-(define (properties-ref dict key
-                        [default-type 'string])
+(define (get-property dict key
+                      [default-type 'string])
   (dict-ref (properties-prop dict) key
             (λ ()
               (define v (convert dict))
