@@ -1,7 +1,7 @@
 #lang racket/base
 (require video/lib
-         (only-in video/core producer-end producer-start properties-prop)
-         (only-in "../private/video.rkt" producer?))
+         video/core
+         (only-in "../private/video.rkt" producer? properties-prop))
 (require rackunit)
 (require (for-syntax racket/base syntax/parse))
 (provide check-producer check-producer?)
