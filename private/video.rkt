@@ -93,6 +93,7 @@
   (syntax-parse stx
     [(_ name:id super* ([ids:id default] ...) body ...)
      #:with constructor (format-id stx "make-~a" #'name)
+     #:with this (format-id stx "this")
      #:with new-supers (format-id stx "subclass-~a" #'name)
      #:with super (format-id stx "subclass-~a" (if (identifier? #'super*)
                                                    #'super*
@@ -116,11 +117,12 @@
                  ['mlt
                   (hash-ref! memo-table v
                              (λ ()
-                               (define ret (let #,(for/list ([i (in-list all-structs)]
-                                                             [j (in-list all-ids)])
-                                                    #`[#,(datum->syntax stx j)
-                                                       (#,(format-id stx "~a-~a" i j) v)])
-                                             #f body ...))
+                               (define ret (let ([this v])
+                                             (let #,(for/list ([i (in-list all-structs)]
+                                                               [j (in-list all-ids)])
+                                                      #`[#,(datum->syntax stx j)
+                                                         (#,(format-id stx "~a-~a" i j) v)])
+                                               #f body ...)))
                                (when ret
                                  (finish-mlt-object-init! ret v))
                                ret))]
@@ -181,10 +183,15 @@
     (mlt-producer-seek producer* seek))
   (register-mlt-close mlt-producer-close producer*))
 
+(define-constructor blank producer ([length 0])
+  (convert (make-playlist #:elements (list this))))
+
 (define-constructor playlist producer ([elements '()])
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
     (match i
+      [(struct* blank ([length length]))
+       (mlt-playlist-blank playlist* length)]
       [(struct* playlist-producer ([start start]
                                    [end end]))
        #:when (and start end)
@@ -194,8 +201,6 @@
        (define i* (convert i))
        (mlt-playlist-append playlist* i*)]
       [(struct* transition ()) (void)] ;; Must be handled after clips are added
-      [(struct* blank ([length length]))
-       (mlt-playlist-blank playlist* length)]
       [_ (error 'playlist "Not a playlist element: ~a" i)]))
   (for ([e (in-list elements)]
         [i (in-naturals)])
@@ -208,8 +213,6 @@
 
 (define-constructor playlist-producer video ([producer #f] [start #f] [end #f])
   (convert producer))
-
-(define-constructor blank video ([length 0]))
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   (define tractor* (mlt-tractor-new))                    ; Tractor
