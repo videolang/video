@@ -17,14 +17,20 @@
   ;;   (not quite sure what right interface for this function
   ;;   looks like yet)
   [multitrack (->* []
-                   [#:transitions (listof transition?)]
+                   [#:transitions (listof transition?)
+                    #:start (or/c nonnegative-integer? #f)
+                    #:end (or/c nonnegative-integer? #f)
+                    #:length (or/c nonnegative-integer? #f)]
                    #:rest (listof any/c)
                    producer?)]
 
   ;; Creates a playlist (tracks playing in sequence)
   ;;   (syntactic sugar for list)
   [playlist (->* []
-                 [#:transitions (listof transition?)]
+                 [#:transitions (listof transition?)
+                  #:start (or/c nonnegative-integer? #f)
+                  #:end (or/c nonnegative-integer? #f)
+                  #:length (or/c nonnegative-integer? #f)]
                  #:rest (listof any/c)
                  producer?)]
 
@@ -118,7 +124,13 @@
                  #:start (and length 0)
                  #:end length))
 
-(define (multitrack #:transitions [transitions '()] . tracks)
+(define (multitrack #:transitions [transitions '()]
+                    #:start [maybe-start #f]
+                    #:end [maybe-end #f]
+                    #:length [maybe-length #f]
+                    . tracks)
+  (define start (or maybe-start (and maybe-length 0)))
+  (define end (or maybe-end maybe-length))
   (define-values (tracks* transitions*)
     (for/fold ([tracks* '()]
                [transitions* transitions])
@@ -132,9 +144,17 @@
                                            transitions*))]
         [else (values (cons track tracks*) transitions*)])))
   (make-multitrack #:tracks (reverse tracks*)
-                   #:field transitions*))
+                   #:field transitions*
+                   #:start start
+                   #:end end))
 
-(define (playlist #:transitions [transitions '()] . clips)
+(define (playlist #:transitions [transitions '()]
+                  #:start [maybe-start #f]
+                  #:end [maybe-end #f]
+                  #:length [maybe-length #f]
+                  . clips)
+  (define start (or maybe-start (and maybe-length 0)))
+  (define end (or maybe-end maybe-length))
   (make-playlist
    #:elements
    (for/fold ([acc clips])
@@ -148,7 +168,9 @@
            (list clip (field-element-element t))]
           [(and (not start) (equal? end clip))
            (list (field-element-element t) clip)]
-          [else (list clip)]))))))
+          [else (list clip)]))))
+   #:start start
+   #:end end))
 
 (define (image path #:length [length #f])
   (define image-path (path->string (path->complete-path path)))
