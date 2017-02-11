@@ -117,7 +117,6 @@
           (loop (and timeout (sub1 timeout))))))))
 
 ;; Set the current renderer
-#;
 (let ([r (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)])])
   (send r setup-profile)
   (current-renderer r)

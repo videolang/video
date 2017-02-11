@@ -34,8 +34,8 @@
   
   ;; Creates a producer that plays a clip from a file
   [clip (->* [(or/c path-string? path?)]
-             [#:in (or/c nonnegative-integer? #f)
-              #:out (or/c nonnegative-integer? #f)
+             [#:start (or/c nonnegative-integer? #f)
+              #:end (or/c nonnegative-integer? #f)
               #:length (or/c nonnegative-integer? #f)]
              producer?)]
 
@@ -89,9 +89,10 @@
   (make-blank #:length length))
 
 (define (clip path
-              #:in [in #f]
-              #:out [out* #f]
+              #:start [in* #f]
+              #:end [out* #f]
               #:length [other-out #f])
+  (define in (or in* (and other-out 0)))
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
   (define prop*
@@ -100,7 +101,8 @@
            [prop (if out (hash-set prop "out" out) prop)])
       prop))
   (make-producer #:source clip-path
-                 #:prop prop*))
+                 #:start (and in 0)
+                 #:end out))
 
 (define (color c #:length [length #f])
   (define c*
@@ -150,13 +152,9 @@
 
 (define (image path #:length [length #f])
   (define image-path (path->string (path->complete-path path)))
-  (define prop*
-    (let* ([prop (hash)]
-           [prop (if length (hash-set prop "in" 0) prop)]
-           [prop (if length (hash-set prop "out" length) prop)])
-      prop))
   (make-producer #:source (format "pixbuf:~a" image-path)
-                 #:prop prop*))
+                 #:start (and length 0)
+                 #:end length))
 
 ;; TODO, sigh, we should really not have a closed
 ;;    world assumption here. :'(
@@ -172,6 +170,8 @@
     [(multitrack? obj)
      (struct-copy core:multitrack obj [filters #:parent service new-filters])]
     [(consumer? obj)
+     (struct-copy consumer obj [filters #:parent service new-filters])]
+    [(blank? obj)
      (struct-copy consumer obj [filters #:parent service new-filters])]
     [(producer? obj)
      (struct-copy producer obj [filters #:parent service new-filters])]
