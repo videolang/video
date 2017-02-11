@@ -17,7 +17,7 @@
   ;;   (not quite sure what right interface for this function
   ;;   looks like yet)
   [multitrack (->* []
-                   [#:transitions (listof transition?)
+                   [#:transitions (listof field-element?)
                     #:start (or/c nonnegative-integer? #f)
                     #:end (or/c nonnegative-integer? #f)
                     #:length (or/c nonnegative-integer? #f)]
@@ -27,7 +27,7 @@
   ;; Creates a playlist (tracks playing in sequence)
   ;;   (syntactic sugar for list)
   [playlist (->* []
-                 [#:transitions (listof transition?)
+                 [#:transitions (listof field-element?)
                   #:start (or/c nonnegative-integer? #f)
                   #:end (or/c nonnegative-integer? #f)
                   #:length (or/c nonnegative-integer? #f)]
@@ -73,13 +73,13 @@
                               (between/c 0 1)]
                              [#:top (or/c any/c #f)
                               #:bottom (or/c any/c #f)]
-                             transition?)]
+                             (or/c field-element? transition?))]
 
   [swipe-transition (->* [#:direction symbol?
                           #:length nonnegative-integer?]
                          [#:top (or/c any/c #f)
                           #:bottom (or/c any/c #f)]
-                         transition?)]
+                         (or/c field-element? transition?))]
   
   [scale-filter (case-> (-> (and/c number? positive?) (and/c number? positive?) filter?)
                         (-> service? (and/c number? positive?) (and/c number? positive?) service?))]
