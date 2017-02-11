@@ -8,6 +8,7 @@
          racket/list
          (except-in pict frame blank)
          "private/video.rkt"
+         "private/utils.rkt"
          (prefix-in core: "private/video.rkt"))
 
 (provide
@@ -231,11 +232,3 @@
       #:align 'right
       (format "~x" number)))
 
-;; Contract to see if a number is a nonnegative integer
-;; (-> any/c boolean?)
-;; Given: 0 Expect: #t
-;; Given: 5 Expect: #t
-;; Given: -1 Expect: #f
-;; Given: 2.5 Expect: #f
-(define nonnegative-integer?
-  (or/c (and/c (>=/c 0) integer?)))
