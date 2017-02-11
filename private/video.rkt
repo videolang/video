@@ -5,6 +5,7 @@
          racket/match
          racket/set
          racket/class
+         racket/list
          file/convertible
          (prefix-in file: file/convertible)
          "mlt.rkt"
@@ -183,13 +184,14 @@
 (define-constructor playlist producer ([elements '()])
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
-    (define i* (convert i))
     (match i
       [(struct* playlist-producer ([start start]
                                    [end end]))
        #:when (and start end)
+       (define i* (convert i))
        (mlt-playlist-append-io playlist* i* start end)]
       [(struct* producer ())
+       (define i* (convert i))
        (mlt-playlist-append playlist* i*)]
       [(struct* transition ()) (void)] ;; Must be handled after clips are added
       [(struct* blank ([length length]))
@@ -226,7 +228,21 @@
        (define element* (convert element))
        (cond
          [(transition? element)
-          (mlt-field-plant-transition field* element* track track-2)]
+          (define-values (track* track2*)
+            (for/fold ([track* #f]
+                       [track2* #f])
+                     ([t (in-list tracks)]
+                       [i (in-naturals)])
+              (values
+               (or track* (if (eq? t track) i #f))
+               (or track2* (if (eq? t track-2) i #f)))))
+          (unless (and track* track2*)
+            (error 'multitrack
+                   "Cannot find producers in multitrack ~a: ~a ~a"
+                   tracks
+                   track
+                   track-2))
+          (mlt-field-plant-transition field* element* track* track2*)]
          [(filter? element)
           (mlt-field-plant-filter field* element* track)])]))
   (register-mlt-close mlt-field-close field*)

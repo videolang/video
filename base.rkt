@@ -112,8 +112,20 @@
                  #:end length))
 
 (define (multitrack #:transitions [transitions '()] . tracks)
-  (make-multitrack #:tracks tracks
-                   #:field transitions))
+  (define-values (tracks* transitions*)
+    (for/fold ([tracks* '()]
+               [transitions* transitions])
+              ([track (in-list tracks)]
+               [i (in-naturals)])
+      (cond
+        [(transition? track) (values tracks*
+                                     (cons (make-field-element #:element track
+                                                               #:track (list-ref tracks (sub1 i))
+                                                               #:track-2 (list-ref tracks (add1 i)))
+                                           transitions*))]
+        [else (values (cons track tracks*) transitions*)])))
+  (make-multitrack #:tracks (reverse tracks*)
+                   #:field transitions*))
 
 (define (playlist #:transitions [transitions '()] . clips)
   (make-playlist
