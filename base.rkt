@@ -101,11 +101,6 @@
   (define in (or in* (and other-out 0)))
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
-  (define prop*
-    (let* ([prop (hash)]
-           [prop (if in (hash-set prop "in" in) prop)]
-           [prop (if out (hash-set prop "out" out) prop)])
-      prop))
   (make-producer #:source clip-path
                  #:start (and in 0)
                  #:end out))
