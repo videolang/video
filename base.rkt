@@ -49,7 +49,8 @@
   ;; Creates a producer that is a solid color
   [color (->* [(or/c string? (is-a?/c color%)
                      (list/c byte? byte? byte?))]
-              [#:length (or/c nonnegative-integer? #f)]
+              [#:length (or/c nonnegative-integer? #f)
+               #:properties (hash/c string? any/c)]
               producer?)]
 
   ;; Create a producer that is the same as the other producer but with one or more
@@ -58,7 +59,8 @@
 
   ;; Creates a clip who's producer is path
   [image (->* [(or/c path-string? path-for-some-system?)]
-              [#:length (or/c nonnegative-integer? #f)]
+              [#:length (or/c nonnegative-integer? #f)
+               #:properties (hash/c string? any/c)]
               producer?)]
 
   [fade-transition (->* [#:length nonnegative-integer?]
@@ -110,7 +112,9 @@
                  #:end out
                  #:prop prop))
 
-(define (color c #:length [length #f])
+(define (color c
+               #:length [length #f]
+               #:properties [prop (hash)])
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
@@ -121,6 +125,7 @@
                                   (number->2string (send c* green))
                                   (number->2string (send c* blue))
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
+                 #:prop prop
                  #:start (and length 0)
                  #:end length))
 
@@ -172,9 +177,12 @@
    #:start start
    #:end end))
 
-(define (image path #:length [length #f])
+(define (image path
+               #:length [length #f]
+               #:properties [prop (hash)])
   (define image-path (path->string (path->complete-path path)))
   (make-producer #:source (format "pixbuf:~a" image-path)
+                 #:prop prop
                  #:start (and length 0)
                  #:end length))
 
