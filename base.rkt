@@ -42,7 +42,8 @@
   [clip (->* [(or/c path-string? path?)]
              [#:start (or/c nonnegative-integer? #f)
               #:end (or/c nonnegative-integer? #f)
-              #:length (or/c nonnegative-integer? #f)]
+              #:length (or/c nonnegative-integer? #f)
+              #:properties (hash/c string? any/c)]
              producer?)]
 
   ;; Creates a producer that is a solid color
@@ -99,13 +100,15 @@
 (define (clip path
               #:start [in* #f]
               #:end [out* #f]
-              #:length [other-out #f])
+              #:length [other-out #f]
+              #:properties [prop (hash)])
   (define in (or in* (and other-out 0)))
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
   (make-producer #:source clip-path
                  #:start (and in 0)
-                 #:end out))
+                 #:end out
+                 #:prop prop))
 
 (define (color c #:length [length #f])
   (define c*
@@ -200,7 +203,7 @@
 
 ;; TODO, sigh, same issues as attach-filter. :'(
 (define (set-property obj key val)
-  (define new-props (hash-set (get-property obj key) key val))
+  (define new-props (hash-set (properties-prop obj) key val))
   (cond
     [(filter? obj)
      (struct-copy filter obj [prop #:parent properties new-props])]
