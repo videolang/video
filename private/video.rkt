@@ -190,18 +190,16 @@
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
     (match i
-      [(struct* blank ([length length]))
-       (mlt-playlist-blank playlist* length)]
       [(struct* playlist-producer ([start start]
                                    [end end]))
        #:when (and start end)
        (define i* (convert i))
        (mlt-playlist-append-io playlist* i* start end)]
-      [(struct* producer ())
+      [(struct* transition ()) (void)] ;; Must be handled after clips are added
+      [_ ; (struct* producer ()) (But can be converted first
        (define i* (convert i))
        (mlt-playlist-append playlist* i*)]
-      [(struct* transition ()) (void)] ;; Must be handled after clips are added
-      [_ (error 'playlist "Not a playlist element: ~a" i)]))
+      #;[_ (error 'playlist "Not a playlist element: ~a" i)]))
   (for ([e (in-list elements)]
         [i (in-naturals)])
     (when (transition? e)

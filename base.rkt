@@ -63,6 +63,7 @@
                #:properties (hash/c string? any/c)]
               producer?)]
 
+  ;; Creates a fading transition from a start to end clip
   [fade-transition (->* [#:length nonnegative-integer?]
                         [#:start any/c
                          #:end any/c]
@@ -78,6 +79,8 @@
                               #:bottom (or/c any/c #f)]
                              (or/c field-element? transition?))]
 
+  ;; Creates a swiping transition from a start clip to an
+  ;;   end clip
   [swipe-transition (->* [#:direction symbol?
                           #:length nonnegative-integer?]
                          [#:top (or/c any/c #f)
@@ -90,11 +93,21 @@
   [grayscale-filter (case-> (-> filter?)
                             (-> service? service?))]
 
+  ;; Set a property associated with a properties struct
   [set-property (-> properties? string? any/c properties?)]
-  
+
+  ;; Get a property associated with a properties struct
   [get-property (->* [properties? string?]
                      [symbol?]
-                     any/c)]))
+                     any/c)]
+
+  [include-video (->* [(or/c module-path?
+                             resolved-module-path?
+                             module-path-index?)]
+                      [#:start (or/c nonnegative-integer? #f)
+                       #:end (or/c nonnegative-integer? #f)
+                       #:length (or/c nonnegative-integer? #f)]
+                      any/c)]))
 
 (define (blank length)
   (make-blank #:length length))
@@ -276,6 +289,18 @@
   (case-lambda
     [(p) (attach-filter p (grayscale-filter))]
     [() (make-filter #:type 'grayscale)]))
+
+
+(define (include-video mod
+                       #:start [start* #f]
+                       #:end [end* #f]
+                       #:length [length #f])
+  (define start (or start* (and length 0)))
+  (define end (or end* length))
+  (let* ([vid (dynamic-require mod 'vid)]
+         [vid (if start (set-property vid "start" start) vid)]
+         [vid (if end (set-property vid "end" end) vid)])
+    vid))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
