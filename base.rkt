@@ -164,8 +164,8 @@
    #:elements
    (for/fold ([acc clips])
              ([t (in-list transitions)])
-     (define start (field-element-track transition))
-     (define end (field-element-track-2 transition))
+     (define start (field-element-track t))
+     (define end (field-element-track-2 t))
      (append*
       (for/list ([clip (in-list clips)])
         (cond
