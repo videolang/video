@@ -1,23 +1,36 @@
 #lang racket/base
-(require video/lib
-         video/core
-         (only-in "../private/video.rkt" producer? properties-prop))
+(require (only-in video/base get-property)
+         (only-in "../private/video.rkt"
+                  producer? field-element? transition? filter?))
 (require rackunit)
 (require (for-syntax racket/base syntax/parse))
-(provide check-producer check-producer?)
+(provide check-producer check-producer? check-transition? check-filter?)
 
-(define (producer-len p)
-  (define props (properties-prop p))
-  (define start (hash-ref props "in" 0))
-  (define end (hash-ref props "out" #f))
-  (and end (- end start)))
+(define (producer-len p) (get-property p "length" 'int))
+
+(define INF-LENGTH 1000)
 
 (define-syntax (check-producer stx)
   (syntax-parse stx
-    [(_ p) (syntax/loc stx (check-pred producer? p))]
-    [(_ p #:len l) ; inf len = #f
+    [(_ p) (syntax/loc stx (check-producer? p))]
+    [(_ p #:len (~datum inf)) ; inf len
      #`(begin
-         #,(syntax/loc stx (check-producer p))
+         #,(syntax/loc stx (check-producer? p))
+         #,(syntax/loc stx (check-true (> (producer-len p) INF-LENGTH))))]
+    [(_ p #:len l) ; inf len
+     #`(begin
+         #,(syntax/loc stx (check-producer? p))
          #,(syntax/loc stx (check-equal? (producer-len p) l)))]))
 
-(define-syntax-rule (check-producer? p) (check-producer p))
+;; doesnt check length
+(define-syntax (check-producer? stx)
+  (syntax-parse stx
+    [(_ p) (syntax/loc stx (check-pred producer? p))]))
+
+(define-syntax (check-transition? stx)
+  (syntax-parse stx
+    [(_ p) (syntax/loc stx (check-pred transition? p))]))
+
+(define-syntax (check-filter? stx)
+  (syntax-parse stx
+    [(_ p) (syntax/loc stx (check-pred filter? p))]))
