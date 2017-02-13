@@ -106,7 +106,7 @@
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
   (make-producer #:source clip-path
-                 #:start (and in 0)
+                 #:start in
                  #:end out
                  #:prop prop))
 
