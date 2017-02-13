@@ -132,13 +132,17 @@
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
       [_ (make-object color% c)]))
+  (define prop*
+    (if length
+        (hash-set* prop "length" length "start" 0 "end" length)
+        prop))
   (make-producer #:type 'color
                  #:source (format "0x~a~a~a~a"
                                   (number->2string (send c* red))
                                   (number->2string (send c* green))
                                   (number->2string (send c* blue))
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-                 #:prop prop
+                 #:prop prop*
                  #:start (and length 0)
                  #:end length))
 
