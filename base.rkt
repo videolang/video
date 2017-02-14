@@ -130,6 +130,8 @@
   (define in (or in* (and other-out 0)))
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
+  (define prop*
+    (hash-set* prop "start" in "end" out "length" (- out in -1)))
   (make-producer #:source clip-path
                  #:start in
                  #:end out
@@ -207,9 +209,13 @@
 (define (image path
                #:length [length #f]
                #:properties [prop (hash)])
+  (define prop*
+    (if length
+        (hash-set* prop "length" length "start" 0 "end" length)
+        prop))
   (define image-path (path->string (path->complete-path path)))
   (make-producer #:source (format "pixbuf:~a" image-path)
-                 #:prop prop
+                 #:prop prop*
                  #:start (and length 0)
                  #:end length))
 
@@ -286,7 +292,17 @@
 (define (producer-length producer)
   (define s (producer-start producer))
   (define e (producer-end producer))
-  (and s e (- s e)))
+  (or
+   (and s e (- s e -1))
+   (get-property producer "length" 'int0)))
+
+(define (producer-start producer)
+  (or (core:producer-start producer)
+      (get-property producer "start" 'int)))
+
+(define (producer-end producer)
+  (or (core:producer-end producer)
+      (get-property producer "end" 'int)))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
