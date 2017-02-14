@@ -3,7 +3,8 @@ language: c
 # Based from: https://github.com/greghendershott/travis-racket
 
 # Optional: Remove to use Travis CI's older infrastructure.
-sudo: false
+sudo: true
+dist: trusty
 
 env:
   global:
@@ -31,9 +32,17 @@ matrix:
   fast_finish: true
 
 before_install:
-- git clone https://github.com/greghendershott/travis-racket.git ~/travis-racket
-- cat ~/travis-racket/install-racket.sh | bash # pipe to bash not sh!
-- export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
+  # libmlt6
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libmlt6
+  # racket
+  - git clone https://github.com/greghendershott/travis-racket.git ~/travis-racket
+  - cat ~/travis-racket/install-racket.sh | bash # pipe to bash not sh!
+  - export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
+  # xvfb, enables gtk
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+  - sleep 3 # give xvfb some time to start
 
 install:
  - raco pkg install --deps search-auto -n video
@@ -44,7 +53,7 @@ before_script:
 # `raco pkg install --deps search-auto` to install any required
 # packages without it getting stuck on a confirmation prompt.
 script:
- - raco test -x -p video
+ - raco test -p video
 
 after_success:
  - raco setup --check-pkg-deps --pkgs video
