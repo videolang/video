@@ -203,53 +203,13 @@
                  #:start (and length 0)
                  #:end length))
 
-;; TODO, sigh, we should really not have a closed
-;;    world assumption here. :'(
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
-  (cond
-    [(filter? obj)
-     (struct-copy filter obj [filters #:parent service new-filters])]
-    [(core:transition? obj)
-     (struct-copy core:transition obj [filters #:parent service new-filters])]
-    [(playlist? obj)
-     (struct-copy core:playlist obj [filters #:parent service new-filters])]
-    [(multitrack? obj)
-     (struct-copy core:multitrack obj [filters #:parent service new-filters])]
-    [(consumer? obj)
-     (struct-copy consumer obj [filters #:parent service new-filters])]
-    [(blank? obj)
-     (struct-copy core:blank obj [filters #:parent service new-filters])]
-    [(producer? obj)
-     (struct-copy producer obj [filters #:parent service new-filters])]
-    [else
-     (struct-copy service obj [filters new-filters])]))
+  (copy-video obj #:filteres new-filters))
 
-
-;; TODO, sigh, same issues as attach-filter. :'(
 (define (set-property obj key val)
   (define new-props (hash-set (properties-prop obj) key val))
-  (cond
-    [(filter? obj)
-     (struct-copy filter obj [prop #:parent properties new-props])]
-    [(core:transition? obj)
-     (struct-copy core:transition obj [prop #:parent properties new-props])]
-    [(playlist? obj)
-     (struct-copy core:playlist obj [prop #:parent properties new-props])]
-    [(multitrack? obj)
-     (struct-copy core:multitrack obj [prop #:parent properties new-props])]
-    [(consumer? obj)
-     (struct-copy consumer obj [prop #:parent properties new-props])]
-    [(blank? obj)
-     (struct-copy core:blank obj [prop #:parent properties new-props])]
-    [(producer? obj)
-     (struct-copy producer obj [prop #:parent properties new-props])]
-    [(service? obj)
-     (struct-copy service obj [prop #:parent properties new-props])]
-    [(frame? obj)
-     (struct-copy frame obj [prop #:parent properties new-props])]
-    [else
-     (struct-copy properties obj [prop new-props])]))
+  (copy-video obj #:prop new-props))
 
 (define (fade-transition #:length length
                          #:start [start #f]

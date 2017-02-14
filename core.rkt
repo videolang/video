@@ -2,13 +2,16 @@
 
 (require racket/contract/base
          racket/class
+         racket/dict
          "render.rkt"
          "private/video.rkt")
+
 (provide
  (contract-out
   [convert (->* [any/c]
                 [#:renderer (or/c (is-a?/c render%))]
                 any/c)])
+  copy-video
   make-video
   video?
   make-link
