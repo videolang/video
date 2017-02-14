@@ -115,9 +115,9 @@
                       #:end (or/c nonnegative-integer? #f)]
                      producer?)]
 
-  [producer-length (-> producer? (or/c nonnegative-integer?))]
-  [producer-start (-> producer? (or/c nonnegative-integer?))]
-  [producer-end (-> producer? (or/c nonnegative-integer?))]))
+  [producer-length (-> producer? (or/c nonnegative-integer? #f))]
+  [producer-start (-> producer? (or/c nonnegative-integer? #f))]
+  [producer-end (-> producer? (or/c nonnegative-integer? #f))]))
 
 (define (blank length)
   (make-blank #:length length))
