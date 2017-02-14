@@ -190,6 +190,8 @@
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
     (match i
+      [(struct* blank ([length length]))
+       (mlt-playlist-blank playlist* length)]
       [(struct* playlist-producer ([start start]
                                    [end end]))
        #:when (and start end)
