@@ -58,9 +58,9 @@
 ;; shapes and colors defined after use
 (check-producer shapes #:len inf)
 (check-producer colors #:len inf)
-(check-producer (playlist-append shapes colors) #:len inf)
+(check-producer (playlist shapes colors) #:len inf)
 ;; TODO: reported length is 11??
-(check-producer (playlist-append (playlist g1) (playlist blue-clip))); #:len 9)
+(check-producer (playlist (playlist g1) (playlist blue-clip))); #:len 9)
 (define shapes (playlist circ-img vid-clip))
 (define colors (playlist (color "red") (color "blue")))
 
