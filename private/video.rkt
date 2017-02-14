@@ -94,7 +94,7 @@
 (define copy-video
   (make-keyword-procedure
    (λ (kws kw-args . args)
-     (unless (= 1 (length rest))
+     (unless (= 1 (length args))
        (error 'copy-video "copy-video requires exactly one non keyword argument"))
      (copy-video-op (first args)
                     (map cons
@@ -199,8 +199,9 @@
 
 (define-constructor producer service ([type #f] [source #f] [start #f] [end #f] [speed #f] [seek #f])
   (define producer* (mlt-factory-producer (current-profile) type source))
-  (when (and start end)
-    (mlt-producer-set-in-and-out producer* start end))
+  (define start* (or start -1))
+  (define end* (or end -1))
+  (mlt-producer-set-in-and-out producer* start* end*)
   (when seek
     (mlt-producer-seek producer* seek))
   (register-mlt-close mlt-producer-close producer*))

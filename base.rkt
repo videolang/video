@@ -107,7 +107,17 @@
                       [#:start (or/c nonnegative-integer? #f)
                        #:end (or/c nonnegative-integer? #f)
                        #:length (or/c nonnegative-integer? #f)]
-                      any/c)]))
+                      any/c)]
+
+  ;; Generate a new video with a new in-out
+  [cut-producer (->* [producer?]
+                     [#:start (or/c nonnegative-integer? #f)
+                      #:end (or/c nonnegative-integer? #f)]
+                     producer?)]
+
+  [producer-length (-> producer? (or/c nonnegative-integer?))]
+  [producer-start (-> producer? (or/c nonnegative-integer?))]
+  [producer-end (-> producer? (or/c nonnegative-integer?))]))
 
 (define (blank length)
   (make-blank #:length length))
@@ -265,6 +275,18 @@
          [vid (if start (set-property vid "start" start) vid)]
          [vid (if end (set-property vid "end" end) vid)])
     vid))
+
+(define (cut-producer producer
+                      #:start [start #f]
+                      #:end [end #f])
+  (copy-video producer
+              #:start (or start (producer-start producer))
+              #:end (or end (producer-end producer))))
+
+(define (producer-length producer)
+  (define s (producer-start producer))
+  (define e (producer-end producer))
+  (and s e (- s e)))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
