@@ -131,7 +131,7 @@
   (define out (or out* other-out))
   (define clip-path (path->string (path->complete-path path)))
   (define prop*
-    (hash-set* prop "start" in "end" out "length" (- out in -1)))
+    (hash-set* prop "start" in "end" out "length" (and out in (- out in -1))))
   (make-producer #:source clip-path
                  #:start in
                  #:end out
@@ -270,7 +270,8 @@
     [(p) (attach-filter p (grayscale-filter))]
     [() (make-filter #:type 'grayscale)]))
 
-
+;(define audio-fade-filter
+  
 (define (include-video mod
                        #:start [start* #f]
                        #:end [end* #f]
