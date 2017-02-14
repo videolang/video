@@ -156,7 +156,7 @@
                                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
                  #:prop prop*
                  #:start (and length 0)
-                 #:end length))
+                 #:end (and length (- length 1))))
 
 (define (multitrack #:transitions [transitions '()]
                     #:start [maybe-start #f]
@@ -217,7 +217,7 @@
   (make-producer #:source (format "pixbuf:~a" image-path)
                  #:prop prop*
                  #:start (and length 0)
-                 #:end length))
+                 #:end (and length (- length 1))))
 
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
@@ -293,8 +293,8 @@
   (define s (producer-start producer))
   (define e (producer-end producer))
   (or
-   (and s e (- s e -1))
-   (get-property producer "length" 'int0)))
+   (and s e (- e s -1))
+   (get-property producer "length" 'int)))
 
 (define (producer-start producer)
   (or (core:producer-start producer)
