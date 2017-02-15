@@ -76,7 +76,8 @@
                               (between/c 0 1)
                               (between/c 0 1)]
                              [#:top (or/c any/c #f)
-                              #:bottom (or/c any/c #f)]
+                              #:bottom (or/c any/c #f)
+                              #:length (or/c nonnegative-integer? #f)]
                              (or/c field-element? transition?))]
 
   ;; Creates a swiping transition from a start clip to an
@@ -239,14 +240,16 @@
 
 (define (composite-transition x y w h
                               #:top [top #f]
-                              #:bottom [bottom #f])
+                              #:bottom [bottom #f]
+                              #:length [length #f])
  (define trans
    (make-transition #:type 'composite
                     #:source (format "~a%/~a%:~a%x~a%"
                                      (inexact->exact (round (* x 100)))
                                      (inexact->exact (round (* y 100)))
                                      (inexact->exact (round (* w 100)))
-                                     (inexact->exact (round (* h 100))))))
+                                     (inexact->exact (round (* h 100))))
+                    #:length (or length 0)))
   (if (and top bottom)
       (make-field-element #:element trans
                           #:track bottom

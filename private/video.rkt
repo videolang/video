@@ -189,7 +189,7 @@
   (define f (mlt-factory-filter (current-profile) type source))
   (register-mlt-close mlt-filter-close f))
 
-(define-constructor transition service ([type #f] [source #f] [length #f])
+(define-constructor transition service ([type #f] [source #f] [length 0])
   (define t (mlt-factory-transition (current-profile) type source))
   (register-mlt-close mlt-transition-close t))
 
