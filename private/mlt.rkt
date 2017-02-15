@@ -2,7 +2,6 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
-         racket/gui/base
          racket/stxparam
          racket/splicing
          (for-syntax racket/syntax
@@ -243,7 +242,11 @@
                                                     #:msg "Producer has already been registered")]
                                           [else (raise-mlt-warning mlt-consumer-connect)])))
 (define-mlt* mlt-consumer-start (_fun _mlt-consumer-pointer -> [v : _bool]
-                                      -> (ret-error v)))
+                                      -> (ret-error v))
+  #:wrap (λ (func)
+           (λ (cp)
+             (dynamic-require 'racket/gui #f)
+             (func cp))))
 (define-mlt* mlt-consumer-stop (_fun _mlt-consumer-pointer -> [v : _bool]
                                      -> (ret-error v)))
 (define-mlt* mlt-consumer-is-stopped (_fun _mlt-consumer-pointer -> _bool))
