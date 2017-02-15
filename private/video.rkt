@@ -9,6 +9,7 @@
          racket/generic
          file/convertible
          (prefix-in file: file/convertible)
+         "utils.rkt"
          "mlt.rkt"
          "init-mlt.rkt"
          (for-syntax racket/base
@@ -279,4 +280,4 @@
 ;; The render module sets a parameter we rely on
 ;;  (Yes, we 'could' do it with units, but requires a large
 ;;   amount of boilerplate.)
-(void (dynamic-require "../render.rkt" #f))
+(void (dynamic-require (build-path video-dir "render.rkt") #f))
