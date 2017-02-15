@@ -11,6 +11,7 @@
          racket/match
          racket/list
          racket/format
+         racket/path
          file/convertible
          (except-in pict frame blank clip)
          (prefix-in pict: pict)
@@ -23,6 +24,8 @@
                     length)
   #:transparent)
 
+;; Video Editors are the graphical NLVEs that can be placed in
+;;    DrRacket
 (define video-editor%
   (let ()
     (define-local-member-name
@@ -257,7 +260,11 @@
              [parent p]
              [label "Insert Video from File"]
              [callback (λ (item event)
-                         (error "TODO"))])
+                         (define file (get-file))
+                         (define t (new video-file%
+                                        [filename file]
+                                        [track-height track-height]))
+                         (insert-video t (position->track y) x initial-snip-length))])
         (new menu-item%
              [parent p]
              [label "Insert Text"]
@@ -418,6 +425,8 @@
                   `(list ,@(reverse playlist))))))
         (datum->syntax #f data (list source line column position #f))))))
 
+;; Text Editors can be placed inside of video editors. They are much closer
+;;   to the DrRacket text editors.
 (define video-text%
   (class* racket:text% (readable<%>)
     (init-field [track-height 100])
@@ -471,12 +480,96 @@
                      `(let () ,stx)
                      (list source line column position #f)))))
 
+(define video-file%
+  (class* text% (readable<%>)
+    (init-field [file #f]
+                [track-height 100])
+    (super-new)
+    (when file
+      (send this insert (path->string (file-name-from-path file))))
+    (send this lock #t)
+    (send this hide-caret #t)
+
+    (define/public (set-file! filename)
+      (send this lock #f)
+      (send this clear)
+      (set! file filename)
+      (if (path? filename)
+          (send this insert (path->string (file-name-from-path filename)))
+          (send this insert "NO FILE"))
+      (send this lock #t))
+
+    (define (make-right-click-menu x y)
+      (define p (new popup-menu%))
+      (new menu-item%
+           [parent p]
+           [label "Play"]
+           [callback (λ (item event)
+                       (error "TODO"))])
+      (new menu-item%
+           [parent p]
+           [label "Change File"]
+           [callback (λ (item event)
+                       (define new-file (get-file))
+                       (when new-file
+                         (set-file! new-file)))])
+      p)
+
+    (define/override (on-event event)
+      (match (send event get-event-type)
+        ['right-down
+                  (define admin (send this get-admin))
+         (define x (send event get-x))
+         (define y (send event get-y))
+         (define-values (local-x local-y)
+           (send this dc-location-to-editor-location x y))
+         (when admin
+           (send admin popup-menu
+                 (make-right-click-menu local-x local-y)
+                 local-x local-y))]
+        [_ (super on-event event)]))
+    
+    (define/override (copy-self)
+      (define vid (new video-file% [file file] [track-height track-height]))
+      (copy-self-to vid)
+      vid)
+
+    (define/override (copy-self-to other)
+      (send other set-file! file))
+    
+    (define/override (write-to-file str)
+      (send str put (if file 1 0))
+      (when file
+        (send str put (path->bytes file))))
+    
+    (define/override (read-from-file str [overwrite-style #f])
+      (define file? (= (send str get-exact) 1))
+      (if file?
+          (set-file! (bytes->path (send str get-bytes)))
+          (set-file! #f)))
+      
+    (define/public (read-special source line column position)
+      (define stx (read-syntax source (open-input-text-editor this 0 'end values source #t)))
+      (define file (symbol->string (syntax-e stx)))
+      (define constructor
+        (match (path-get-extension file)
+          ['png image]
+          ['gif image]
+          ['jpg image]
+          ['mp4 clip]
+          [_ clip]))
+      (datum->syntax #f
+                     `(let () (,constructor ,file))
+                     (list source line column position #f)))))
+
+;; Video snips hold video editors.
 (define video-snip-class-name
   (~s '((lib "private/editor.rkt" "video")
         (lib "private/editor.rkt" "video"))))
 
 (define video-editor-const 1)
 (define video-text-const 2)
+(define video-file-const 3)
 (define video-snip%
   (class* editor-snip% (readable-snip<%>)
     (init-field [editor #f]
@@ -518,9 +611,10 @@
       other)
     
     (define/override (write f)
-      (if (editor . is-a? . video-editor%)
-          (send f put video-editor-const)
-          (send f put video-text-const))
+      (cond
+        [(editor . is-a? . video-editor%) (send f put video-editor-const)]
+        [(editor . is-a? . video-text%) (send f put video-text-const)]
+        [else (send f put video-file-const)])
       (if with-border? (send f put 1) (send f put 0))
       (send f put left-margin)
       (send f put top-margin)
@@ -545,10 +639,11 @@
     (super-new)
     (send this set-classname video-snip-class-name)
     (define/override (read f)
-      (define type (send f get-exact))
-      (define vid (if (= type video-editor-const)
-                      (new video-editor%)
-                      (new video-text%)))
+      (define vid
+        (match (send f get-exact)
+          [(== video-editor-const) (new video-editor%)]
+          [(== video-text-const) (new video-text%)]
+          [_ (new video-file%)]))
       (define with-border? (= (send f get-exact) 1))
       (define left-margin (send f get-exact))
       (define top-margin (send f get-exact))
