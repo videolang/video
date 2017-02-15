@@ -249,7 +249,7 @@
                                      (inexact->exact (round (* y 100)))
                                      (inexact->exact (round (* w 100)))
                                      (inexact->exact (round (* h 100))))
-                    #:length (or length 0)))
+                    #:length length))
   (if (and top bottom)
       (make-field-element #:element trans
                           #:track bottom

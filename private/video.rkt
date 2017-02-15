@@ -189,7 +189,7 @@
   (define f (mlt-factory-filter (current-profile) type source))
   (register-mlt-close mlt-filter-close f))
 
-(define-constructor transition service ([type #f] [source #f] [length 0])
+(define-constructor transition service ([type #f] [source #f] [length #f])
   (define t (mlt-factory-transition (current-profile) type source))
   (register-mlt-close mlt-transition-close t))
 
@@ -230,7 +230,7 @@
     (when (transition? e)
       (mlt-playlist-mix playlist*
                         (- i 1)
-                        (transition-length e)
+                        (or (transition-length e) 0)
                         (convert e))))
   (register-mlt-close mlt-playlist-close playlist*))
 
