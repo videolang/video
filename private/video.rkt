@@ -275,3 +275,8 @@
   tractor*)
 
 (define-constructor field-element video ([element #f] [track #f] [track-2 #f]))
+
+;; The render module sets a parameter we rely on
+;;  (Yes, we 'could' do it with units, but requires a large
+;;   amount of boilerplate.)
+(void (dynamic-require "../render.rkt" #f))
