@@ -35,6 +35,9 @@ before_install:
   # libmlt6
   - sudo apt-get -qq update
   - sudo apt-get install -y libmlt6
+  - sudo apt-get install -y ffmpeg
+  - sudo apt-get install -y libgdk-pixbuf2.0-*
+  - sudo apt-get install -y frei0r-plugins*
   # racket
   - git clone https://github.com/greghendershott/travis-racket.git ~/travis-racket
   - cat ~/travis-racket/install-racket.sh | bash # pipe to bash not sh!
