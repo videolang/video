@@ -31,9 +31,18 @@ Designed with similar designs in mind to Scribble,
 Slideshow, and Pict. It is still a work in progress and the
 interface may or may not change in the near future.
 
-This libraries requires that you have
-@hyperlink["https://mltframework.org/"]{libmlt} installed on your
-system.
+@(compound-paragraph
+  (style #f '())
+  (list
+   @para{This libraries requires that you have the following
+ libraries on your system.}
+   @itemlist[
+ @item[@hyperlink["https://mltframework.org/"]{libmlt}]
+ @item[@hyperlink["https://ffmpeg.org/"]{ffmpeg/libav}]
+ @item[@hyperlink["http://ftp.gnome.org/pub/GNOME/sources/gdk-pixbuf/"]{GDK Pixbuf}]
+ @item[@hyperlink["https://frei0r.dyne.org/"]{Frei0r}]]
+   @para{Eventually Video will take care if
+ this for you, but it currently does not.}))
 
 @margin-note{Many of the implementation decisions of this
  library are based on my understanding of
@@ -44,6 +53,37 @@ system.
  notify me or submit a patch.}
 
 @table-of-contents[]
+
+@section{Getting Started}
+
+@colorize[#:color "red"]{TODO: Write getting started section}
+
+@section{Video API}
+
+@defmodule[video/base]
+
+Note that not all of the functions in this module are currently documented.
+
+@defproc[(playlist [producer producer?] ...
+                   [#:transitions transitions (listof field-element?)]
+                   [#:start start (or/c nonnegative-integer? #f) #f]
+                   [#:end end (or/c nonnegative-integer? #f) #f]
+                   [#:length length (or/c nonnegative-integer? #f) #f])
+         producer?]
+
+@defproc[(multitrack [producer producer?] ...
+                     [#:transitions transitions (listof field-element?)]
+                     [#:start start (or/c nonnegative-integer? #f) #f]
+                     [#:end end (or/c nonnegative-integer? #f) #f]
+                     [#:length length (or/c nonnegative-integer? #f) #f])
+         producer?]
+
+@defproc[(clip [file (or/c path-string? path?)]
+               [#:start start (or/c nonnegative-integer? #f) #f]
+               [#:end end (or/c nonnegative-integer? #f) #f]
+               [#:length length (or/c nonnegative-integer? #f) #f]
+               [#:properties properties (hash/c string? any/c) (hash)])
+         producer?]
 
 @section{Player}
 @defmodule[video/player]
