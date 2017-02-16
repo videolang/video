@@ -2,6 +2,7 @@
 
 (provide (except-out (all-from-out racket/base) #%module-begin)
          (rename-out [~module-begin #%module-begin])
+         λ/video
          (all-from-out video/base))
 
 (require (prefix-in core: video/core)
@@ -12,6 +13,7 @@
          (for-syntax racket/base
                      racket/syntax
                      syntax/parse
+                     syntax/parse/lib/function-header
                      syntax/kerncase))
 
 (define-syntax (~module-begin stx)
@@ -20,13 +22,20 @@
      #'(#%module-begin
         (video-begin id post-process exprs . body))]))
 
+(define-syntax (λ/video stx)
+  (syntax-parse stx
+    [(_ args:function-header . body)
+     #'(λ args (video-begin "λ/video" values () . body))]))
+
 (define-syntax (video-begin stx)
   (syntax-parse stx
+    [(_ "λ/video" post-process exprs)
+     #`(post-process (playlist . #,(reverse (syntax->list #'exprs))))]
     [(_ id:id post-process exprs)
      #`(begin
-         (define id (post-process (list . #,(reverse (syntax->list #'exprs)))))
+         (define id (post-process (playlist . #,(reverse (syntax->list #'exprs)))))
          (provide id))]
-    [(_ id:id post-process exprs . body)
+    [(_ id post-process exprs . body)
      (syntax-parse #'body
        [(b1 . body)
         (define expanded (local-expand #'b1 'module

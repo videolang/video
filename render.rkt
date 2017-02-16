@@ -90,8 +90,6 @@
       (parameterize ([current-renderer this]
                      [current-profile profile])
         (cond
-          [(list? source)
-           (prepare (make-playlist #:elements source))]
           [(pict? source)
            (define pict-name
            (build-path dest-dir (get-current-filename)))
