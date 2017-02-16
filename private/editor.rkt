@@ -262,7 +262,7 @@
              [callback (λ (item event)
                          (define file (get-file))
                          (define t (new video-file%
-                                        [filename file]
+                                        [file file]
                                         [track-height track-height]))
                          (insert-video t (position->track y) x initial-snip-length))])
         (new menu-item%

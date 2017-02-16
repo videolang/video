@@ -6,6 +6,7 @@
          racket/match
          racket/format
          racket/list
+         racket/set
          (except-in pict frame blank)
          "private/video.rkt"
          "private/utils.rkt"
@@ -20,7 +21,9 @@
                    [#:transitions (listof field-element?)
                     #:start (or/c nonnegative-integer? #f)
                     #:end (or/c nonnegative-integer? #f)
-                    #:length (or/c nonnegative-integer? #f)]
+                    #:length (or/c nonnegative-integer? #f)
+                    #:prop (or/c (hash/c string? any/c) #f)
+                    #:filters (or/c (listof filter?) #f)]
                    #:rest (listof any/c)
                    producer?)]
 
@@ -30,7 +33,9 @@
                  [#:transitions (listof field-element?)
                   #:start (or/c nonnegative-integer? #f)
                   #:end (or/c nonnegative-integer? #f)
-                  #:length (or/c nonnegative-integer? #f)]
+                  #:length (or/c nonnegative-integer? #f)
+                  #:prop (or/c (hash/c string? any/c) #f)
+                  #:filters (or/c (listof filter?) #f)]
                  #:rest (listof any/c)
                  producer?)]
 
@@ -163,9 +168,20 @@
                     #:start [maybe-start #f]
                     #:end [maybe-end #f]
                     #:length [maybe-length #f]
+                    #:prop [prop #f]
+                    #:filters [maybe-filters #f]
                     . tracks)
   (define start (or maybe-start (and maybe-length 0)))
   (define end (or maybe-end maybe-length))
+  (for ([t (in-list transitions)])
+    (define start (field-element-track t))
+    (define end (field-element-track-2 t))
+    (unless (or start end)
+      (error 'multitrack "Both starting and ending clips are #f"))
+    (unless (or (not start) (set-member? tracks start))
+      (error 'multitrack "Starting clip ~a not found: ~a" start playlist))
+    (unless (or (not end) (set-member? tracks end))
+      (error 'multitrack "Ending clip ~a not found: ~a" end playlist)))
   (define-values (tracks* transitions*)
     (for/fold ([tracks* '()]
                [transitions* transitions])
@@ -181,12 +197,16 @@
   (make-multitrack #:tracks (reverse tracks*)
                    #:field transitions*
                    #:start start
-                   #:end end))
+                   #:end end
+                   #:prop (or prop (hash))
+                   #:filters (or maybe-filters '())))
 
 (define (playlist #:transitions [transitions '()]
                   #:start [maybe-start #f]
                   #:end [maybe-end #f]
                   #:length [maybe-length #f]
+                  #:prop [prop #f]
+                  #:filters [maybe-filters #f]
                   . clips)
   (define start (or maybe-start (and maybe-length 0)))
   (define end (or maybe-end maybe-length))
@@ -196,6 +216,12 @@
              ([t (in-list transitions)])
      (define start (field-element-track t))
      (define end (field-element-track-2 t))
+     (unless (or start end)
+       (error playlist "Both starting and ending clips are #f"))
+     (unless (or (not start) (set-member? clips start))
+       (error 'playlist "Starting clip ~a not found: ~a" start playlist))
+     (unless (or (not end) (set-member? clips end))
+       (error 'playlist "Ending clip ~a not found: ~a" end playlist))
      (append*
       (for/list ([clip (in-list clips)])
         (cond
@@ -205,7 +231,9 @@
            (list (field-element-element t) clip)]
           [else (list clip)]))))
    #:start start
-   #:end end))
+   #:end end
+   #:prop (or prop (hash))
+   #:filters (or maybe-filters '())))
 
 (define (image path
                #:length [length #f]
