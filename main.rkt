@@ -45,7 +45,7 @@
                                        (append (kernel-form-identifier-list)
                                                (list #'provide #'require #'define*-values))))
         (syntax-parse expanded
-          #:literals (begin)
+          #:literals (begin define-values*)
           [(begin b1 ...)
            #'(video-begin id post-process exprs b1 ... . body)]
           [(define-values* (id* ...) b1)
