@@ -13,8 +13,7 @@
                "at-exp-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
-                     "gui-doc"
-                     "ppict"))
+                     "gui-doc"))
 (define scribblings '(("scribblings/video.scrbl" ())))
 (define pkg-desc "Description Here")
 (define version "0.0")

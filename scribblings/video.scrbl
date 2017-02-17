@@ -164,10 +164,7 @@ here. Examples are found in @tt{private/examples.rkt}.
  @racket[mlt-object] contains the compiled mlt-object, or
  @racket[#f] if it has not yet been compiled. This bit of the
  library is particularly unstable, and may change if it stops
- using MLT as a backend.
-
- The @racket[tags] field is used for other objects to find this object using @racket[find-tag],
- similarly to the @racketmodname[ppict/tag] library.}
+ using MLT as a backend.}
 
 @defstruct*[(link video) ([source video?] [target video?] [index exact-nonnegative-integer?])]{
  A link object which connects a producer to a consumer. Links
