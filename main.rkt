@@ -3,6 +3,8 @@
 (provide (except-out (all-from-out racket/base) #%module-begin)
          (rename-out [~module-begin #%module-begin])
          λ/video
+         define*
+         define*-values
          (all-from-out video/base))
 
 (require (prefix-in core: video/core)
@@ -10,6 +12,7 @@
          racket/list
          (except-in pict clip frame blank)
          racket/draw
+         racket/splicing
          (for-syntax racket/base
                      racket/syntax
                      syntax/parse
@@ -40,11 +43,13 @@
        [(b1 . body)
         (define expanded (local-expand #'b1 'module
                                        (append (kernel-form-identifier-list)
-                                               (list #'provide #'require))))
+                                               (list #'provide #'require #'define*-values))))
         (syntax-parse expanded
           #:literals (begin)
           [(begin b1 ...)
            #'(video-begin id post-process exprs b1 ... . body)]
+          [(define-values* (id* ...) b1)
+           #'(splicing-let-values ([(id* ...) b1]) (video-begin id post-process exprs . body))]
           [(id* . rest) ; this bit taken from scribble
            #:when (and (identifier? #'id*)
                        (ormap (lambda (kw) (free-identifier=? #'id* kw))
@@ -61,3 +66,13 @@
            #`(begin #,expanded (video-begin id post-process exprs . body))]
           [_
            #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
+
+(define-syntax (define* stx)
+  (syntax-parse stx
+    [(_ arg:id body)
+     #'(define*-values (arg) body)]))
+
+(define-syntax (define*-values stx)
+  (syntax-parse stx
+    [(_ (arg:id ...) body)
+     (raise-syntax-error 'define* "cannot be used outside of a module or λ/video")]))
