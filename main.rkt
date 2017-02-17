@@ -58,7 +58,7 @@
           #:literals (begin define*-values)
           [(begin b1 ...)
            #'(video-begin id post-process exprs b1 ... . body)]
-          [(define-values* (id* ...) b1)
+          [(define*-values (id* ...) b1)
            #'(splicing-let-values ([(id* ...) b1]) (video-begin id post-process exprs . body))]
           [(id* . rest) ; this bit taken from scribble
            #:when (and (identifier? #'id*)
