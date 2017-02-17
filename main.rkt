@@ -30,6 +30,16 @@
     [(_ args:function-header . body)
      #'(λ args (video-begin "λ/video" values () . body))]))
 
+(define-syntax (define* stx)
+  (syntax-parse stx
+    [(_ arg:id body)
+     #'(define*-values (arg) body)]))
+
+(define-syntax (define*-values stx)
+  (syntax-parse stx
+    [(_ (arg:id ...) body)
+     (raise-syntax-error 'define* "cannot be used outside of a module or λ/video")]))
+
 (define-syntax (video-begin stx)
   (syntax-parse stx
     [(_ "λ/video" post-process exprs)
@@ -45,7 +55,7 @@
                                        (append (kernel-form-identifier-list)
                                                (list #'provide #'require #'define*-values))))
         (syntax-parse expanded
-          #:literals (begin define-values*)
+          #:literals (begin define*-values)
           [(begin b1 ...)
            #'(video-begin id post-process exprs b1 ... . body)]
           [(define-values* (id* ...) b1)
@@ -67,12 +77,3 @@
           [_
            #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
 
-(define-syntax (define* stx)
-  (syntax-parse stx
-    [(_ arg:id body)
-     #'(define*-values (arg) body)]))
-
-(define-syntax (define*-values stx)
-  (syntax-parse stx
-    [(_ (arg:id ...) body)
-     (raise-syntax-error 'define* "cannot be used outside of a module or λ/video")]))
