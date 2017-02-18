@@ -110,6 +110,15 @@
       (define (track->position n)
         (* n track-height))
 
+      ;; Sets the hight of a track
+      ;; Number -> Void
+      (define/public (set-track-height! new-height)
+        (set! track-height new-height)
+        (for ([track (in-gvector tracks)]
+              [t# (in-naturals)])
+          (for ([(snip prop) (in-hash track)])
+            (send snip move-to (video-prop-start prop) (track->position t#)))))
+
       ;; Update the internal representation of the editor
       ;;   to move a video to the correct track
       ;; Snip% Integer (U Integer #f) (U Integer #f) -> Void
@@ -286,7 +295,7 @@
         (new separator-menu-item% [parent p])
         (new menu-item%
              [parent p]
-             [label "Zoom in"]
+             [label "Zoom In"]
              [callback (λ (item event)
                          (error "TODO"))])
         (new menu-item%
@@ -294,6 +303,16 @@
              [label "Zoom Out"]
              [callback (λ (item event)
                          (error "TODO"))])
+        (new menu-item%
+             [parent p]
+             [label "Taller Tracks"]
+             [callback (λ (item event)
+                         (set-track-height! (* track-height 3/2)))])
+        (new menu-item%
+             [parent p]
+             [label "Shorter Tracks"]
+             [callback (λ (item event)
+                         (set-track-height! (* track-height 2/3)))])
         (new separator-menu-item% [parent p])
         (new menu-item%
              [parent p]
