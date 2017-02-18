@@ -12,9 +12,6 @@
 
 (provide
  (contract-out
-  ;; Determine the length of an already converted producer.
-  [producer-length (-> any/c nonnegative-integer?)]
-  
   ;; Determine the unedited length of an already converted producer.
   ;;   In and Out cut points are ignored
   [producer-length/unedited (-> any/c nonnegative-integer?)]
@@ -24,12 +21,6 @@
   
   ;; Get the start time of a clip in a playlist
   [playlist-clip-start (-> any/c nonnegative-integer? nonnegative-integer?)]))
-
-(define (producer-length producer)
-  (define internal (convert producer))
-  (define out (mlt-producer-get-out internal))
-  (define in (mlt-producer-get-in internal))
-  (- out in))
 
 (define (producer-length/unedited producer)
   (mlt-producer-get-length (convert producer)))
