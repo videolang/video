@@ -499,6 +499,9 @@
                      `(let () ,stx)
                      (list source line column position #f)))))
 
+;; Video Files are text boxes that represent files.
+;; They _can_ be replaced with a video-text
+;; with the text (clip <filename>) or (image <filename>)
 (define video-file%
   (class* text% (readable<%>)
     (init-field [file #f]
@@ -691,6 +694,10 @@
 
 (define video-snip-class (new video-snip-class%))
 
+;; A very cludgy hack because we want to use an editor-stream,
+;;   but we only get a stream<%>, which has a very similar interface,
+;;   but with slightly different names.
+;;   This class fixes that.
 (define editor-stream-adapter%
   (class object%
     (init-field stream)
@@ -700,6 +707,7 @@
     (define/public (read-bytes)
       (send stream read-raw-bytes 'video-editor))))
 
+;; A reader for video snips.
 (define video-snip-reader%
   (class* object% (snip-reader<%>)
     (super-new)
