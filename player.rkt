@@ -9,6 +9,7 @@
          ffi/unsafe/atomic
          racket/file
          "render.rkt"
+         (only-in "base.rkt" producer-length)
          "lib.rkt"
          "private/mlt.rkt" ; :(, we should remove this
          "private/video.rkt")

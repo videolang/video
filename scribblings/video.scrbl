@@ -85,6 +85,18 @@ Note that not all of the functions in this module are currently documented.
                [#:properties properties (hash/c string? any/c) (hash)])
          producer?]
 
+
+@defproc[(producer-length [producer (and/c video? converted-video?)])
+         number?]{
+ Determines the length of the producer in frames.
+
+ Note that this function requires the video to already be
+ converted. In the future, this restriction may be lifted.
+ Also note that this function uses @tt{MLT}'s length feature, which
+ seems to be a bit buggy at times.
+
+ @racket[producer] is the video who's length will be tested.}
+
 @section{Player}
 @defmodule[video/player]
 
@@ -381,17 +393,6 @@ here. Examples are found in @tt{private/examples.rkt}.
  Determines if the video has been compiled (using @racket[convert-to-mlt!] or @racket[render]).
 
  @racket[video] is the video to test.}
-
-@defproc[(producer-length [producer (and/c video? converted-video?)])
-         number?]{
- Determines the length of the producer in frames.
-
- Note that this function requires the video to already be
- converted. In the future, this restriction may be lifted.
- Also note that this function uses @tt{MLT}'s length feature, which
- seems to be a bit buggy at times.
-
- @racket[producer] is the video who's length will be tested.}
 
 @defproc[(producer-length/uneditied [producer (and/c video? converted-video?)])
          number?]{
