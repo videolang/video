@@ -114,10 +114,15 @@
       ;; Number -> Void
       (define/public (set-track-height! new-height)
         (set! track-height new-height)
+        (send this set-min-height (* (gvector-count tracks) track-height))
         (for ([track (in-gvector tracks)]
               [t# (in-naturals)])
           (for ([(snip prop) (in-hash track)])
-            (send snip move-to (video-prop-start prop) (track->position t#)))))
+            (parameterize ([adjusting-clip? #t])
+              (send this move-to snip (video-prop-start prop) (track->position t#)))
+            (send snip resize (video-prop-length prop) track-height)))
+        (update-track-pict!)
+        (send this invalidate-bitmap-cache))
 
       ;; Update the internal representation of the editor
       ;;   to move a video to the correct track
