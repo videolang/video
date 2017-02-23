@@ -8,7 +8,7 @@
          "private/mlt.rkt"
          "private/utils.rkt"
          "render.rkt"
-         (prefix-in list: "list-render.rkt")
+         (prefix-in list: "render/list.rkt")
          (for-syntax racket/base
                      syntax/parse))
 

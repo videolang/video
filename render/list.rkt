@@ -2,9 +2,9 @@
 
 (require racket/class
          racket/file
-         "private/video.rkt"
-         "private/mlt.rkt"
-         "render.rkt")
+         "../private/video.rkt"
+         "../private/mlt.rkt"
+         "../render.rkt")
 
 (provide render-mixin)
 

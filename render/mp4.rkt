@@ -1,9 +1,9 @@
 #lang racket/base
 
 (require racket/class
-         "private/video.rkt"
-         "private/mlt.rkt"
-         "render.rkt")
+         "../private/video.rkt"
+         "../private/mlt.rkt"
+         "../render.rkt")
 
 (provide render-mixin)
 
@@ -16,6 +16,6 @@
       (parameterize ([current-renderer this])
         (mlt-*-connect (make-consumer
                         #:type 'avformat
-                        #:target (build-path dest-dir (format "~a%05d.png" dest-filename*))
-                        #:prop (hash "vcodec" "png"))
+                        #:target (build-path dest-dir
+                                             (format "~a.mp4" dest-filename*)))
                        source)))))

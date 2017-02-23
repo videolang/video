@@ -5,9 +5,9 @@
          racket/path
          racket/match
          "render.rkt"
-         (prefix-in mp4: "mp4-render.rkt")
-         (prefix-in jpg: "jpg-render.rkt")
-         (prefix-in png: "png-render.rkt")
+         (prefix-in mp4: "render/mp4.rkt")
+         (prefix-in jpg: "render/jpg.rkt")
+         (prefix-in png: "render/png.rkt")
          "player.rkt")
 
 (define output-type (make-parameter #f))
