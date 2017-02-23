@@ -30,6 +30,7 @@
                 #:fps number?
                 #:start (or/c nonnegative-integer? #f)
                 #:end (or/c nonnegative-integer? #f)
+                #:speed (or/c number? #f)
                 #:timeout (or/c number? #f)]
                void?)])
  render%
@@ -45,6 +46,7 @@
                 #:start [start #f]
                 #:end [end #f]
                 #:fps [fps 25]
+                #:speed [speed #f]
                 #:timeout [timeout #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define r% (render-mixin render%))
@@ -56,11 +58,12 @@
          [height height]
          [start start]
          [end end]
+         [speed speed]
          [fps fps]))
   (let* ([res (send renderer setup-profile)]
          [res (send renderer prepare video)]
-         [res (send renderer render res)]
-         [res (send renderer play res timeout)])
+         [target (send renderer render res)]
+         [res (send renderer play res target timeout)])
     (void)))
 
 (define render<%>
@@ -76,7 +79,8 @@
                 [height 576]
                 [fps 25]
                 [start #f]
-                [end #f])
+                [end #f]
+                [speed #f])
     
     (define res-counter 0)
     (define profile (mlt-profile-init prof-name))
@@ -112,10 +116,12 @@
       
     (define/public (render source)
       (parameterize ([current-renderer this])
-        ;(mlt-producer-set-in-and-out source (or start -1) (or end -1))
         (mlt-*-connect (make-consumer) source)))
     
-    (define/public (play target timeout)
+    (define/public (play source target timeout)
+      (mlt-producer-set-in-and-out source (or start -1) (or end -1))
+      (when speed
+        (mlt-producer-set-speed source (exact->inexact speed)))
       (mlt-consumer-start target)
       (let loop ([timeout timeout])
         (sleep 1)

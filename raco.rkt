@@ -15,6 +15,7 @@
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
 (define output-timeout (make-parameter #f))
+(define output-speed (make-parameter #f))
 
 (module+ main
   (define video-file
@@ -39,6 +40,9 @@
      [("--timeout")   timeout
                       "Set a timeout for the renderer"
                       (output-timeout timeout)]
+     [("--speed")     speed
+                      "Set the speed of the output video"
+                      (output-speed speed)]
      #:args (video)
      video))
 
@@ -59,6 +63,7 @@
                               #:width (output-width)
                               #:height (output-height)
                               #:timeout (output-timeout)
+                              #:speed (output-speed)
                               #:dest-filename output-file
                               #:render-mixin render-mixin)]
     [_ (preview video)]))
