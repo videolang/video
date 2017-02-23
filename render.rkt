@@ -11,6 +11,7 @@
          "init.rkt"
          "private/mlt.rkt"
          "private/video.rkt"
+         "private/utils.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
@@ -27,6 +28,8 @@
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps number?
+                #:start (or/c nonnegative-integer? #f)
+                #:end (or/c nonnegative-integer? #f)
                 #:timeout (or/c number? #f)]
                void?)])
  render%
@@ -39,6 +42,8 @@
                 #:profile-name [profile-name #f]
                 #:width [width 720]
                 #:height [height 576]
+                #:start [start #f]
+                #:end [end #f]
                 #:fps [fps 25]
                 #:timeout [timeout #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
@@ -49,6 +54,8 @@
          [dest-filename dest-filename]
          [width width]
          [height height]
+         [start start]
+         [end end]
          [fps fps]))
   (let* ([res (send renderer setup-profile)]
          [res (send renderer prepare video)]
@@ -67,7 +74,9 @@
                 [prof-name #f]
                 [width 720]
                 [height 576]
-                [fps 25])
+                [fps 25]
+                [start #f]
+                [end #f])
     
     (define res-counter 0)
     (define profile (mlt-profile-init prof-name))
@@ -92,7 +101,7 @@
         (cond
           [(pict? source)
            (define pict-name
-           (build-path dest-dir (get-current-filename)))
+             (build-path dest-dir (get-current-filename)))
            (send (pict->bitmap source) save-file pict-name 'png 100)
            (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
           [(file:convertible? source)
@@ -100,9 +109,10 @@
                            (file:convert source 'video)))
            (or ret (error "Not convertible to video data"))]
           [else (raise-user-error 'render "~a is not convertible" source)])))
-
+      
     (define/public (render source)
       (parameterize ([current-renderer this])
+        (mlt-producer-set-in-and-out source (or start -1) (or end -1))
         (mlt-*-connect (make-consumer) source)))
     
     (define/public (play target timeout)
