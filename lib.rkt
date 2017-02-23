@@ -3,10 +3,12 @@
 (require racket/dict
          racket/class
          racket/contract/base
+         racket/port
          "private/video.rkt"
          "private/mlt.rkt"
          "private/utils.rkt"
          "render.rkt"
+         (prefix-in list: "list-render.rkt")
          (for-syntax racket/base
                      syntax/parse))
 
@@ -20,7 +22,10 @@
   [playlist-clip-length (-> any/c nonnegative-integer? nonnegative-integer?)]
   
   ;; Get the start time of a clip in a playlist
-  [playlist-clip-start (-> any/c nonnegative-integer? nonnegative-integer?)]))
+  [playlist-clip-start (-> any/c nonnegative-integer? nonnegative-integer?)])
+
+ ;; PROTOTYPE FUNCTION, SHOULD BE MOVED SOMEWHERE ELSE
+ avformat-installed-codecs)
 
 (define (producer-length/unedited producer)
   (mlt-producer-get-length (convert producer)))
@@ -30,3 +35,8 @@
 
 (define (playlist-clip-start playlist index)
   (mlt-playlist-clip-start (convert playlist)))
+
+(define (avformat-installed-codecs)
+  (λ ()
+    (render (make-producer #:type 'color #:source "black")
+            #:render-mixin list:render-mixin)))

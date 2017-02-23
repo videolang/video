@@ -7,6 +7,7 @@
          "render.rkt"
          (prefix-in mp4: "mp4-render.rkt")
          (prefix-in jpg: "jpg-render.rkt")
+         (prefix-in png: "png-render.rkt")
          "player.rkt")
 
 (define output-type (make-parameter #f))
@@ -54,10 +55,11 @@
     (match (output-type)
       ["mp4" mp4:render-mixin]
       ["jpg" jpg:render-mixin]
+      ["png" png:render-mixin]
       [_ #f]))
   
   (match (output-type)
-    [(or "jpg" "mp4") (render video output-dir
+    [(or "png" "jpg" "mp4") (render video output-dir
                               #:start (output-start)
                               #:end (output-end)
                               #:width (output-width)

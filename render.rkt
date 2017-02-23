@@ -56,14 +56,11 @@
          [dest-filename dest-filename]
          [width width]
          [height height]
-         [start start]
-         [end end]
-         [speed speed]
          [fps fps]))
   (let* ([res (send renderer setup-profile)]
          [res (send renderer prepare video)]
          [target (send renderer render res)]
-         [res (send renderer play res target timeout)])
+         [res (send renderer play res target start end speed timeout)])
     (void)))
 
 (define render<%>
@@ -77,10 +74,7 @@
                 [prof-name #f]
                 [width 720]
                 [height 576]
-                [fps 25]
-                [start #f]
-                [end #f]
-                [speed #f])
+                [fps 25])
     
     (define res-counter 0)
     (define profile (mlt-profile-init prof-name))
@@ -118,7 +112,7 @@
       (parameterize ([current-renderer this])
         (mlt-*-connect (make-consumer) source)))
     
-    (define/public (play source target timeout)
+    (define/public (play source target start end speed timeout)
       (mlt-producer-set-in-and-out source (or start -1) (or end -1))
       (when speed
         (mlt-producer-set-speed source (exact->inexact speed)))
