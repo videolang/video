@@ -112,7 +112,7 @@
       
     (define/public (render source)
       (parameterize ([current-renderer this])
-        (mlt-producer-set-in-and-out source (or start -1) (or end -1))
+        ;(mlt-producer-set-in-and-out source (or start -1) (or end -1))
         (mlt-*-connect (make-consumer) source)))
     
     (define/public (play target timeout)

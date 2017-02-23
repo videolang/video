@@ -14,6 +14,7 @@
 (define output-height (make-parameter #f))
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
+(define output-timeout (make-parameter #f))
 
 (module+ main
   (define video-file
@@ -33,8 +34,11 @@
                        "Rendering start start"
                        (output-start start)]
      [("-e" "--end")  end
-                      "rendering end position"
+                      "Rendering end position"
                       (output-end end)]
+     [("--timeout")   timeout
+                      "Set a timeout for the renderer"
+                      (output-timeout timeout)]
      #:args (video)
      video))
 
@@ -42,11 +46,19 @@
   (define output-dir (or (path-only video-file) (current-directory)))
   (define output-file (path-replace-extension (file-name-from-path video-file) ""))
 
+  (define render-mixin
+    (match (output-type)
+      ["mp4" mp4:render-mixin]
+      ["jpg" jpg:render-mixin]
+      [_ #f]))
+  
   (match (output-type)
-    ["mp4" (render video output-dir
-                   #:dest-filename output-file
-                   #:render-mixin mp4:render-mixin)]
-    ["jpg" (render video output-dir
-                   #:dest-filename output-file
-                   #:render-mixin jpg:render-mixin)]
+    [(or "jpg" "mp4") (render video output-dir
+                              #:start (output-start)
+                              #:end (output-end)
+                              #:width (output-width)
+                              #:height (output-height)
+                              #:timeout (output-timeout)
+                              #:dest-filename output-file
+                              #:render-mixin render-mixin)]
     [_ (preview video)]))
