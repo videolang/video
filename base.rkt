@@ -41,7 +41,7 @@
 
   ;; Creates a blank video, for offsetting
   ;;  clips in a playlist
-  [blank (-> nonnegative-integer? blank?)]
+  [blank (-> (or/c nonnegative-integer? #f) (or/c blank? producer?))]
   
   ;; Creates a producer that plays a clip from a file
   [clip (->* [(or/c path-string? path?)]
@@ -126,7 +126,9 @@
   [producer-end (-> producer? (or/c nonnegative-integer? #f))]))
 
 (define (blank length)
-  (make-blank #:length length))
+  (if length
+      (make-blank #:length length)
+      (color "white")))
 
 (define (clip path
               #:start [in* #f]
@@ -182,18 +184,24 @@
       (error 'multitrack "Starting clip ~a not found: ~a" start playlist))
     (unless (or (not end) (set-member? tracks end))
       (error 'multitrack "Ending clip ~a not found: ~a" end playlist)))
-  (define-values (tracks* transitions*)
+  (match-define-values (tracks* transitions* _)
     (for/fold ([tracks* '()]
-               [transitions* transitions])
+               [transitions* transitions]
+               [prev #f])
               ([track (in-list tracks)]
                [i (in-naturals)])
       (cond
         [(transition? track) (values tracks*
                                      (cons (make-field-element #:element track
-                                                               #:track (list-ref tracks (sub1 i))
+                                                               #:track prev
                                                                #:track-2 (list-ref tracks (add1 i)))
-                                           transitions*))]
-        [else (values (cons track tracks*) transitions*)])))
+                                           transitions*)
+                                     prev)]
+        [else (values (cons track tracks*) transitions*
+                      (if (or (= i 0)
+                              (not (transition? (list-ref tracks (sub1 i)))))
+                          track
+                          prev))])))
   (make-multitrack #:tracks (reverse tracks*)
                    #:field transitions*
                    #:start start
