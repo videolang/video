@@ -1,12 +1,16 @@
 #lang scribble/manual
 @require[scribble/core
          scribble/example
+         (except-in pict table)
+         "../private/utils.rkt"
          @for-label[(except-in racket/base filter)
                     racket/contract/base
                     racket/set
                     racket/hash
                     (except-in racket/class field)
                     racket/gui/base
+                    racket/draw
+                    video/base
                     video/core
                     video/render
                     video/player
@@ -15,6 +19,8 @@
 
 @title{Video Language}
 @author{Leif Andersen}
+
+@(defmodulelang video)
 
 @(define (colorize #:color c . content)
    (elem #:style (style #f (list (color-property c)))
@@ -56,7 +62,12 @@ interface may or may not change in the near future.
 
 @section{Getting Started}
 
-@colorize[#:color "red"]{TODO: Write getting started section}
+
+@racketmod[
+ video
+ (color "green")]
+
+@(scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3)
 
 @section{Video API}
 
@@ -65,14 +76,14 @@ interface may or may not change in the near future.
 Note that not all of the functions in this module are currently documented.
 
 @defproc[(playlist [producer producer?] ...
-                   [#:transitions transitions (listof field-element?)]
+                   [#:transitions transitions (listof field-element?) '()]
                    [#:start start (or/c nonnegative-integer? #f) #f]
                    [#:end end (or/c nonnegative-integer? #f) #f]
                    [#:length length (or/c nonnegative-integer? #f) #f])
          producer?]
 
 @defproc[(multitrack [producer producer?] ...
-                     [#:transitions transitions (listof field-element?)]
+                     [#:transitions transitions (listof field-element?) '()]
                      [#:start start (or/c nonnegative-integer? #f) #f]
                      [#:end end (or/c nonnegative-integer? #f) #f]
                      [#:length length (or/c nonnegative-integer? #f) #f])
@@ -85,6 +96,12 @@ Note that not all of the functions in this module are currently documented.
                [#:properties properties (hash/c string? any/c) (hash)])
          producer?]
 
+@defproc[(color [color (or/c string? (is-a?/c color%) (list/c byte? byte? byte?))]
+                [#:start start (or/c nonnegative-integer? #f) #f]
+                [#:end end (or/c nonnegative-integer? #f) #f]
+                [#:length length (or/c nonnegative-integer? #f) #f]
+                [#:properties properties (hash/c string? any/c) (hash)])
+         producer?]
 
 @defproc[(producer-length [producer (and/c video? converted-video?)])
          number?]{

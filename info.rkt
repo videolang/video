@@ -15,7 +15,8 @@
                "at-exp-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
-                     "gui-doc"))
+                     "gui-doc"
+                     "draw-doc"))
 
 (define version "0.1")
 (define pkg-authors '(leif))
