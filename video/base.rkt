@@ -10,7 +10,12 @@
          (except-in pict frame blank)
          "private/video.rkt"
          "private/utils.rkt"
-         (prefix-in core: "private/video.rkt"))
+         (prefix-in core: "private/video.rkt")
+         (for-syntax syntax/parse
+                     syntax/parse/experimental/template
+                     syntax/parse/lib/function-header
+                     racket/syntax
+                     racket/base))
 
 (provide
  (contract-out
@@ -93,11 +98,9 @@
                           #:bottom (or/c any/c #f)]
                          (or/c field-element? transition?))]
   
-  [scale-filter (case-> (-> (and/c number? positive?) (and/c number? positive?) filter?)
-                        (-> service? (and/c number? positive?) (and/c number? positive?) service?))]
+  [scale-filter (-> (and/c number? positive?) (and/c number? positive?) filter?)]
 
-  [grayscale-filter (case-> (-> filter?)
-                            (-> service? service?))]
+  [grayscale-filter (-> filter?)]
 
   ;; Set a property associated with a properties struct
   [set-property (-> properties? string? any/c properties?)]
@@ -120,6 +123,11 @@
                      [#:start (or/c nonnegative-integer? #f)
                       #:end (or/c nonnegative-integer? #f)]
                      producer?)]
+
+  ;; Envelope filter for audio tracks
+  [envelope-filter (-> #:length nonnegative-integer?
+                       #:direction (or/c 'in 'out)
+                       filter?)]
 
   [producer-length (-> producer? (or/c nonnegative-integer? #f))]
   [producer-start (-> producer? (or/c nonnegative-integer? #f))]
@@ -298,16 +306,9 @@
                           #:bottom [bottom #f])
   (error "TODO"))
 
-(define scale-filter
-  (case-lambda
-    [(p w h) (attach-filter p (scale-filter w h))]
-    [(w h) (make-filter #:type 'frei0r.scale0tilt
-                        #:prop (hash "4" w "5" h))]))
-
-(define grayscale-filter
-  (case-lambda
-    [(p) (attach-filter p (grayscale-filter))]
-    [() (make-filter #:type 'grayscale)]))
+(define (scale-filter w h)
+  (make-filter #:type 'frei0r.scale0tilt
+               #:prop (hash "4" w "5" h)))
 
 ;(define audio-fade-filter
   
@@ -343,6 +344,15 @@
 (define (producer-end producer)
   (or (core:producer-end producer)
       (get-property producer "end" 'int)))
+
+(define (grayscale-filter)
+  (make-filter #:type 'grayscale))
+
+(define (envelope-filter #:direction direction
+                         #:length length)
+  (make-filter #:type 'avformat.afade
+               #:prop (hash "av.type" (symbol->string direction)
+                            "av.durration" length)))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
