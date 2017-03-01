@@ -128,7 +128,7 @@
                                      #:bottom b)))))
 
 ;; filters
-(check-producer? (scale-filter (image circ-png) 1 3))
+(check-producer? (attach-filter (image circ-png) (scale-filter 1 3)))
 
 ;; props
 (check-producer?
