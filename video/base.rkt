@@ -110,13 +110,13 @@
                      [symbol?]
                      any/c)]
 
-  [include-video (->* [(or/c module-path?
-                             resolved-module-path?
-                             module-path-index?)]
-                      [#:start (or/c nonnegative-integer? #f)
-                       #:end (or/c nonnegative-integer? #f)
-                       #:length (or/c nonnegative-integer? #f)]
-                      any/c)]
+  [external-video (->* [(or/c module-path?
+                              resolved-module-path?
+                              module-path-index?)]
+                       [#:start (or/c nonnegative-integer? #f)
+                        #:end (or/c nonnegative-integer? #f)
+                        #:length (or/c nonnegative-integer? #f)]
+                       any/c)]
 
   ;; Generate a new video with a new in-out
   [cut-producer (->* [producer?]
@@ -312,7 +312,7 @@
 
 ;(define audio-fade-filter
   
-(define (include-video mod
+(define (external-video mod
                        #:start [start* #f]
                        #:end [end* #f]
                        #:length [length #f])

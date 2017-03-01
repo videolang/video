@@ -142,7 +142,7 @@
 (define rect-clip (set-property (clip vid-mp4) "bottom?" #t))
 (check-equal? (get-property rect-clip "bottom?") #t)
 
-(include-video "green.vid")
+(external-video "green.vid")
 
 ;; racketcon
 (define (make-speaker-slides-composite sp sl)
