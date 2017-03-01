@@ -1,31 +1,31 @@
 #lang racket/base
-(require (only-in video/base producer-length)
-         (only-in "../private/video.rkt" producer? transition? filter?))
+(require video/base
+         video/core
+         "../private/utils.rkt")
 (require rackunit)
-(require (for-syntax racket/base syntax/parse))
-(provide check-producer check-producer? check-transition? check-filter?)
+(require (for-syntax racket/base
+                     syntax/parse
+                     "../private/utils.rkt"))
+(provide check-producer check-transition check-filter)
 
 (define-syntax (check-producer stx)
   (syntax-parse stx
-    [(_ p) (syntax/loc stx (check-producer? p))]
-    [(_ p #:len (~datum inf)) ; inf len
-     #`(begin
-         #,(syntax/loc stx (check-producer? p))
-         #,(syntax/loc stx (check-false (producer-length p))))]
-    [(_ p #:len l) ; finite len
-     #`(begin
-         #,(syntax/loc stx (check-producer? p))
-         #,(syntax/loc stx (check-equal? (producer-length p) l)))]))
+    [(_ p (~or (~optional (~seq #:len len))))
+     (quasisyntax/loc stx
+       (begin
+         #,(syntax/loc stx (check-pred producer? p))
+         #,@(cond
+              [(not (attribute len)) (list)]
+              [(and (number? (attribute len))
+                    (= (attribute len) +inf.0))
+               (list (syntax/loc stx (check-false? (producer-length p))))]
+              [else
+               (list (syntax/loc stx (check-equal? (producer-length p) len)))])))]))
 
-;; doesnt check length
-(define-syntax (check-producer? stx)
-  (syntax-parse stx ; ignore #:len
-    [(_ p . rst) (syntax/loc stx (check-pred producer? p))]))
-
-(define-syntax (check-transition? stx)
+(define-syntax (check-transition stx)
   (syntax-parse stx
     [(_ p) (syntax/loc stx (check-pred transition? p))]))
 
-(define-syntax (check-filter? stx)
+(define-syntax (check-filter stx)
   (syntax-parse stx
     [(_ p) (syntax/loc stx (check-pred filter? p))]))
