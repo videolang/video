@@ -1,3 +1,3 @@
 #lang video
 
-(grayscale-filter (clip "vid.mp4"))
+(attach-filter (clip "vid.mp4") grayscale-filter)
