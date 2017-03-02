@@ -8,8 +8,11 @@
 ;; 2017-02-07: swipe transition not working
 ;; 2017-02-14: enable len tests by replacing check-producer? with check-producer
 
+;; Constants for future tests -------------------------------------------------
+
 (define circ-png "../examples/circ.png")
 (define vid-mp4 "../examples/vid.mp4")
+(define blue-clip (color "blue" #:length 8))
 
 ;; fig1 -----------------------------------------------------------------------
 
@@ -18,25 +21,25 @@
 (check-producer g #:len +inf.0)
 (check-producer g1 #:len 1)
 
-(check-producer
- (image circ-png #:length (/ (blue-length) 8))
- #:len 1)
-
 (check-transition (composite-transition 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
 (check-transition (fade-transition #:length 2))
 
-(define (blue-length) (producer-length blue-clip))
-(define blue-clip (color "blue" #:length 8))
-(check-producer blue-clip #:len (blue-length))
+(let ()
+  (define (blue-length) (producer-length blue-clip))
+  (check-producer blue-clip #:len (blue-length))
 
-(check-producer
- (multitrack
-  (image circ-png #:length (/ (blue-length) 8))
-  (composite-transition 0 0 3/4 3/4)
-  blue-clip
-  #:length 5)
- #:len 5) ; currently 6
+  (check-producer
+   (image circ-png #:length (/ (blue-length) 8))
+   #:len 1)
+
+  (check-producer
+   (multitrack
+    (image circ-png #:length (/ (blue-length) 8))
+    (composite-transition 0 0 3/4 3/4)
+    blue-clip
+    #:length 5)
+   #:len 5))
 
 (check-producer (clip vid-mp4 #:length 3) #:len 3) ; currently 4
 

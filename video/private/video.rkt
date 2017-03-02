@@ -203,6 +203,8 @@
   (define start* (or start -1))
   (define end* (or end -1))
   (mlt-producer-set-in-and-out producer* start* end*)
+  (when speed
+    (mlt-producer-set-speed producer* speed))
   (when seek
     (mlt-producer-seek producer* seek))
   (register-mlt-close mlt-producer-close producer*))
