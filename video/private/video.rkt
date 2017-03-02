@@ -69,7 +69,7 @@
         [(integer? v) (mlt-properties-set-int64 mlt-object k v)]
         [(real? v) (mlt-properties-set-double mlt-object k v)]
         [(string? v) (mlt-properties-set mlt-object k v)]
-        [(boolean? v) (mlt-properties-set/bool k v)]
+        [(boolean? v) (mlt-properties-set/bool mlt-object k v)]
         [(anim-property? v)
          (match v
            [(struct* anim-property ([value value]

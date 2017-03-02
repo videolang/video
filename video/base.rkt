@@ -10,12 +10,8 @@
          (except-in pict frame blank)
          "private/video.rkt"
          "private/utils.rkt"
-         (prefix-in core: "private/video.rkt")
-         (for-syntax syntax/parse
-                     syntax/parse/experimental/template
-                     syntax/parse/lib/function-header
-                     racket/syntax
-                     racket/base))
+         "private/surface.rkt"
+         (prefix-in core: "private/video.rkt"))
 
 (provide
  (contract-out
@@ -138,41 +134,20 @@
       (make-blank #:length length)
       (color "white")))
 
-(define (clip path
-              #:start [in* #f]
-              #:end [out* #f]
-              #:length [other-out #f]
-              #:properties [prop (hash)])
-  (define in (or in* (and other-out 0)))
-  (define out (or out* other-out))
-  (define clip-path (path->string (path->complete-path path)))
-  (define prop*
-    (hash-set* prop "start" in "end" out "length" (and out in (- out in -1))))
-  (make-producer #:source clip-path
-                 #:start in
-                 #:end out
-                 #:prop prop))
+(define-producer (clip path)
+  #:source clip-path
+  (define clip-path (path->string (path->complete-path path))))
 
-(define (color c
-               #:length [length #f]
-               #:properties [prop (hash)])
+(define-producer (color c)
+  #:source (format "color:0x~a~a~a~a"
+                   (number->2string (send c* red))
+                   (number->2string (send c* green))
+                   (number->2string (send c* blue))
+                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
-      [_ (make-object color% c)]))
-  (define prop*
-    (if length
-        (hash-set* prop "length" length "start" 0 "end" length)
-        prop))
-  (make-producer #:type 'color
-                 #:source (format "0x~a~a~a~a"
-                                  (number->2string (send c* red))
-                                  (number->2string (send c* green))
-                                  (number->2string (send c* blue))
-                                  (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-                 #:prop prop*
-                 #:start (and length 0)
-                 #:end (and length (- length 1))))
+      [_ (make-object color% c)])))
 
 (define (multitrack #:transitions [transitions '()]
                     #:start [maybe-start #f]
