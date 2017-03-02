@@ -138,6 +138,10 @@
   #:source clip-path
   (define clip-path (path->string (path->complete-path path))))
 
+(define-producer (image path)
+  #:source (format "pixbuf:~a" image-path)
+  (define image-path (path->string (path->complete-path path))))
+
 (define-producer (color c)
   #:source (format "color:0x~a~a~a~a"
                    (number->2string (send c* red))
@@ -226,19 +230,6 @@
    #:prop (or prop (hash))
    #:filters (or maybe-filters '())))
 
-(define (image path
-               #:length [length #f]
-               #:properties [prop (hash)])
-  (define prop*
-    (if length
-        (hash-set* prop "length" length "start" 0 "end" length)
-        prop))
-  (define image-path (path->string (path->complete-path path)))
-  (make-producer #:source (format "pixbuf:~a" image-path)
-                 #:prop prop*
-                 #:start (and length 0)
-                 #:end (and length (- length 1))))
-
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
   (copy-video obj #:filteres new-filters))
@@ -247,38 +238,21 @@
   (define new-props (hash-set (properties-prop obj) key val))
   (copy-video obj #:prop new-props))
 
-(define (fade-transition #:length length
-                         #:start [start #f]
-                         #:end [end #f])
-  (define trans
-    (make-transition #:type 'luma
-                     #:length length))
-  (if (and start end)
-      (make-field-element #:element trans #:track start #:track-2 end)
-      trans))
+(define-transition (fade-transition)
+  #:direction s/e
+  #:type 'luma)
 
-(define (composite-transition x y w h
-                              #:top [top #f]
-                              #:bottom [bottom #f]
-                              #:length [length #f])
- (define trans
-   (make-transition #:type 'composite
-                    #:source (format "~a%/~a%:~a%x~a%"
-                                     (inexact->exact (round (* x 100)))
-                                     (inexact->exact (round (* y 100)))
-                                     (inexact->exact (round (* w 100)))
-                                     (inexact->exact (round (* h 100))))
-                    #:length length))
-  (if (and top bottom)
-      (make-field-element #:element trans
-                          #:track bottom
-                          #:track-2 top)
-      trans))
+(define-transition (composite-transition x y w h)
+  #:direction t/b
+  #:type 'composite
+  #:source (format "~a%/~a%:~a%x~a%"
+                   (inexact->exact (round (* x 100)))
+                   (inexact->exact (round (* y 100)))
+                   (inexact->exact (round (* w 100)))
+                   (inexact->exact (round (* h 100)))))
 
-(define (swipe-transition #:direction dir
-                          #:length length
-                          #:top [top #f]
-                          #:bottom [bottom #f])
+(define-transition (swipe-transition #:direction dir)
+  #:direction t/b
   (error "TODO"))
 
 (define (scale-filter w h)
