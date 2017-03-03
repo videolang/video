@@ -21,11 +21,11 @@
 (check-producer g #:len #f)
 (check-producer g1 #:len 1)
 
-#|
 (check-transition (composite-transition 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
 (check-transition (fade-transition #:length 2))
 
+#|
 (let ()
   (define (blue-length) (producer-length blue-clip))
   (check-producer blue-clip #:len (blue-length))
