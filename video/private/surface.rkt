@@ -23,7 +23,8 @@
              (~optional (~seq #:start prod-start) #:defaults ([prod-start #'start*]))
              (~optional (~seq #:end prod-end) #:defaults ([prod-end #'end*]))
              (~optional (~seq #:length length*) #:defaults ([length* #'length*]))
-             (~optional (~seq #:unbound-stream? unbound-stream?) #:defaults ([unbound-stream? #'#f]))
+             (~optional (~seq #:unbounded-stream? unbounded-stream?)
+                        #:defaults ([unbounded-stream? #'#f]))
              (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties]))
              (~optional (~seq #:properties-default-porc pdp)
                         #:defaults ([pdp #'mlt-prop-default-proc])))
@@ -40,7 +41,12 @@
          (define start* (or start (and len 0)))
          (define end* (or end len))
          (define properties
-           (hash-set* prop "start" start* "end" end* "length" (and start* end* (- end* start* 0))))
+           #,(if (syntax-e (attribute unbounded-stream?))
+                 #'(hash-set* prop
+                              "start" start*
+                              "end" end*
+                              "length" (and start* end* (- end* start* 0)))
+                 #'prop))
          body ...
          (make-producer
           #:type type
@@ -50,12 +56,12 @@
           #:prop properties
           #:prop-default-proc (λ (prop key [extra-data #f])
                                 (match key
-                                  ["start" (if unbound-stream?
-                                               #f
-                                               (mlt-prop-default-proc prop "in" extra-data))]
-                                  ["end" (if unbound-stream?
-                                             #f
-                                             (- (mlt-prop-default-proc prop "out" extra-data) 1))]
+                                  ["start" #,(if (syntax-e (attribute unbounded-stream?))
+                                               #'#f
+                                               #'(mlt-prop-default-proc prop "in" extra-data))]
+                                  ["end" #,(if (syntax-e (attribute unbounded-stream?))
+                                             #'#f
+                                             #'(- (mlt-prop-default-proc prop "out" extra-data) 1))]
                                   [else (pdp prop key extra-data)]))))]))
 
 (define-syntax (define-transition stx)

@@ -2,7 +2,7 @@
 
 (define collection 'multi)
 
-(define deps '("base"
+(define deps '(("base" "6.8.0.2")
                "rackunit-lib"
                "gui-lib"
                "draw-lib"

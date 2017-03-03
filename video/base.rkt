@@ -148,7 +148,7 @@
 
 (define-producer (image path)
   #:source (format "pixbuf:~a" image-path)
-  #:unbound-stream? #t
+  #:unbounded-stream? #t
   (define image-path (path->string (path->complete-path path))))
 
 (define-producer (color c)
@@ -157,7 +157,7 @@
                    (number->2string (send c* green))
                    (number->2string (send c* blue))
                    (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-  #:unbound-stream? #t
+  #:unbounded-stream? #t
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
