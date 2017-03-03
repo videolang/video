@@ -132,7 +132,14 @@
 
 (define (blank length)
   (if length
-      (make-blank #:length length)
+      (make-blank #:length length
+                  #:prop-default-proc (λ (prop key [extra-data #f])
+                                        (match key
+                                          ["start" (mlt-prop-default-proc prop "in" extra-data)]
+                                          ["end" (- (mlt-prop-default-proc prop "out" extra-data) 1)]
+                                          [else (mlt-prop-default-proc prop key extra-data)]))
+                  #:prop (hash "start" 0
+                              "end" length))
       (color "white")))
 
 (define-producer (clip path)

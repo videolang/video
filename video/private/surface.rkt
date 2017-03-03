@@ -25,7 +25,8 @@
              (~optional (~seq #:length length*) #:defaults ([length* #'length*]))
              (~optional (~seq #:unbound-stream? unbound-stream?) #:defaults ([unbound-stream? #'#f]))
              (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties]))
-             (~optional (~seq #:properties-default-porc pdp) #:defaults ([pdp #'mlt-prop-default-proc])))
+             (~optional (~seq #:properties-default-porc pdp)
+                        #:defaults ([pdp #'mlt-prop-default-proc])))
         ...
         body ...)
      #`(define (f.name

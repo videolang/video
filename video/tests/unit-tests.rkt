@@ -45,10 +45,12 @@
 (check-producer (color "blue" #:length 2) #:len 2)
 (check-producer (clip vid-mp4 #:start 100 #:end 103) #:len 3)
 (check-producer (image circ-png #:length 1) #:len 1)
-#|
 (check-producer (blank 2) #:len 2)
+(check-producer (blank #f) #:len #f)
+(check-producer (blank 6) #:len 6)
 (check-producer circ-img #:len #f)
 (check-producer circ-img #:len #f)
+#|
 (check-producer vid-clip #:len 139)
 (check-producer (playlist circ-img vid-clip) #:len #f)
 (check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
