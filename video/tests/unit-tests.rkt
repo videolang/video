@@ -1,6 +1,8 @@
 #lang video
 
-(require rackunit "test-utils.rkt")
+(require rackunit
+         "test-utils.rkt"
+         "../private/utils.rkt")
 
 ;; tests from paper examples
 
@@ -10,8 +12,8 @@
 
 ;; Constants for future tests -------------------------------------------------
 
-(define circ-png "../examples/circ.png")
-(define vid-mp4 "../examples/vid.mp4")
+(define circ-png (build-path video-dir "examples/circ.png"))
+(define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 (define circ-img (image circ-png))
 (define vid-clip (clip vid-mp4))
 (define b8 (color "blue" #:length 8))
@@ -50,8 +52,8 @@
 (check-producer (blank 6) #:len 6)
 (check-producer circ-img #:len #f)
 (check-producer circ-img #:len #f)
+(check-producer vid-clip #:len 137) ; 166?
 #|
-(check-producer vid-clip #:len 139)
 (check-producer (playlist circ-img vid-clip) #:len #f)
 (check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
 
