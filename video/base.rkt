@@ -7,6 +7,7 @@
          racket/format
          racket/list
          racket/set
+         racket/math
          (except-in pict frame blank)
          "private/video.rkt"
          "private/utils.rkt"
@@ -140,6 +141,7 @@
 
 (define-producer (image path)
   #:source (format "pixbuf:~a" image-path)
+  #:unbound-stream? #t
   (define image-path (path->string (path->complete-path path))))
 
 (define-producer (color c)
@@ -148,6 +150,7 @@
                    (number->2string (send c* green))
                    (number->2string (send c* blue))
                    (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
+  #:unbound-stream? #t
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]

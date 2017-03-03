@@ -4,6 +4,7 @@
          racket/class
          racket/contract/base
          racket/port
+         racket/math
          "private/video.rkt"
          "private/mlt.rkt"
          "private/utils.rkt"

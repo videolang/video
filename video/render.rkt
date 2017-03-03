@@ -2,6 +2,7 @@
 
 (require racket/contract/base
          racket/match
+         racket/math
          racket/dict
          racket/class
          racket/file

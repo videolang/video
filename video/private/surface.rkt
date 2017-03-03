@@ -4,7 +4,8 @@
 ;; so users can define their own producers. But for now its private due to
 ;; how much it will probably change.
 
-(require "video.rkt"
+(require racket/match
+         "video.rkt"
          (for-syntax syntax/parse
                      syntax/parse/lib/function-header
                      racket/syntax
@@ -22,10 +23,12 @@
              (~optional (~seq #:start prod-start) #:defaults ([prod-start #'start*]))
              (~optional (~seq #:end prod-end) #:defaults ([prod-end #'end*]))
              (~optional (~seq #:length length*) #:defaults ([length* #'length*]))
-             (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties])))
+             (~optional (~seq #:unbound-stream? unbound-stream?) #:defaults ([unbound-stream? #'#f]))
+             (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties]))
+             (~optional (~seq #:properties-default-porc pdp) #:defaults ([pdp #'mlt-prop-default-proc])))
         ...
         body ...)
-     #'(define (f.name
+     #`(define (f.name
                        #:start [start #f]
                        #:end [end #f]
                        #:length [len #f]
@@ -38,11 +41,21 @@
          (define properties
            (hash-set* prop "start" start* "end" end* "length" (and start* end* (- end* start* 0))))
          body ...
-         (make-producer #:type type
-                        #:source source
-                        #:start prod-start
-                        #:end prod-end
-                        #:prop properties))]))
+         (make-producer
+          #:type type
+          #:source source
+          #:start prod-start
+          #:end prod-end
+          #:prop properties
+          #:prop-default-proc (λ (prop key [extra-data #f])
+                                (match key
+                                  ["start" (if unbound-stream?
+                                               +inf.0
+                                               (mlt-prop-default-proc prop "in" extra-data))]
+                                  ["end" (if unbound-stream?
+                                             +inf.0
+                                             (- (mlt-prop-default-proc prop "out" extra-data) 1))]
+                                  [else (pdp prop key extra-data)]))))]))
 
 (define-syntax (define-transition stx)
   (syntax-parse stx

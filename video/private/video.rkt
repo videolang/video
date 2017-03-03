@@ -164,21 +164,25 @@
 (define-constructor link video ([source #f] [target #f] [index 0])
   (mlt-*-connect target (mlt-*-service source) index))
 
-(define-constructor properties video ([prop (hash)]))
+(define-constructor properties video ([prop (hash)]
+                                      [prop-default-proc mlt-prop-default-proc]))
+
 (define (get-property dict key
-                      [default-type 'string])
+                      [extra-info #f])
   (dict-ref (properties-prop dict) key
-            (λ ()
-              (define v (convert dict))
-              (unless v
-                (error 'properties "MLT object for ~a not created, cannot get default property" dict))
-              (match default-type
-                ['string (mlt-properties-get v key)]
-                ['int (mlt-properties-get-int v key)]
-                ['int64 (mlt-properties-get-int64 v key)]
-                ['mlt-position (mlt-properties-get-position v key)]
-                ['double (mlt-properties-get-double v key)]
-                [else (error 'properties "Not a valid default-type ~a" default-type)]))))
+            (λ () ((properties-prop-default-proc dict) dict key extra-info))))
+
+(define (mlt-prop-default-proc dict key default-type)
+  (define v (convert dict))
+  (unless v
+    (error 'properties "MLT object for ~a not created, cannot get default property" dict))
+  (match default-type
+    [(or 'string #f) (mlt-properties-get v key)]
+    ['int (mlt-properties-get-int v key)]
+    ['int64 (mlt-properties-get-int64 v key)]
+    ['mlt-position (mlt-properties-get-position v key)]
+    ['double (mlt-properties-get-double v key)]
+    [else (error 'properties "Not a valid default-type ~a" default-type)]))
 
 (define-constructor anim-property video ([value #f] [position #f] [length #f]))
 
