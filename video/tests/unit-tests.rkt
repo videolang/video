@@ -12,11 +12,13 @@
 
 (define circ-png "../examples/circ.png")
 (define vid-mp4 "../examples/vid.mp4")
+(define circ-img (image circ-png))
+(define vid-clip (clip vid-mp4))
 (define b8 (color "blue" #:length 8))
 (define g (color "green"))
 (define g1 (color "green" #:length 1))
 
-;; fig1 -----------------------------------------------------------------------
+;; basic examples -------------------------------------------------------------
 
 (check-producer g #:len #f)
 (check-producer g1 #:len 1)
@@ -38,21 +40,18 @@
   #:length 5)
  #:len 5)
 
-#|
-(check-producer (clip vid-mp4 #:length 3) #:len 3) ; currently 4
+(check-producer (clip vid-mp4 #:length 3) #:len 3)
 
-; other examples, section 4 ---------------------------------------------------
 (check-producer (color "blue" #:length 2) #:len 2)
-(check-producer (clip vid-mp4 #:start 100 #:end 103) #:len 4)
+(check-producer (clip vid-mp4 #:start 100 #:end 103) #:len 3)
 (check-producer (image circ-png #:length 1) #:len 1)
-(check-producer (blank 2) #:len 2) ; currently 1
-(define circ-img (image circ-png))
-(define vid-clip (clip vid-mp4))
-(check-producer circ-img #:len +inf.0)
-(check-producer circ-img #:len +inf.0) ; currently 1
-(check-producer vid-clip #:len 139) ; currently 1
-(check-producer (playlist circ-img vid-clip) #:len +inf.0) ; currently 1
-(check-producer (playlist (blank 2) circ-img vid-clip) #:len +inf.0) ; currently 1
+#|
+(check-producer (blank 2) #:len 2)
+(check-producer circ-img #:len #f)
+(check-producer circ-img #:len #f)
+(check-producer vid-clip #:len 139)
+(check-producer (playlist circ-img vid-clip) #:len #f)
+(check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
 
 ;; shapes and colors defined after use
 (check-producer shapes #:len +inf.0)
