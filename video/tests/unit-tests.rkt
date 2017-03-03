@@ -25,23 +25,20 @@
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
 (check-transition (fade-transition #:length 2))
 
-#|
-(let ()
-  (define (blue-length) (producer-length blue-clip))
-  (check-producer blue-clip #:len (blue-length))
-
-  (check-producer
-   (image circ-png #:length (/ (blue-length) 8))
+(check-producer b8 #:len 8)
+(check-producer
+ (image circ-png #:length (/ (producer-length b8) 8))
    #:len 1)
 
-  (check-producer
-   (multitrack
-    (image circ-png #:length (/ (blue-length) 8))
-    (composite-transition 0 0 3/4 3/4)
-    blue-clip
-    #:length 5)
-   #:len 5))
+(check-producer
+ (multitrack
+  (image circ-png #:length (/ (producer-length b8) 8))
+  (composite-transition 0 0 3/4 3/4)
+  b8
+  #:length 5)
+ #:len 5)
 
+#|
 (check-producer (clip vid-mp4 #:length 3) #:len 3) ; currently 4
 
 ; other examples, section 4 ---------------------------------------------------
