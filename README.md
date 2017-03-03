@@ -1,4 +1,7 @@
-# Video [![Build Status](https://travis-ci.org/LeifAndersen/racket-video.svg?branch=master)](https://travis-ci.org/LeifAndersen/racket-video)
+# Video
+
+[![Build Status](https://travis-ci.org/LeifAndersen/racket-video.svg?branch=master)](https://travis-ci.org/LeifAndersen/racket-video)
+[![Coverage Status](https://coveralls.io/repos/github/LeifAndersen/racket-video/badge.svg?branch=master)](https://coveralls.io/github/LeifAndersen/racket-video?branch=master)
 =====
 
 Video is a DSL for describing videos. It is still very much in development and backwards breaking changes are made frequently.
