@@ -206,7 +206,7 @@
   (define producer* (mlt-factory-producer (current-profile) type source))
   (define start* (or start -1))
   (define end* (or end -1))
-  (mlt-producer-set-in-and-out producer* start* end*)
+  (mlt-producer-set-in-and-out producer* start* (- end* 1))
   (when speed
     (mlt-producer-set-speed producer* speed))
   (when seek
