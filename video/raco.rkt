@@ -11,8 +11,8 @@
          "player.rkt")
 
 (define output-type (make-parameter #f))
-(define output-width (make-parameter #f))
-(define output-height (make-parameter #f))
+(define output-width (make-parameter 720))
+(define output-height (make-parameter 576))
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
 (define output-timeout (make-parameter #f))
