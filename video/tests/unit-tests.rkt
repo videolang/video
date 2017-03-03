@@ -12,15 +12,16 @@
 
 (define circ-png "../examples/circ.png")
 (define vid-mp4 "../examples/vid.mp4")
-(define blue-clip (color "blue" #:length 8))
+(define b8 (color "blue" #:length 8))
+(define g (color "green"))
+(define g1 (color "green" #:length 1))
 
 ;; fig1 -----------------------------------------------------------------------
 
-(define g (color "green"))
-(define g1 (color "green" #:length 1))
-(check-producer g #:len +inf.0)
+(check-producer g #:len #f)
 (check-producer g1 #:len 1)
 
+#|
 (check-transition (composite-transition 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
 (check-transition (fade-transition #:length 2))
@@ -200,3 +201,5 @@
 
 (check-producer
  (make-conf-talk (blank 100) (blank 100) (blank 100) 0))
+
+|#

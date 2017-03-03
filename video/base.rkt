@@ -286,7 +286,7 @@
   (define s (producer-start producer))
   (define e (producer-end producer))
   (or
-   (and s e (- e s -1))
+   (and s e (- e s))
    (get-property producer "length" 'int)))
 
 (define (producer-start producer)

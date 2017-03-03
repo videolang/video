@@ -50,10 +50,10 @@
           #:prop-default-proc (λ (prop key [extra-data #f])
                                 (match key
                                   ["start" (if unbound-stream?
-                                               +inf.0
+                                               #f
                                                (mlt-prop-default-proc prop "in" extra-data))]
                                   ["end" (if unbound-stream?
-                                             +inf.0
+                                             #f
                                              (- (mlt-prop-default-proc prop "out" extra-data) 1))]
                                   [else (pdp prop key extra-data)]))))]))
 

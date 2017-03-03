@@ -16,9 +16,6 @@
          #,(syntax/loc stx (check-pred producer? p))
          #,@(cond
               [(not (attribute len)) (list)]
-              [(and (number? (attribute len))
-                    (= (attribute len) +inf.0))
-               (list (syntax/loc stx (check-false? (producer-length p))))]
               [else
                (list (syntax/loc stx (check-equal? (producer-length p) len)))])))]))
 
