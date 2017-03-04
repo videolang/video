@@ -1,7 +1,10 @@
 #lang video
 
 (require rackunit
+         racket/path
+         racket/file
          "test-utils.rkt"
+         (prefix-in debug: "../private/video.rkt")
          "../private/utils.rkt")
 
 ;; tests from paper examples
@@ -21,6 +24,7 @@
 (define g1 (color "green" #:length 1))
 (define shapes (playlist circ-img vid-clip))
 (define colors (playlist (color "red") (color "blue")))
+
 
 ;; basic examples -------------------------------------------------------------
 
@@ -54,21 +58,20 @@
 (check-producer (blank 6) #:len 6)
 (check-producer circ-img #:len #f)
 (check-producer circ-img #:len #f)
-(check-producer vid-clip #:len 137) ; 166?
+(check-producer vid-clip #:len 139) ; 166?
 (check-producer (playlist circ-img vid-clip) #:len #f)
 (check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
 
 (check-producer shapes #:len #f)
 (check-producer colors #:len #f)
 (check-producer (playlist shapes colors) #:len #f)
-#|
 (check-producer (playlist (color "green" #:length 1) (color "blue" #:length 8))
                  #:len 9)
 (check-producer (playlist (playlist g1) (playlist b8)) #:len 9)
 
+#|
 (check-producer
  (playlist (image circ-png #:length 3)
-           (swipe-transition #:direction 'bottom #:duration 2)
            (fade-transition #:length 2)
            (clip vid-mp4 #:length 3))
  #:len 4) ; currently 1
@@ -202,3 +205,6 @@
  (make-conf-talk (blank 100) (blank 100) (blank 100) 0))
 
 |#
+
+;; Just test by running it
+(debug:debug/save-prop circ-png (make-temporary-file))

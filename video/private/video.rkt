@@ -40,6 +40,15 @@
     [(producer? prod) (producer-unbounded? prod)]
     [else #f])) ;; Should only happen in playlists
 
+;; DEBUG FUNCTION ONLY
+;; Save a textual marshalization of a property's prop
+;;  table to a file.
+;; Properties Path -> Void
+(define (debug/save-prop prop filepath)
+  (mlt-properties-save (convert prop) (if (absolute-path? filepath)
+                                          filepath
+                                          (build-path (current-directory) filepath))))
+
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
 ;; Service -> _mlt-service

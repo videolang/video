@@ -22,7 +22,7 @@
              (~optional (~seq #:source source) #:defaults ([source #'#f]))
              (~optional (~seq #:start prod-start) #:defaults ([prod-start #'start*]))
              (~optional (~seq #:end prod-end) #:defaults ([prod-end #'end*]))
-             (~optional (~seq #:length length*) #:defaults ([length* #'length*]))
+             (~optional (~seq #:length prod-length) #:defaults ([prod-length #'length*]))
              (~optional (~seq #:unbounded? unbounded?)
                         #:defaults ([unbounded? #'#f]))
              (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties]))
@@ -31,15 +31,18 @@
         ...
         body ...)
      #`(define (f.name
-                       #:start [start #f]
-                       #:end [end #f]
-                       #:length [len #f]
-                       #:properties [prop (hash)]
-                       . f.args)
+                #:start [start #f]
+                #:end [end #f]
+                #:length [len #f]
+                #:properties [prop (hash)]
+                . f.args)
          (when (and len (or start end))
            (error "Cannot define both start/end and length"))
+         (when (and start end (> start end))
+           (error "Start of clip cannot be larger than its end"))
          (define start* (or start (and len 0)))
          (define end* (or end len))
+         (define length* (or len (and start end (- end start))))
          (define properties
            #,(if (syntax-e (attribute unbounded?))
                  #'(hash-set* prop
@@ -53,17 +56,24 @@
           #:source source
           #:start prod-start
           #:end prod-end
-          #:unbounded? (and unbounded? (not (or start* end*)))
+          #:unbounded? (and unbounded? (not (or prod-start prod-end)))
           #:prop properties
-          #:prop-default-proc (λ (prop key [extra-data #f])
-                                (match key
-                                  ["start" #,(if (syntax-e (attribute unbounded?))
-                                               #'#f
-                                               #'(mlt-prop-default-proc prop "in" extra-data))]
-                                  ["end" #,(if (syntax-e (attribute unbounded?))
-                                             #'#f
-                                             #'(- (mlt-prop-default-proc prop "out" extra-data) 1))]
-                                  [else (pdp prop key extra-data)]))))]))
+          #:prop-default-proc
+          (λ (prop key [extra-data #f])
+            (match key
+              ["start" (or prod-start
+                           #,(if (syntax-e (attribute unbounded?))
+                                 #'#f
+                                 #'(mlt-prop-default-proc prop "in" extra-data)))]
+              ["end" (or prod-end
+                         #,(if (syntax-e (attribute unbounded?))
+                               #'#f
+                               #'(add1 (mlt-prop-default-proc prop "out" extra-data))))]
+              ["length" (or prod-length
+                            #,(if (syntax-e (attribute unbounded?))
+                                  #'#f
+                                  #'(mlt-prop-default-proc prop "length" extra-data)))]
+              [else (pdp prop key extra-data)]))))]))
 
 (define-syntax (define-transition stx)
   (syntax-parse stx
