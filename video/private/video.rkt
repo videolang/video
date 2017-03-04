@@ -21,12 +21,24 @@
 (define current-renderer (make-parameter #f))
 (define current-profile (make-parameter #f))
 
+;; A helper function to convert videos to MLT object
+;; Video (U Renderer% #f) -> _mlt-object
 (define (convert source
                  #:renderer [renderer* #f])
   (define renderer (or renderer* (current-renderer)))
   (unless renderer
     (error 'current-renderer "No renderer set"))
   (send renderer prepare source))
+
+;; Helper function to determine if a producer
+;; can be potentially unbounded in length.
+;; Producer -> Boolean
+(define (unbounded-video? prod)
+  (cond
+    [(playlist? prod) (ormap unbounded-video? (playlist-elements prod))]
+    [(multitrack? prod) (andmap unbounded-video? (multitrack-tracks prod))]
+    [(producer? prod) (producer-unbounded? prod)]
+    [else #f])) ;; Should only happen in playlists
 
 ;; Calls mlt-*-service on the correct data type
 ;;    (getting the service type)
@@ -202,7 +214,13 @@
   (define c (mlt-factory-consumer (current-profile) type target))
   (register-mlt-close mlt-consumer-close c))
 
-(define-constructor producer service ([type #f] [source #f] [start #f] [end #f] [speed #f] [seek #f])
+(define-constructor producer service ([type #f]
+                                      [source #f]
+                                      [start #f]
+                                      [end #f]
+                                      [speed #f]
+                                      [seek #f]
+                                      [unbounded? #f])
   (define producer* (mlt-factory-producer (current-profile) type source))
   (define start* (or start -1))
   (define end* (or end -1))

@@ -148,7 +148,7 @@
 
 (define-producer (image path)
   #:source (format "pixbuf:~a" image-path)
-  #:unbounded-stream? #t
+  #:unbounded? #t
   (define image-path (path->string (path->complete-path path))))
 
 (define-producer (color c)
@@ -157,7 +157,7 @@
                    (number->2string (send c* green))
                    (number->2string (send c* blue))
                    (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-  #:unbounded-stream? #t
+  #:unbounded? #t
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
@@ -294,15 +294,18 @@
   (define e (producer-end producer))
   (or
    (and s e (- e s))
-   (get-property producer "length" 'int)))
+   (and (not (unbounded-video? producer))
+        (get-property producer "length" 'int))))
 
 (define (producer-start producer)
   (or (core:producer-start producer)
-      (get-property producer "start" 'int)))
+      (and (not (unbounded-video? producer))
+           (get-property producer "start" 'int))))
 
 (define (producer-end producer)
   (or (core:producer-end producer)
-      (get-property producer "end" 'int)))
+      (and (not (unbounded-video? producer))
+           (get-property producer "end" 'int))))
 
 (define (grayscale-filter)
   (make-filter #:type 'grayscale))

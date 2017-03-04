@@ -19,6 +19,8 @@
 (define b8 (color "blue" #:length 8))
 (define g (color "green"))
 (define g1 (color "green" #:length 1))
+(define shapes (playlist circ-img vid-clip))
+(define colors (playlist (color "red") (color "blue")))
 
 ;; basic examples -------------------------------------------------------------
 
@@ -53,19 +55,16 @@
 (check-producer circ-img #:len #f)
 (check-producer circ-img #:len #f)
 (check-producer vid-clip #:len 137) ; 166?
-#|
 (check-producer (playlist circ-img vid-clip) #:len #f)
 (check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
 
-;; shapes and colors defined after use
-(check-producer shapes #:len +inf.0)
-(check-producer colors #:len +inf.0)
-(check-producer (playlist shapes colors) #:len +inf.0)
+(check-producer shapes #:len #f)
+(check-producer colors #:len #f)
+(check-producer (playlist shapes colors) #:len #f)
+#|
 (check-producer (playlist (color "green" #:length 1) (color "blue" #:length 8))
                  #:len 9)
-(check-producer (playlist (playlist g1) (playlist blue-clip)) #:len 9) ; cur: 1
-(define shapes (playlist circ-img vid-clip))
-(define colors (playlist (color "red") (color "blue")))
+(check-producer (playlist (playlist g1) (playlist b8)) #:len 9)
 
 (check-producer
  (playlist (image circ-png #:length 3)
