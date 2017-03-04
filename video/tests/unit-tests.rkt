@@ -207,4 +207,4 @@
 |#
 
 ;; Just test by running it
-(debug:debug/save-prop circ-png (make-temporary-file))
+(debug:debug/save-prop circ-img (make-temporary-file))
