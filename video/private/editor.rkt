@@ -374,6 +374,7 @@
         (define (put-exact num)
           (send str put (inexact->exact num)))
         (put-exact track-width)
+        (put-exact minimum-width)
         (put-exact frames-per-pixel)
         (put-exact line-frequency)
         (put-exact ruler-height)
@@ -396,6 +397,8 @@
         (let/ec return
           ;(super read-from-file str overwrite-style)
           (set-field! track-width this (send str get-exact))
+          (set-field! minimum-width this (send str get-exact))
+          (send this set-min-width minimum-width)
           (set-field! frames-per-pixel this (send str get-exact))
           (set-field! line-frequency this (send str get-exact))
           (set-field! ruler-height this (send str get-exact))
