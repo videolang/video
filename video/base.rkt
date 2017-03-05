@@ -286,15 +286,17 @@
              (~optional (~seq #:end end*) #:defaults ([end* #'#f]))
              (~optional (~seq #:length length) #:defaults ([length #'#f])))
         ...)
-     #'(begin
-         (require (rename-in mod [vid intern-vid]))
-         (let ()
-           (define start (or start* (and length 0)))
-           (define end (or end* length))
-           (let* ([vid intern-vid]
-                  [vid (if start (set-property vid "start" start) vid)]
-                  [vid (if end (set-property vid "end" end) vid)])
-             vid)))]))
+     #'(let ()
+         (define start (or start* (and length 0)))
+         (define end (or end* length))
+         (let* ([vid (dynamic-require
+                      (module-path-index-join
+                       mod
+                       (variable-reference->module-path-index (#%variable-reference)))
+                      'vid)]
+                [vid (if start (set-property vid "start" start) vid)]
+                [vid (if end (set-property vid "end" end) vid)])
+           vid))]))
 
 (define (cut-producer producer
                       #:start [start #f]
