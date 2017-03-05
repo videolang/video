@@ -3,6 +3,7 @@
 (require rackunit
          racket/path
          racket/file
+         syntax/location
          "test-utils.rkt"
          (prefix-in debug: "../private/video.rkt")
          "../private/utils.rkt")
@@ -129,20 +130,19 @@ TODO: bug in mlt, should be 4
         (composite-transition 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
  #:len 139)
 
-#|
-(check-producer (swiping-playlist (image circ-png) (color "green")))
-(check-producer (swiping-playlist (color "green") (clip vid-mp4)))
-(define swiping-playlist
-  (λ (a b)
-    (playlist a b
-              #:transitions
-              (list
-               (composite-transition 0 0 1/2 1/2
-                                     #:top a
-                                     #:bottom b)))))
+(check-producer (fading-playlist (image circ-png) (color "green")))
+(check-producer (fading-playlist (color "green") (clip vid-mp4)))
+(define (fading-playlist a b)
+  (playlist a b
+            #:transitions
+            (list
+             (composite-transition 0 0 1/2 1/2
+                                   #:top a
+                                   #:bottom b))))
 
 ;; filters
 (check-producer (attach-filter (image circ-png) (scale-filter 1 3)))
+
 
 ;; props
 (check-producer
@@ -156,6 +156,10 @@ TODO: bug in mlt, should be 4
 (define rect-clip (set-property (clip vid-mp4) "bottom?" #t))
 (check-equal? (get-property rect-clip "bottom?") #t)
 
+(module green video
+  vid values
+  (color "green"))
+(external-video (quote-module-path green))
 (external-video "green.vid")
 
 ;; racketcon
@@ -168,19 +172,13 @@ TODO: bug in mlt, should be 4
 (define logo (image circ-png))
 (define sp (blank 100))
 (define sl (blank 100))
+(check-producer
+ (make-speaker-slides-composite
+  (color "red" #:length 500)
+  (color "blue" #:length 500)))
 ;(define bg (color "blue")) ; already defined
 
-;; TODO: should this work? (defines at end)
-#;(define (make-talk-video main-talk)
-  ;; defines are after playlist
-  (playlist begin-clip
-            (fade-transition 200)
-            main-talk
-            (fade-transition 200)
-            end-clip)
-  (define begin-clip (image circ-png #:length 500))
-  (define end-clip (image circ-png #:length 500)))
-
+;; TODO, put defines at end?
 (define (make-talk-video main-talk)
   ;; defines should be after playlist?
   (define begin-clip (image circ-png #:length 500))
@@ -190,16 +188,18 @@ TODO: bug in mlt, should be 4
             main-talk
             (fade-transition #:length 200)
             end-clip))
+(check-producer
+ (make-talk-video (color "red" #:length 1000))
+ #:len 1600)
 
 ; TODO: add filters
 (define (attach-audio v a o)
   (define cleaned-audio
-    ;; (attach-filter
-    ;;  a
-     (cut-producer a #:end o)
-     #;(envelope-filter 50 #:direction 'in)
-     #;(envelope-filter 50 #:direction 'out))
+    (cut-producer a #:end o))
   (multitrack v cleaned-audio #:length (producer-length v)))
+(check-producer
+ (attach-audio (color "red" #:length 100) (color "blue" #:length 100) 50)
+ #:len 100)
 
 ;; TODO: use define*
 (define (make-conf-talk sp sl a o)
@@ -208,6 +208,7 @@ TODO: bug in mlt, should be 4
   (define v (make-talk-video Y))
   (attach-audio v a o))
 
+#|
 (check-producer
  (make-conf-talk (blank 100) (blank 100) (blank 100) 0))
 
