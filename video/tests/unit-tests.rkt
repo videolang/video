@@ -25,7 +25,6 @@
 (define shapes (playlist circ-img vid-clip))
 (define colors (playlist (color "red") (color "blue")))
 
-
 ;; basic examples -------------------------------------------------------------
 
 (check-producer g #:len #f)
@@ -64,40 +63,50 @@
 
 (check-producer shapes #:len #f)
 (check-producer colors #:len #f)
+
+;; playlists
 (check-producer (playlist shapes colors) #:len #f)
 (check-producer (playlist (color "green" #:length 1) (color "blue" #:length 8))
                  #:len 9)
 (check-producer (playlist (playlist g1) (playlist b8)) #:len 9)
 
+
 #|
+TODO: bug in mlt, should be 4
 (check-producer
  (playlist (image circ-png #:length 3)
            (fade-transition #:length 2)
            (clip vid-mp4 #:length 3))
- #:len 4) ; currently 1
-
+ #:len 4)
+|#
+(check-producer
+ (playlist (image circ-png #:length 4)
+           (fade-transition #:length 2)
+           (clip vid-mp4 #:length 4))
+ #:len 6)
 (check-producer
  (playlist (image circ-png #:length 3)
            (clip vid-mp4 #:length 3))
  #:len 6)
 
-;; mlt-playlist-mix failed
-#;(check-producer
+(check-producer
  (playlist
-  (image circ-png #:length 2)
+  (image circ-png #:length 4)
   (fade-transition #:length 1)
-  (color "blue" #:length 2)
+  (color "blue" #:length 5)
   (fade-transition #:length 2)
-  (clip vid-mp4 #:start 0 #:end 2))
- #:len 5)
+  (clip vid-mp4 #:start 0 #:end 8))
+ #:len 14)
 
+#|
 ;; multitracks
 (check-producer
  (multitrack
   (clip vid-mp4)
   (composite-transition 0 0 3/4 3/4)
   (image circ-png))
- #:len +inf.0)
+ #:len 139)
+
 
 (check-producer
  (multitrack

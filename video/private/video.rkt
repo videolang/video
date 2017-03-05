@@ -243,6 +243,7 @@
 (define-constructor blank producer ([length 0])
   (convert (make-playlist #:elements (list this))))
 
+(require racket/pretty)
 (define-constructor playlist producer ([elements '()])
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
@@ -263,7 +264,7 @@
         [i (in-naturals)])
     (when (transition? e)
       (mlt-playlist-mix playlist*
-                        (- i 1)
+                        (sub1 i)
                         (or (transition-length e) 0)
                         (convert e))))
   (register-mlt-close mlt-playlist-close playlist*))
