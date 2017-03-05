@@ -4,6 +4,7 @@
          racket/path
          racket/file
          syntax/location
+         video/lib
          "test-utils.rkt"
          (prefix-in debug: "../private/video.rkt")
          "../private/utils.rkt")
@@ -216,3 +217,24 @@ TODO: bug in mlt, should be 4
 
 ;; Just test by running it
 (debug:debug/save-prop circ-img (make-temporary-file))
+
+(check-equal? (producer-length/unedited
+               (clip vid-mp4 #:start 50 #:end 75))
+              139)
+
+(check-equal? (playlist-clip-start
+               (playlist (color "red" #:length 100)
+                         (color "blue" #:length 50))
+               1)
+              100)
+
+(check-equal? (playlist-clip-length
+               (playlist (color "red" #:length 100)
+                         (color "blue" #:length 50))
+               1)
+              50)
+
+(check-equal? (playlist-clip-count
+               (playlist (color "red" #:length 100)
+                         (color "blue" #:length 50)))
+              2)

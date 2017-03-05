@@ -23,7 +23,10 @@
   [playlist-clip-length (-> any/c nonnegative-integer? nonnegative-integer?)]
   
   ;; Get the start time of a clip in a playlist
-  [playlist-clip-start (-> any/c nonnegative-integer? nonnegative-integer?)])
+  [playlist-clip-start (-> any/c nonnegative-integer? nonnegative-integer?)]
+
+  ;; Get the number of clips in a playlist
+  [playlist-clip-count (-> any/c nonnegative-integer?)])
 
  ;; PROTOTYPE FUNCTION, SHOULD BE MOVED SOMEWHERE ELSE
  avformat-installed-codecs)
@@ -32,10 +35,13 @@
   (mlt-producer-get-length (convert producer)))
 
 (define (playlist-clip-length playlist index)
-  (mlt-playlist-clip-length (convert playlist)))
+  (mlt-playlist-clip-length (convert playlist) index))
 
 (define (playlist-clip-start playlist index)
-  (mlt-playlist-clip-start (convert playlist)))
+  (mlt-playlist-clip-start (convert playlist) index))
+
+(define (playlist-clip-count playlist)
+  (mlt-playlist-count (convert playlist)))
 
 (define (avformat-installed-codecs)
   (λ ()
