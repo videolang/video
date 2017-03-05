@@ -17,5 +17,5 @@
         (mlt-*-connect (make-consumer
                         #:type 'avformat
                         #:target (build-path dest-dir (format "~a%05d.jpg" dest-filename*))
-                        #:prop (hash "vcodec" "jpeg 2000"))
+                        #:prop (hash "vcodec" "jpeg2000"))
                        source)))))

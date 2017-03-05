@@ -44,6 +44,5 @@
   (mlt-playlist-count (convert playlist)))
 
 (define (avformat-installed-codecs)
-  (λ ()
-    (render (make-producer #:type 'color #:source "black")
-            #:render-mixin list:render-mixin)))
+  (render (make-producer #:type 'color #:source "black")
+          #:render-mixin list:render-mixin))
