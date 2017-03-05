@@ -8,11 +8,15 @@
          racket/list
          racket/set
          racket/math
+         syntax/location
          (except-in pict frame blank)
          "private/video.rkt"
          "private/utils.rkt"
          "private/surface.rkt"
-         (prefix-in core: "private/video.rkt"))
+         (prefix-in core: "private/video.rkt")
+         (for-syntax syntax/parse
+                     racket/base
+                     racket/syntax))
 
 (provide
  (contract-out
@@ -107,14 +111,6 @@
                      [symbol?]
                      any/c)]
 
-  [external-video (->* [(or/c module-path?
-                              resolved-module-path?
-                              module-path-index?)]
-                       [#:start (or/c nonnegative-integer? #f)
-                        #:end (or/c nonnegative-integer? #f)
-                        #:length (or/c nonnegative-integer? #f)]
-                       any/c)]
-
   ;; Generate a new video with a new in-out
   [cut-producer (->* [producer?]
                      [#:start (or/c nonnegative-integer? #f)
@@ -128,7 +124,9 @@
 
   [producer-length (-> producer? (or/c nonnegative-integer? #f))]
   [producer-start (-> producer? (or/c nonnegative-integer? #f))]
-  [producer-end (-> producer? (or/c nonnegative-integer? #f))]))
+  [producer-end (-> producer? (or/c nonnegative-integer? #f))])
+
+  external-video)
 
 (define (blank length)
   (if length
@@ -280,17 +278,23 @@
                #:prop (hash "4" w "5" h)))
 
 ;(define audio-fade-filter
-  
-(define (external-video mod
-                       #:start [start* #f]
-                       #:end [end* #f]
-                       #:length [length #f])
-  (define start (or start* (and length 0)))
-  (define end (or end* length))
-  (let* ([vid (dynamic-require mod 'vid)]
-         [vid (if start (set-property vid "start" start) vid)]
-         [vid (if end (set-property vid "end" end) vid)])
-    vid))
+
+(define-syntax (external-video stx)
+  (syntax-parse stx
+    [(_ mod
+        (~or (~optional (~seq #:start start*) #:defaults ([start* #'#f]))
+             (~optional (~seq #:end end*) #:defaults ([end* #'#f]))
+             (~optional (~seq #:length length) #:defaults ([length #'#f])))
+        ...)
+     #'(begin
+         (require (rename-in mod [vid intern-vid]))
+         (let ()
+           (define start (or start* (and length 0)))
+           (define end (or end* length))
+           (let* ([vid intern-vid]
+                  [vid (if start (set-property vid "start" start) vid)]
+                  [vid (if end (set-property vid "end" end) vid)])
+             vid)))]))
 
 (define (cut-producer producer
                       #:start [start #f]

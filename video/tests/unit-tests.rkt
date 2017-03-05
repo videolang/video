@@ -160,8 +160,12 @@ TODO: bug in mlt, should be 4
 (module green video
   vid values
   (color "green"))
-(external-video (quote-module-path green))
+(external-video 'green)
+;(external-video (quote-module-path green))
 (external-video "green.vid")
+#;
+(parameterize ([current-directory video-dir])
+  (external-video "green.vid"))
 
 ;; racketcon
 (define (make-speaker-slides-composite sp sl)
