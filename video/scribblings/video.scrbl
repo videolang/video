@@ -46,7 +46,8 @@ interface may or may not change in the near future.
  @item[@hyperlink["https://mltframework.org/"]{libmlt}]
  @item[@hyperlink["https://ffmpeg.org/"]{ffmpeg/libav}]
  @item[@hyperlink["http://ftp.gnome.org/pub/GNOME/sources/gdk-pixbuf/"]{GDK Pixbuf}]
- @item[@hyperlink["https://frei0r.dyne.org/"]{Frei0r}]]
+ @item[@hyperlink["https://frei0r.dyne.org/"]{Frei0r}]
+ @item[@hyperlink["https://packages.debian.org/search?keywords=ladspa-sdk"]{ladspa-sdk}]]
    @para{Eventually Video will take care if
  this for you, but it currently does not.}))
 
