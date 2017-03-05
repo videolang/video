@@ -8,6 +8,7 @@
          (prefix-in mp4: "render/mp4.rkt")
          (prefix-in jpg: "render/jpg.rkt")
          (prefix-in png: "render/png.rkt")
+         (prefix-in xml: "render/xml.rkt")
          "player.rkt")
 
 (define output-type (make-parameter #f))
@@ -56,16 +57,18 @@
       ["mp4" mp4:render-mixin]
       ["jpg" jpg:render-mixin]
       ["png" png:render-mixin]
+      ["xml" xml:render-mixin]
       [_ #f]))
   
   (match (output-type)
-    [(or "png" "jpg" "mp4") (render video output-dir
-                              #:start (output-start)
-                              #:end (output-end)
-                              #:width (output-width)
-                              #:height (output-height)
-                              #:timeout (output-timeout)
-                              #:speed (output-speed)
-                              #:dest-filename output-file
-                              #:render-mixin render-mixin)]
+    [(or "png" "jpg" "mp4" "xml")
+     (render video output-dir
+             #:start (output-start)
+             #:end (output-end)
+             #:width (output-width)
+             #:height (output-height)
+             #:timeout (output-timeout)
+             #:speed (output-speed)
+             #:dest-filename output-file
+             #:render-mixin render-mixin)]
     [_ (preview video)]))

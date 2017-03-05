@@ -204,6 +204,11 @@
                    #:start start
                    #:end end
                    #:prop (or prop (hash))
+                   #:prop-default-proc (λ (prop key [default #f])
+                                         (match key
+                                           ["start" (mlt-prop-default-proc prop "in" default)]
+                                           ["end" (add1 (mlt-prop-default-proc prop "out" default))]
+                                           [_ (mlt-prop-default-proc prop key default)]))
                    #:filters (or maybe-filters '())))
 
 (define (playlist #:transitions [transitions '()]
