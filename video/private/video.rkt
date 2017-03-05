@@ -279,6 +279,25 @@
         [i (in-naturals)])
     (define track* (convert track))
     (mlt-multitrack-connect multitrack* track* i))
+  (define-values (max-bounded-in max-bounded-out)
+    (for/fold ([i 0]    ;; MLT multitracks will become largest producer
+               [o #f])  ;; which is a problem for unbounded data.
+              ([track (in-list tracks)])
+      (define unbounded? (unbounded-video? track))
+      (cond
+        [unbounded? (values i o)]
+        [else
+         (define in (get-property track "in" 'int))
+         (define out (get-property track "out" 'int))
+         (values
+          (if in
+              (min i in)
+              i)
+          (cond [(and o out)
+                 (max o out)]
+                [out out]
+                [else o]))])))
+  (mlt-producer-set-in-and-out tractor* (or max-bounded-in -1) (or max-bounded-out -1))
   (register-mlt-close mlt-multitrack-close multitrack*)
   (define field* (mlt-tractor-field tractor*))           ; Field
   (for ([element (in-list field)])
@@ -293,7 +312,7 @@
             (for/fold ([track* #f]
                        [track2* #f])
                      ([t (in-list tracks)]
-                       [i (in-naturals)])
+                      [i (in-naturals)])
               (values
                (or track* (if (eq? t track) i #f))
                (or track2* (if (eq? t track-2) i #f)))))

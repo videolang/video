@@ -19,9 +19,11 @@
 (define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 (define circ-img (image circ-png))
 (define vid-clip (clip vid-mp4))
+(define b (color "blue"))
 (define b8 (color "blue" #:length 8))
 (define g (color "green"))
 (define g1 (color "green" #:length 1))
+(define bg (color "white"))
 (define shapes (playlist circ-img vid-clip))
 (define colors (playlist (color "red") (color "blue")))
 
@@ -98,7 +100,6 @@ TODO: bug in mlt, should be 4
   (clip vid-mp4 #:start 0 #:end 8))
  #:len 14)
 
-#|
 ;; multitracks
 (check-producer
  (multitrack
@@ -116,22 +117,19 @@ TODO: bug in mlt, should be 4
    (image circ-png)
    (composite-transition 0 1/2 1/2 1/2)
    (color "green")))
- #:len +inf.0)
+ #:len 139)
 
-;; defines are after use
+;; explicit transition list
 (check-producer
  (multitrack
-  circ bg green-color blue-color
+  circ-img vid-clip b g
   #:transitions
-  (list (composite-transition 0 0 1/2 1/2 #:top circ #:bottom bg)
-        (composite-transition 1/2 0 1/2 1/2 #:top blue-color #:bottom bg)
-        (composite-transition 0 1/2 1/2 1/2 #:top green-color #:bottom bg)))
- #:len +inf.0)
-(define bg (clip vid-mp4))
-(define circ (image circ-png))
-(define green-color (color "green"))
-(define blue-color (color "blue"))
+  (list (composite-transition 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
+        (composite-transition 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
+        (composite-transition 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
+ #:len 139)
 
+#|
 (check-producer (swiping-playlist (image circ-png) (color "green")))
 (check-producer (swiping-playlist (color "green") (clip vid-mp4)))
 (define swiping-playlist
