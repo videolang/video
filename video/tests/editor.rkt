@@ -45,6 +45,12 @@
   (send ed on-default-event (new mouse-event% [event-type 'right-down])))
 
 (let ()
+  (define ed
+    (new video-editor% [initial-tracks 2]))
+  (send ed insert-video (new video-snip%) 0 5 10)
+  (send ed delete-track 0))
+
+(let ()
   (define 4ed
     (new video-editor%
          [track-height 200]
