@@ -193,14 +193,14 @@
 
       ;; Append a new track to the end of the gvector
       ;; -> Void
-      (define (add-track)
+      (define/public (add-track)
         (gvector-add! tracks (make-hasheq))
         (send this set-min-height (* (gvector-count tracks) track-height))
         (send this invalidate-bitmap-cache))
 
       ;; Delete all snips in the current track, and move all snips below it up one
       ;; Integer -> Void
-      (define (delete-track track#)
+      (define/public (delete-track track#)
         (define track (gvector-ref tracks track#))
         (for ([vid (in-list (hash-keys snip-table))])
           (define t (hash-ref snip-table vid))

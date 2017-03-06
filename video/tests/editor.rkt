@@ -26,6 +26,25 @@
    100))
 
 (let ()
+  (define ned
+    (new video-editor%
+         [initial-tracks 2]
+         [track-height 200]))
+  (send ned add-track)
+  (check-equal?
+   (send ned get-min-height)
+   600)
+  (send ned delete-track 1)
+  (check-equal?
+   (send ned get-min-height)
+   400))
+
+(let ()
+  (define ed
+    (new video-editor%))
+  (send ed on-default-event (new mouse-event% [event-type 'right-down])))
+
+(let ()
   (define 4ed
     (new video-editor%
          [track-height 200]
