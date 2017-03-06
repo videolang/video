@@ -1,9 +1,5 @@
 #lang racket/base
 
-;; This library will probably become (at some point) public
-;; so users can define their own producers. But for now its private due to
-;; how much it will probably change.
-
 (require racket/match
          racket/contract/base
          racket/math
@@ -151,3 +147,18 @@
                   [_ #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))])
              optional ...]
             (and/c (or/c transition? field-element?) ret?))]))
+
+(define-syntax (deftransition stx)
+  (syntax-parse stx
+    [(_ (id:id args ...)
+        (~optional (~seq #:direction direction))
+        body ...)
+     #`(defproc (id args ...
+                    [#:length length (or/c nonnegative-integer? #f) #f]
+                    #,@(match (syntax-e (attribute direction))
+                         [(or 't/b 'top/bottom) #'([#:top top (or/c any/c #f) #f]
+                                                   [#:bottom bottom (or/c any/c #f) #f])]
+                         [(or 's/e 'start/end _) #'([#:start start (or/c any/c #f) #f]
+                                                    [#:end end (or/c any/c #f) #f])]))
+         (or/c transition? field-element?)
+         body ...)]))
