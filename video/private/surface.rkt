@@ -5,6 +5,8 @@
 ;; how much it will probably change.
 
 (require racket/match
+         racket/contract/base
+         racket/math
          "video.rkt"
          (for-syntax syntax/parse
                      syntax/parse/lib/function-header
@@ -75,6 +77,19 @@
                                   #'(mlt-prop-default-proc prop "length" extra-data)))]
               [else (pdp prop key extra-data)]))))]))
 
+(define-syntax (->producer stx)
+  (syntax-parse stx
+    [(_ [extra-args ...]
+        [optional-args ...]
+        (~optional ret? #:defaults ([ret? #'any/c])))
+     #'(->* [extra-args ...]
+            [#:start (or/c nonnegative-integer? #f)
+             #:end (or/c nonnegative-integer? #f)
+             #:length (or/c nonnegative-integer? #f)
+             #:properties (hash/c string? any/c)
+             optional-args ...]
+            (and/c producer? ret?))]))
+
 (define-syntax (define-transition stx)
   (syntax-parse stx
     [(_ f:function-header
@@ -103,3 +118,18 @@
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
              trans))]))
+
+(define-syntax (->transition stx)
+  (syntax-parse stx
+    [(_ [required ...]
+        [optional ...]
+        (~optional (~seq #:direction direction))
+        (~optional ret? #:defaults ([ret? #'any/c])))
+     #`(->* [required ...]
+            [#:length (or/c nonnegative-integer? #f)
+             #,@(match (syntax-e (attribute direction))
+                  [(or 't/b 'top/bottom) #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))]
+                  [(or 's/e 'start/end) #'(#:start (or/c any/c #f) #:end (or/c any/c #f))]
+                  [_ #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))])
+             optional ...]
+            (and/c (or/c transition? field-element?) ret?))]))

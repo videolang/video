@@ -50,54 +50,40 @@
   [blank (-> (or/c nonnegative-integer? #f) (or/c blank? producer?))]
   
   ;; Creates a producer that plays a clip from a file
-  [clip (->* [(or/c path-string? path?)]
-             [#:start (or/c nonnegative-integer? #f)
-              #:end (or/c nonnegative-integer? #f)
-              #:length (or/c nonnegative-integer? #f)
-              #:properties (hash/c string? any/c)]
-             producer?)]
+  [clip (->producer [(or/c path-string? path?)]
+                    [])]
 
   ;; Creates a producer that is a solid color
-  [color (->* [(or/c string? (is-a?/c color%)
-                     (list/c byte? byte? byte?))]
-              [#:length (or/c nonnegative-integer? #f)
-               #:properties (hash/c string? any/c)]
-              producer?)]
+  [color (->producer [(or/c string? (is-a?/c color%)
+                            (list/c byte? byte? byte?))]
+                     [])]
 
   ;; Create a producer that is the same as the other producer but with one or more
   ;; filters attached to it
   [attach-filter (-> service? filter? ... producer?)]
 
   ;; Creates a clip who's producer is path
-  [image (->* [(or/c path-string? path-for-some-system?)]
-              [#:length (or/c nonnegative-integer? #f)
-               #:properties (hash/c string? any/c)]
-              producer?)]
+  [image (->producer [(or/c path-string? path-for-some-system?)]
+                     [])]
 
   ;; Creates a fading transition from a start to end clip
-  [fade-transition (->* [#:length nonnegative-integer?]
-                        [#:start any/c
-                         #:end any/c]
-                        transition?)]
+  [fade-transition (->transition [] []
+                                 #:direction s/e)]
 
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  [composite-transition (->* [(between/c 0 1)
-                              (between/c 0 1)
-                              (between/c 0 1)
-                              (between/c 0 1)]
-                             [#:top (or/c any/c #f)
-                              #:bottom (or/c any/c #f)
-                              #:length (or/c nonnegative-integer? #f)]
-                             (or/c field-element? transition?))]
+  [composite-transition (->transition [(between/c 0 1)
+                                       (between/c 0 1)
+                                       (between/c 0 1)
+                                       (between/c 0 1)]
+                                       []
+                                       #:direction t/b)]
 
   ;; Creates a swiping transition from a start clip to an
   ;;   end clip
-  [swipe-transition (->* [#:direction symbol?
-                          #:length nonnegative-integer?]
-                         [#:top (or/c any/c #f)
-                          #:bottom (or/c any/c #f)]
-                         (or/c field-element? transition?))]
+  [swipe-transition (->transition [#:direction symbol?]
+                                  []
+                                  #:direction t/b)]
   
   [scale-filter (-> (and/c number? positive?) (and/c number? positive?) filter?)]
 
