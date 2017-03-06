@@ -1,8 +1,10 @@
 #lang scribble/manual
 @require[scribble/core
          scribble/example
+         racket/sandbox
          (except-in pict table)
-         "../private/utils.rkt"
+         video/private/utils
+         video/private/surface
          @for-label[(except-in racket/base filter)
                     racket/contract/base
                     racket/set
@@ -74,7 +76,26 @@ interface may or may not change in the near future.
 
 @defmodule[video/base]
 
-Note that not all of the functions in this module are currently documented.
+Note that not all of the functions in this module are
+currently documented.
+
+@subsection{Producers}
+
+@defproducer[(color [color (or/c string?
+                                 (is-a?/c color%)
+                                 (list/c byte? byte? byte?))])]{
+ Creates a producer that is a solid color.
+ @examples[(eval:alts (color "green") (void))
+           (eval:alts (color "yellow" #:length 10) (void))
+           (eval:alts (color 255 255 0) (void))]}
+
+@defproducer[(image [file (or/c path-string? path?)])]{
+ Contents}
+              
+@defproducer[(clip [file (or/c path-string? path?)])]{
+ Stuff}
+
+@subsection{Playlists}
 
 @defproc[(playlist [producer producer?] ...
                    [#:transitions transitions (listof field-element?) '()]
@@ -83,6 +104,10 @@ Note that not all of the functions in this module are currently documented.
                    [#:length length (or/c nonnegative-integer? #f) #f])
          producer?]
 
+@subsection{Transitions}
+
+@subsection{Multitracks}
+
 @defproc[(multitrack [producer producer?] ...
                      [#:transitions transitions (listof field-element?) '()]
                      [#:start start (or/c nonnegative-integer? #f) #f]
@@ -90,19 +115,9 @@ Note that not all of the functions in this module are currently documented.
                      [#:length length (or/c nonnegative-integer? #f) #f])
          producer?]
 
-@defproc[(clip [file (or/c path-string? path?)]
-               [#:start start (or/c nonnegative-integer? #f) #f]
-               [#:end end (or/c nonnegative-integer? #f) #f]
-               [#:length length (or/c nonnegative-integer? #f) #f]
-               [#:properties properties (hash/c string? any/c) (hash)])
-         producer?]
+@subsection{Filters}
 
-@defproc[(color [color (or/c string? (is-a?/c color%) (list/c byte? byte? byte?))]
-                [#:start start (or/c nonnegative-integer? #f) #f]
-                [#:end end (or/c nonnegative-integer? #f) #f]
-                [#:length length (or/c nonnegative-integer? #f) #f]
-                [#:properties properties (hash/c string? any/c) (hash)])
-         producer?]
+@subsection{Properties}
 
 @defproc[(producer-length [producer (and/c video? converted-video?)])
          number?]{
@@ -181,6 +196,8 @@ Note that not all of the functions in this module are currently documented.
 
  @racket[profile] is an @tt{MLT} profile object. For now
  leave it as @racket[#f] and pretend it doesn't exist.}
+
+@section{Graphical Non-Linear Video Editors}
 
 @section{Core Library}
 @defmodule[video/core]
@@ -403,7 +420,7 @@ here. Examples are found in @tt{private/examples.rkt}.
                                    [track (or/c exact-nonnegative-integer? #f)]
                                    [track-2 (or/c exact-nonnegative-integer? #f)])]
 
-@section{Video Lib}
+@section{Extended Video Lib}
 @defmodule[video/lib]
 
 @defproc[(converted-video? [video video?]) boolean?]{
@@ -437,3 +454,7 @@ here. Examples are found in @tt{private/examples.rkt}.
  Returns an identifier for the type of video as defined in
  @racket[video/core]. @colorize[#:color "red"]{This function
   in particular is likely to get removed!!!}}
+
+@section{Extending Video}
+
+@index-section[]

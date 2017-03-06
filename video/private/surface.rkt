@@ -7,6 +7,7 @@
 (require racket/match
          racket/contract/base
          racket/math
+         (only-in scribble/manual defproc)
          "video.rkt"
          (for-syntax syntax/parse
                      syntax/parse/lib/function-header
@@ -15,6 +16,8 @@
                      racket/match))
 
 (provide (all-defined-out))
+
+;; Producers =========================================================================================
 
 (define-syntax (define-producer stx)
   (syntax-parse stx
@@ -89,6 +92,21 @@
              #:properties (hash/c string? any/c)
              optional-args ...]
             (and/c producer? ret?))]))
+
+(define-syntax (defproducer stx)
+  (syntax-parse stx
+    [(_ (id:id args ...)
+        (~optional (~seq #:return ret)) ;; TODO, don't ignore this
+        content ...)
+     #'(defproc (id args ...
+                    [#:start start (or/c nonnegative-integer? #f) #f]
+                    [#:end end (or/c nonnegative-integer? #f) #f]
+                    [#:length length (or/c nonnegative-integer? #f) #f]
+                    [#:properties properties (hash/c string? any/c) (hash)])
+         producer?
+         content ...)]))
+
+;; Transitions =======================================================================================
 
 (define-syntax (define-transition stx)
   (syntax-parse stx

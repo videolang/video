@@ -12,7 +12,8 @@
                "pict-lib"
                "wxme-lib"
                "sandbox-lib"
-               "at-exp-lib"))
+               "at-exp-lib"
+               "scribble-lib"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"

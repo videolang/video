@@ -100,7 +100,9 @@
         (cond
           [(pict? source)
            (define pict-name
-             (build-path dest-dir (get-current-filename)))
+             (build-path (or dest-dir
+                             (make-temporary-file "rktvid~a" 'directory))
+                         (get-current-filename)))
            (send (pict->bitmap source) save-file pict-name 'png 100)
            (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
           [(file:convertible? source)
@@ -126,7 +128,7 @@
           (loop (and timeout (sub1 timeout))))))))
 
 ;; Set the current renderer
-(let ([r (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)])])
+(let ([r (new render% [dest-dir #f])])
   (send r setup-profile)
   (current-renderer r)
   (current-profile (send r get-profile)))
