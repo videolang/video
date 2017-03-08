@@ -52,6 +52,7 @@
                 #:end [end #f]
                 #:length [len #f]
                 #:properties [prop (hash)]
+                #:filters [filters '()]
                 . f.args)
          (when (and len (or start end))
            (error "Cannot define both start/end and length"))
@@ -74,6 +75,7 @@
           #:start prod-start
           #:end prod-end
           #:unbounded? (and unbounded? (not (or prod-start prod-end)))
+          #:filters filters
           #:prop properties
           #:prop-default-proc
           (λ (prop key [extra-data #f])
@@ -102,6 +104,7 @@
              #:end (or/c nonnegative-integer? #f)
              #:length (or/c nonnegative-integer? #f)
              #:properties (hash/c string? any/c)
+             #:filters (list/c filter?)
              optional-args ...]
             (and/c producer? ret?))]))
 
@@ -114,7 +117,8 @@
                     [#:start start (or/c nonnegative-integer? #f) #f]
                     [#:end end (or/c nonnegative-integer? #f) #f]
                     [#:length length (or/c nonnegative-integer? #f) #f]
-                    [#:properties properties (hash/c string? any/c) (hash)])
+                    [#:properties properties (hash/c string? any/c) (hash)]
+                    [#:filters filters (listof filter?) '()])
          producer?
          content ...)]))
 
@@ -135,8 +139,7 @@
      #:with arg2 #'[p2 #f]
      #`(define (f.name #,@(match (syntax-e (attribute direction))
                             [(or 't/b 'top/bottom) #'(#:top arg1 #:bottom arg2)]
-                            [(or 's/e 'start/end) #'(#:start arg1 #:end arg2)]
-                            [_ #'(#:top arg1 #:bottom arg2)])
+                            [(or 's/e 'start/end _) #'(#:start arg1 #:end arg2)])
                        #:length [len* #f]
                        . f.args)
          body ...
@@ -159,8 +162,7 @@
             [#:length (or/c nonnegative-integer? #f)
              #,@(match (syntax-e (attribute direction))
                   [(or 't/b 'top/bottom) #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))]
-                  [(or 's/e 'start/end) #'(#:start (or/c any/c #f) #:end (or/c any/c #f))]
-                  [_ #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))])
+                  [(or 's/e 'start/end _) #'(#:start (or/c any/c #f) #:end (or/c any/c #f))])
              optional ...]
             (and/c (or/c transition? field-element?) ret?))]))
 

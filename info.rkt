@@ -33,7 +33,8 @@
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
-                     "draw-doc"))
+                     "draw-doc"
+                     "ppict"))
 
 (define version "0.1")
 (define pkg-authors '(leif))

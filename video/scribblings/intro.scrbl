@@ -18,8 +18,16 @@
 
 @require[pict
          video/private/utils
+         scribble/example
+         racket/sandbox
+         racket/list
+         racket/math
+         "utils.rkt"
          @for-label[video
                     video/base]]
+
+@(define vid-eval
+   (make-base-eval '(begin (require video/base))))
 
 @title{Getting Started}
 
@@ -41,10 +49,144 @@ similar fashion to how LaTeX enables authors to write
 documents.
 
 All video programs begin with @code{#lang video}, the
-remaining program is an interleaving of video description.
+remaining program is a video description. Each top level
+expression is a @tt{producer}, or something that produces a
+video stream. For example, the @racket[color] producer
+generates a stream of green frames:
+
+@racketmod[
+ video (code:comment "green.vid")
+ (color "green")]
+
+When the module above is converted into a video, the output
+looks something like:
+
+@(inset-flow
+  (scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3))
+
+This picture also shows an example of playback controls.
+These are shown whenever previewing a video. The easiest way
+to preview a video is to press the @emph{Preview Video}
+button in the DrRacket toolbar. Note that simply running a
+program is not enough to render a video. Every Video
+programs describes a single @racket[vid] data structure.
+Thus, a renderer (or streamer) can prepare the Video in many
+different formats. Additionally, Video programs can include
+the @racket[vid] structure from other programs. Evaluating
+@racket[vid] in DrRacket's REPL after running the module
+shows the resulting structure:
+
+@examples[;#:eval vid-eval
+ (eval:alts vid
+            ;(playlist (color "green")))]
+            (displayln "#<playlist>"))]
+
+The @racket[color] function creates a producer of an
+indeterminate length.@margin-note{Although the length can be
+ set with the @racket[#:length] keyword.} Another function,
+@racket[clip] does create a producer with a bound length.
 
 @racketmod[
  video
- (color "green")]
+ (clip "spinning_square.mp4")]
 
-@(scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3)
+@inset-flow[
+ (apply playlist-timeline the-rr-clip)]
+
+Clips can be further cut with the @racket[#:start] and @racket[#:end] keywords:
+
+@racketmod[
+ video
+ (clip "spinning_square.mp4"
+       #:start 2
+       #:end 8)]
+
+@inset-flow[
+ (apply playlist-timeline
+        (take (drop the-rr-clip 2) 6))]
+
+@section{Filters}
+
+Filters can be attached to every producer. These filters
+modify the producers behavior: turning it grayscale,
+changing the aspect ratio, etc. The @racket[attach-filter]
+function attaches filters to a list. For example, we can use
+the @racket[grayscale-filter] to remove the color from the
+rotating square clip earlier.
+
+@racketmod[
+ video
+ (attach-filter (clip "spinning_square.mp4")
+                (grayscale-filter))]
+@inset-flow[
+ (apply playlist-timeline (map (compose frame grayscale-pict) the-rr-clip))]
+
+An alternative approach would be to use the
+@racket[#:filters] keyword associated with producers.
+
+@racketmod[
+ video
+ (clip "spinning_square.mp4"
+       #:filters (list (grayscale-filter)))]
+@inset-flow[(apply playlist-timeline the-grr-clip)]
+
+@section{Playlists}
+
+Video shines when combining multiple producers. The language
+provides two ways of combining producers, @emph{playlists}
+and @emph{multitracks}. To a first approximation, playlists
+run producers sequentially, while multitracks play them together.
+
+Playlists are the simpler form, with each module being an
+implicit playlist.
+
+@racketmod[
+ video
+ (clip "spinning_square.mp4" #:start 0 #:end 4)
+ (clip "spinning_square.mp4" #:start 0 #:end 4
+       #:filters (list (grayscale-filter)))]
+@inset-flow[
+ (apply playlist-timeline
+        (append (slice the-rr-clip 0 4)
+                (slice the-grr-clip 4 8)))]
+
+Playlists are themselves producers. As such,
+@racket[playlist] can also append multiple playlists
+together. This example combines the playlist from above with
+another similar clip of a ball dropping:
+
+
+@racketmod[
+ video
+ square-movie
+ ball-movie
+ (define square-movie
+   (playlist
+    (clip "spinning_square.mp4" #:start 0 #:end 2)
+    (clip "spinning_square.mp4" #:start 2 #:end 4
+          #:filters (list (grayscale-filter)))))
+ (define ball-movie
+   (playlist
+    (clip "ball-drop.mp4" #:start 0 #:end 2)
+    (clip "ball-drop.mp4" #:start 2 #:end 4
+          #:filters (list (grayscale-filter)))))]
+@inset-flow[
+ (apply playlist-timeline
+        (append (slice the-rr-clip 0 2)
+                (slice the-grr-clip 2 4)
+                (slice the-ball-drop 0 2)
+                (slice the-grall-drop 2 4)))]
+
+This clip also introduces @racket[define] in Video. Unlike
+many other @racket[racket]-based languages, module level
+variables are defined for the whole module, not just after
+their definition.@margin-note{This is also true of functions
+ created with @racket[λ/video] and @racket[define/video].}
+
+@section{Transitions}
+
+@section{Multitracks}
+
+@section{Command Line Interaction}
+
+@exec{raco video}
