@@ -19,6 +19,7 @@
 (provide (except-out (all-from-out racket/base) #%module-begin)
          (rename-out [~module-begin #%module-begin])
          λ/video
+         define/video
          define*
          define*-values
          (all-from-out video/base))
@@ -43,8 +44,13 @@
 
 (define-syntax (λ/video stx)
   (syntax-parse stx
-    [(_ args:function-header . body)
-     #'(λ args (video-begin "λ/video" values () . body))]))
+    [(_ args:formals body ...)
+     #'(λ args (video-begin "λ/video" values () body ...))]))
+
+(define-syntax (define/video stx)
+  (syntax-parse stx
+    [(_ args:function-header body ...)
+     #'(define f.name (λ/video f.args body ...))]))
 
 (define-syntax (define* stx)
   (syntax-parse stx

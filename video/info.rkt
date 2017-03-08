@@ -17,7 +17,7 @@
 |#
 
 (define collection "video")
-(define scribblings '(("scribblings/video.scrbl" (multi-page) (tool))))
+(define scribblings '(("scribblings/video.scrbl" (multi-page) (language))))
 (define raco-commands '(("video"
                          (submod video/raco main)
                          "Preview or Render a Racket Video"

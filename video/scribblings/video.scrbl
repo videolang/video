@@ -19,7 +19,7 @@
                     video/init
                     video/lib]]
 
-@title{Video Language}
+@title{The Video Language Guide}
 @author{Leif Andersen}
 
 @(defmodulelang video)
@@ -63,14 +63,7 @@ interface may or may not change in the near future.
 
 @table-of-contents[]
 
-@section{Getting Started}
-
-
-@racketmod[
- video
- (color "green")]
-
-@(scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3)
+@include-section{intro.scrbl}
 
 @section{Video API}
 
