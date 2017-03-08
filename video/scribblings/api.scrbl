@@ -46,6 +46,12 @@ currently documented.
 
 @section{Bundled Producers}
 
+@defproc[(blank [length (or/c integer? #f)]) producer?]{
+ Creates a blank producer of @racket[length] clips.
+
+ If @racket[length] is @racket[#f], then the producer
+ generates as many blank frames as its surrounding @racket[multitrack] requires.}
+
 @defproducer[(color [color (or/c string?
                                  (is-a?/c color%)
                                  (list/c byte? byte? byte?))])]{
@@ -84,6 +90,9 @@ currently documented.
 
 @deftransition[(fade-transition)
                #:direction s/e]
+
+@deftransition[(composite-transition)
+                #:direction t/b]
 
 @section{Bundled Filters}
 

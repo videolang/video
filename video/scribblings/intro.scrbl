@@ -167,8 +167,8 @@ another similar clip of a ball dropping:
           #:filters (list (grayscale-filter)))))
  (define ball-movie
    (playlist
-    (clip "ball-drop.mp4" #:start 0 #:end 2)
-    (clip "ball-drop.mp4" #:start 2 #:end 4
+    (clip "ball_drop.mp4" #:start 0 #:end 2)
+    (clip "ball_drop.mp4" #:start 2 #:end 4
           #:filters (list (grayscale-filter)))))]
 @inset-flow[
  (apply playlist-timeline
@@ -185,7 +185,51 @@ their definition.@margin-note{This is also true of functions
 
 @section{Transitions}
 
+@racketmod[
+ video
+ (clip "ball_drop.mp4" #:start 0 #:end 5)
+ (fade-transition #:length 2)
+ (clip "ball_drop.mp4" #:start 5 #:end 10
+       #:filters (list (grayscale-filter)))]
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([c (in-list the-ball-drop)]
+                   [g (in-list the-grall-drop)]
+                   [i (in-naturals)])
+          (cond
+            [(< i 3) c]
+            [(> i 7) g]
+            [else
+             (define n (- i 3))
+             (cc-superimpose (cellophane c (- 1 (/ n 4)))
+                             (cellophane g (/ n 4)))])))]
+
 @section{Multitracks}
+
+@racketmod[
+ video
+ (multitrack
+  (blank #f)
+  (composite-transition 0 0 1/2 1)
+  (clip "spinning_square.mp4")
+  (composite-transition 1/2 0 1/2 1)
+  (clip "dropping_ball.mp4"))]
+
+@racketmod[
+ video
+ (multitrack
+  bg
+  spinning-square
+  dropping-ball
+  #:transitions (list (composite-transition 0 0 1/2 1
+                                            #:top spinning-square
+                                            #:bottom bg)
+                      (composite-transition 1/2 0 1/2 1
+                                            #:top dropping-ball
+                                            #:bottom bg)))
+ (define bg (blank #f))
+ (define spinning-square (clip "spinning_square.mp4"))
+ (define dropping-ball (clip "dropping_ball.mp4"))]
 
 @section{Command Line Interaction}
 
