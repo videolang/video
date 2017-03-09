@@ -53,8 +53,9 @@
                 #:mode mode))
 
 (define (shot p)
-  (frame
-   (scale-1080p p)))
+  (clip
+   (frame
+    (scale-1080p p))))
 
 (define (rotating-rect-clip n)
     (build-list n

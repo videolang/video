@@ -215,6 +215,12 @@ their definition.@margin-note{This is also true of functions
   (composite-transition 1/2 0 1/2 1)
   (clip "dropping_ball.mp4"))]
 
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
+
 @racketmod[
  video
  (multitrack
@@ -230,6 +236,12 @@ their definition.@margin-note{This is also true of functions
  (define bg (blank #f))
  (define spinning-square (clip "spinning_square.mp4"))
  (define dropping-ball (clip "dropping_ball.mp4"))]
+
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
 
 @section{Command Line Interaction}
 
