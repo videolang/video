@@ -257,3 +257,14 @@ TODO: bug in mlt, should be 4
                (playlist (color "red" #:length 100)
                          (color "blue" #:length 50)))
               2)
+
+(check-equal?
+ (get-property
+  (playlist
+   (image circ-png #:length 4)
+   (fade-transition #:length 2)
+   (color "blue" #:length 4)
+   (fade-transition #:length 2)
+   (clip vid-mp4 #:start 0 #:end 4))
+  "length" 'int)
+ 8)
