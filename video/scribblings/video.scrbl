@@ -20,6 +20,7 @@
          scribble/example
          racket/sandbox
          (except-in pict table)
+         video/init
          video/private/utils
          video/private/surface
          @for-label[(except-in racket/base filter)
@@ -29,6 +30,7 @@
                     (except-in racket/class field)
                     racket/gui/base
                     racket/draw
+                    video/init
                     video/base
                     video/core
                     video/render
