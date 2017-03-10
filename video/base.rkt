@@ -252,7 +252,7 @@
 
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
-  (copy-video obj #:filteres new-filters))
+  (copy-video obj #:filters new-filters))
 
 (define (set-property obj key val)
   (define new-props (hash-set (properties-prop obj) key val))
