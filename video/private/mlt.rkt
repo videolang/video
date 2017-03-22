@@ -20,15 +20,29 @@
          ffi/unsafe/define
          racket/stxparam
          racket/splicing
-         (for-syntax racket/syntax
+         (for-syntax ffi/unsafe
+                     racket/syntax
                      racket/base
                      racket/string
                      syntax/parse))
 (provide (all-defined-out))
 
 ;; MLT Library
-(define mlt-lib (ffi-lib "libmlt" '("6")))
-(define-ffi-definer define-mlt mlt-lib)
+;; We currently cannot assume that MLT is installed and thus
+;;  need to error at runtime (rather than compile time) if it is
+;;  not installed.
+(define mlt-lib (ffi-lib "libmlt" '("6")
+                         #:fail (λ () #f)))
+(define-for-syntax mlt-lib (ffi-lib "libmlt" '("6")
+                                    #:fail (λ () #f)))
+(define-ffi-definer define-mlt/internal mlt-lib)
+(define-syntax (define-mlt stx)
+  (syntax-parse stx
+    [(_ name:id args ...)
+     (if mlt-lib
+         #'(define-mlt/internal name args ...)
+         #'(define (name . rst) (raise-user-error 'video "MLT Not Installed")))]))
+
 (define-syntax-parameter current-func-name #f)
 (define-syntax (define-mlt* stx)
   (syntax-parse stx

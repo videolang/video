@@ -25,21 +25,24 @@
 (require ffi/unsafe
          "mlt.rkt")
 
-;; Init MLT factory (ONCE PER PROCESS)
-(define scheme_register_process_global
-  (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer)))
+;; Because we currently can't rely on MLT being installed,
+;;   only run this module if it is.
+(when (ffi-lib? mlt-lib)
+  ;; Init MLT factory (ONCE PER PROCESS)
+  (define scheme_register_process_global
+    (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer)))
 
-(let ([v (scheme_register_process_global "mlt-support-initialized"
-                                         (cast 1 _racket _pointer))])
-  (unless v
-    (void (mlt-factory-init #f))))
+  (let ([v (scheme_register_process_global "mlt-support-initialized"
+                                           (cast 1 _racket _pointer))])
+    (unless v
+      (void (mlt-factory-init #f))))
 
-;; Close MLT factory on program exit
-(void
- (plumber-add-flush!
-  (current-plumber) (λ (p)
-                      (collect-garbage)
-                      (mlt-factory-close))))
+  ;; Close MLT factory on program exit
+  (void
+   (plumber-add-flush!
+    (current-plumber) (λ (p)
+                        (collect-garbage)
+                        (mlt-factory-close)))))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))
