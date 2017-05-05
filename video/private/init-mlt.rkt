@@ -23,24 +23,48 @@
 (provide mlt-executor
          register-mlt-close)
 (require ffi/unsafe
+         ffi/unsafe/define
          "mlt.rkt")
 
 (define init-key "mlt-support-initialized")
 (define close-key "mlt-support-closed")
+(define counter-key "mlt-support-counter")
+
+(define-ffi-definer define-inside #f)
+(define-cpointer-type _custodian)
+(define-cpointer-type _custodian-reference)
+(define-inside scheme_register_process_global
+  (_fun _string _pointer -> _pointer))
+(define-inside scheme_add_managed_close_on_exit
+  (_fun _custodian/null _racket (_fun _racket _pointer -> _void) _pointer
+        -> _custodian-reference/null))
 
 ;; Because we currently can't rely on MLT being installed,
 ;;   only run this module if it is.
 (when (ffi-lib? mlt-lib)
+  
   ;; Init MLT factory (ONCE PER PROCESS)
-  (define scheme_register_process_global
-    (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer)))
+  (define counter
+    (cast
+       (or (scheme_register_process_global counter-key (cast (box 0) _racket _pointer))
+           (scheme_register_process_global counter-key #f))
+     _pointer
+     _racket))
 
   (unless (scheme_register_process_global init-key (cast 1 _racket _pointer))
     (void (mlt-factory-init #f)))
 
   ;; Close MLT factory on program exit
-  (unless (scheme_register_process_global close-key (cast 1 _racket _pointer))
-    (void ((get-ffi-obj 'atexit #f (_fun (_fun -> _void) -> _bool)) mlt-factory-close))))
+  (set-box! counter (add1 (unbox counter)))
+  (void
+   (scheme_add_managed_close_on_exit
+    #f
+    counter
+    (λ (c d)
+      (set-box! counter (sub1 (unbox counter)))
+      (when (= (unbox counter) 0)
+        (mlt-factory-close)))
+    #f)))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))
