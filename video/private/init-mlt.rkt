@@ -38,12 +38,9 @@
   (unless (scheme_register_process_global init-key (cast 1 _racket _pointer))
     (void (mlt-factory-init #f)))
 
-  (when (scheme_register_process_global close-key #f)
-    (error "MLT support already closed for this process"))
-
   ;; Close MLT factory on program exit
   (unless (scheme_register_process_global close-key (cast 1 _racket _pointer))
-    (void ((get-ffi-obj 'atexit #f (_fun (_fun -> _void) -> _bool)) mlt-factory-close))))
+    (void ((get-ffi-obj 'atexit "libc" (_fun (_fun -> _void) -> _bool)) mlt-factory-close))))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))
