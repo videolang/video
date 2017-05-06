@@ -60,6 +60,7 @@
   (unless (scheme_register_process_global init-key (cast 1 _racket _pointer))
     (void (mlt-factory-init #f)))
 
+  #;
   ;; Close MLT factory on program exit
   (void
    (scheme_add_managed_close_on_exit
