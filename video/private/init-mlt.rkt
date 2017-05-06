@@ -29,6 +29,7 @@
 (define init-key "mlt-support-initialized")
 (define close-key "mlt-support-closed")
 (define counter-key "mlt-support-counter")
+(define counter-type _int)
 
 (define-ffi-definer define-inside #f)
 (define-cpointer-type _custodian)
@@ -42,27 +43,33 @@
 ;; Because we currently can't rely on MLT being installed,
 ;;   only run this module if it is.
 (when (ffi-lib? mlt-lib)
-  
-  ;; Init MLT factory (ONCE PER PROCESS)
-  (define counter
-    (cast
-       (or (scheme_register_process_global counter-key (cast (box 0) _racket _pointer))
-           (scheme_register_process_global counter-key #f))
-     _pointer
-     _racket))
 
+  ; Get the counter and incrament it
+  (define counter
+    (let ([x (scheme_register_process_global counter-key #f)])
+      (cond [x x]
+            [else
+             (define y (malloc 'raw counter-type))
+             (ptr-set! y counter-type 0)
+             (scheme_register_process_global counter-key y)
+             y])))
+  (ptr-set! counter counter-type
+            (add1 (ptr-ref counter counter-type)))
+
+  ;; Init MLT factory (ONCE PER PROCESS)
   (unless (scheme_register_process_global init-key (cast 1 _racket _pointer))
     (void (mlt-factory-init #f)))
 
   ;; Close MLT factory on program exit
-  (set-box! counter (add1 (unbox counter)))
   (void
    (scheme_add_managed_close_on_exit
     #f
     counter
     (λ (c d)
-      (set-box! counter (sub1 (unbox counter)))
-      (when (= (unbox counter) 0)
+      (ptr-set! counter counter-type
+                (sub1 (ptr-ref counter counter-type)))
+      (when (= (ptr-ref counter counter-type) 0)
+        (free counter)
         (mlt-factory-close)))
     #f)))
 
