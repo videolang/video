@@ -27,8 +27,6 @@
          "mlt.rkt"
          "semaphore.rkt")
 
-(define init-key "mlt-support-initialized")
-(define close-key "mlt-support-closed")
 (define counter-key "mlt-support-counter")
 (define counter-type _int)
 (define mutex-key "mlt-support-mutex")
@@ -39,7 +37,7 @@
 (define-inside scheme_register_process_global
   (_fun _string _pointer -> _pointer))
 (define-inside scheme_add_managed_close_on_exit
-  (_fun _custodian/null _racket (_fun _racket _pointer -> _void) _pointer
+  (_fun _custodian/null _racket (_fun _racket _racket -> _void) _racket
         -> _custodian-reference/null))
 
 (define (scheme-install-global! global-key
@@ -56,59 +54,63 @@
                     (cast-proc installed?)]
                    [else ptr])])))
 
+; Get the counter and incrament it
+(define counter
+  (scheme-install-global! counter-key
+                          (λ ()
+                            (define ret (malloc 'raw counter-type))
+                            (ptr-set! ret counter-type 0)
+                            ret)
+                          (λ (ptr)
+                            (free ptr))))
+(define counter-mutex
+  (scheme-install-global! mutex-key
+                          (λ ()
+                            (define-values (s _)
+                              (sema-create 1))
+                            s)
+                          (λ (sema)
+                            (sema-destroy sema))
+                          (λ (sema)
+                            (cast sema _pointer _sema))))
+
+(define (free-proc c this)
+  ;(define x #f)
+  (sema-wait counter-mutex)
+  (ptr-set! counter counter-type
+            (sub1 (ptr-ref counter counter-type)))
+  ;(set! x (ptr-ref counter counter-type))
+  (when (= (ptr-ref counter counter-type) 0)
+    (free counter)
+    (mlt-factory-close))
+  (sema-post counter-mutex)
+  #;(log-error "Dec: ~a" x))
+
 
 ;; Because we currently can't rely on MLT being installed,
 ;;   only run this module if it is.
 (when (ffi-lib? mlt-lib)
-
-  ; Get the counter and incrament it
-  (define counter
-    (scheme-install-global! counter-key
-                            (λ ()
-                              (define ret (malloc 'raw counter-type))
-                              (ptr-set! ret counter-type 0)
-                              ret)
-                            (λ (ptr)
-                              (free ptr))))
-  (define counter-mutex
-    (scheme-install-global! mutex-key
-                            (λ ()
-                              (define-values (s _)
-                                (sema-create 1))
-                              s)
-                            (λ (sema)
-                              (sema-destroy sema))
-                            (λ (sema)
-                              (cast sema _pointer _sema))))
+  
+  ;; Init MLT factory (ONCE PER PROCESS)
+  ;(define tmp #f)
   (sema-wait counter-mutex)
+  (when (= (ptr-ref counter counter-type) 0)
+    (void (mlt-factory-init #f)))
   (ptr-set! counter counter-type
             (add1 (ptr-ref counter counter-type)))
+  ;(set! tmp (ptr-ref counter counter-type))
   (sema-post counter-mutex)
+  #;(log-error "Inc: ~a" tmp)
 
-  ;; Init MLT factory (ONCE PER PROCESS)
-  (unless (scheme_register_process_global init-key (cast 1 _racket _pointer))
-    (void (mlt-factory-init #f)))
-
-
-  (define (free-proc c d)
-    (sema-wait counter-mutex)
-    (ptr-set! counter counter-type
-              (sub1 (ptr-ref counter counter-type)))
-    (sema-post counter-mutex)
-    (when (= (ptr-ref counter counter-type) 0)
-      (free counter)
-      (mlt-factory-close))
-    (sema-post counter-mutex))
  
   ;; Close MLT factory on program exit
   (void
    #;
    (scheme_add_managed_close_on_exit
     #f
-    counter
+    #f
     free-proc
-    (function-ptr free-proc
-                  (_fun _racket _pointer -> _void)))))
+    free-proc)))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))
