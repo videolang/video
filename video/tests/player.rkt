@@ -23,6 +23,5 @@
 
 (let ()
   (define p (new video-player% [video green:vid]))
-  (void))
+  (send p show #f))
 
-(exit)

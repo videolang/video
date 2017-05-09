@@ -92,6 +92,11 @@
          (seek 0)
          (set-speed 1)
          (update-seek-bar-and-labels))))
+    (define/override (show show?)
+      (unless show?
+        (send seek-bar-updater stop)
+        (stop))
+      (super show show?))
     (define/augment (on-close)
       (send seek-bar-updater stop)
       (stop))
