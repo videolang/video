@@ -140,7 +140,7 @@
               (define frame (floor (* (get-video-length) (/ v seek-bar-max))))
               (seek frame))]))
     (define (update-seek-bar-and-labels)
-      (define len (get-video-length))
+      (define len (or (get-video-length) 1000000))
       (define frame (floor (* seek-bar-max (/ (get-position) len))))
       (send seek-bar set-value frame)
       (send seek-message set-label (make-frame-string frame len)))
