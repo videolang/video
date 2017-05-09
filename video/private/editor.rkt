@@ -24,6 +24,7 @@
          racket/dict
          racket/class
          racket/gui/base
+         (prefix-in gui: racket/gui/base)
          racket/match
          racket/list
          racket/format
@@ -540,8 +541,12 @@
     (send this lock #t)
     (send this hide-caret #t)
 
+    (define/override (get-file)
+      file)
+
     (define/public (set-file! filename)
       (send this lock #f)
+      (send this select-all)
       (send this clear)
       (set! file filename)
       (if (path? filename)
@@ -560,7 +565,7 @@
            [parent p]
            [label "Change File"]
            [callback (λ (item event)
-                       (define new-file (get-file))
+                       (define new-file (gui:get-file))
                        (when new-file
                          (set-file! new-file)))])
       p)

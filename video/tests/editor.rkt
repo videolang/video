@@ -94,3 +94,12 @@
   (check-equal?
    (send new-4ed get-min-width)
    500))
+
+(let ()
+  (define vf (new video-file% [file (build-path "hello.mp4")]))
+  (send vf set-file! (build-path "world.mp4"))
+  (define vf2 (send vf copy-self))
+  (check-equal? (syntax->datum (send vf2 read-special #f #f #f #f))
+                (syntax->datum (send vf read-special #f #f #f #f)))
+  (check-equal? (send vf2 get-file)
+                (send vf get-file)))
