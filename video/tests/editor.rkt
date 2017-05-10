@@ -128,11 +128,8 @@
   (define b4 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
   (define b5 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
   (define vr (new video-snip-reader%))
-  ;(define wr (wxme-read (open-input-bytes (send b1 get-bytes))))
-  ;(displayln wr)
-  ;(define vs3 (send vr read-snip #f "0" (make-object editor-stream-in% b3)))
-  ;(define vt (send vr read-snip #t "0" (make-object editor-stream-in% b4)))
-  ;(displayln vt)
+  (define vsc (new video-snip-class%))
+  (define vs3 (send vsc read (make-object editor-stream-in% b3)))
   (check-equal? (send vr read-header "0" (make-object editor-stream-in% b5))
                 (void)))
 

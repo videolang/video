@@ -748,5 +748,8 @@
 (module+ test
   (let ()
     (define ed (new video-editor%))
-    (void (send ed make-right-click-menu 0 0))))
-
+    (void (send ed make-right-click-menu 0 0))
+    (define ted (new video-text%))
+    (void (send ted make-right-click-menu 0 0))
+    (define fed (new video-file%))
+    (void (send fed make-right-click-menu 0 0))))
