@@ -133,3 +133,33 @@
   (check-equal? (send vr read-header "0" (make-object editor-stream-in% b5))
                 (void)))
 
+
+(let ()
+  (define ve (new video-editor%
+                  [initial-tracks 3]
+                  [track-height 200]))
+  (send ve set-track-height! 400)
+  (check-equal?
+   (send ve get-min-height)
+   1200))
+
+(let ()
+  (define ve (new video-editor%
+                  [initial-tracks 3]
+                  [track-height 500]))
+  (send ve insert-video (new video-snip%) 2 5 10)
+  (send ve delete-track 1)
+  (define ve2 (send ve copy-self))
+  (define b1 (new editor-stream-out-bytes-base%))
+  (define b2 (new editor-stream-out-bytes-base%))
+  (send ve write-to-file (make-object editor-stream-out% b1))
+  (send ve2 write-to-file (make-object editor-stream-out% b2))
+  (check-equal? (send b2 get-bytes)
+                (send b1 get-bytes))
+  (define b3 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
+  (define b4 (make-object editor-stream-in-bytes-base% (send b2 get-bytes)))
+  (send ve read-from-file (make-object editor-stream-in% b3))
+  (check-equal?
+   (send ve get-min-height)
+   1000))
+  

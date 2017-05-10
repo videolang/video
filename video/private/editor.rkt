@@ -227,9 +227,8 @@
         (when (= t track#)
           (send this delete vid))
         (when (> t track#)
-          (hash-update! snip-table vid sub1)
           (send this move vid 0 (- track-height))))
-      (gvector-remove! tracks track#)
+      (gvector-remove-last! tracks)
       (send this set-min-height (* (gvector-count tracks) track-height))
       (send this invalidate-bitmap-cache))
     
@@ -654,10 +653,10 @@
       (send editor read-special source line column position))
 
     (define/override (copy)
-      (define new-editor (send editor copy-self))
+      (define new-editor (and editor (send editor copy-self)))
       (define other
         (make-object video-snip%
-          (send editor copy-self)
+          new-editor
           with-border?
           left-margin top-margin right-margin bottom-margin
           left-inset top-inset right-inset bottom-inset
@@ -687,7 +686,7 @@
       (maybe-put max-width)
       (maybe-put min-height)
       (maybe-put max-height)
-      (send editor write-to-file f))))
+      (and editor (send editor write-to-file f)))))
 
 (define video-snip-class%
   (class snip-class%
