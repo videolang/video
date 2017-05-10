@@ -18,6 +18,7 @@
 
 (require rackunit
          racket/gui/base
+         wxme
          "../private/editor.rkt")
 
 (let ()
@@ -112,3 +113,26 @@
                 (syntax->datum (send vf read-special #f #f #f #f)))
   (check-equal? (send vf2 get-file)
                 (send vf get-file)))
+
+(let ()
+  (define vs (new video-snip%
+                  [editor (new video-editor%)]))
+  (define vs2 (send vs copy))
+  (define b1 (new editor-stream-out-bytes-base%))
+  (define b2 (new editor-stream-out-bytes-base%))
+  (send vs2 write (make-object editor-stream-out% b2))
+  (send vs write (make-object editor-stream-out% b1))
+  (check-equal? (send b1 get-bytes)
+                (send b2 get-bytes))
+  (define b3 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
+  (define b4 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
+  (define b5 (make-object editor-stream-in-bytes-base% (send b1 get-bytes)))
+  (define vr (new video-snip-reader%))
+  ;(define wr (wxme-read (open-input-bytes (send b1 get-bytes))))
+  ;(displayln wr)
+  ;(define vs3 (send vr read-snip #f "0" (make-object editor-stream-in% b3)))
+  ;(define vt (send vr read-snip #t "0" (make-object editor-stream-in% b4)))
+  ;(displayln vt)
+  (check-equal? (send vr read-header "0" (make-object editor-stream-in% b5))
+                (void)))
+

@@ -727,27 +727,13 @@
 
 (define video-snip-class (new video-snip-class%))
 
-;; A very cludgy hack because we want to use an editor-stream,
-;;   but we only get a stream<%>, which has a very similar interface,
-;;   but with slightly different names.
-;;   This class fixes that.
-(define editor-stream-adapter%
-  (class object%
-    (init-field stream)
-    (super-new)
-    (define/public (get-exact)
-      (send stream read-integer 'video-editor))
-    (define/public (read-bytes)
-      (send stream read-raw-bytes 'video-editor))))
-
 ;; A reader for video snips.
 (define video-snip-reader%
   (class* object% (snip-reader<%>)
     (super-new)
     (define/public (read-header version stream) (void))
     (define/public (read-snip text-only? version stream)
-      (define adapted-stream (make-object editor-stream-adapter% stream))
-      (define video-snip (read-snip-from-port video-snip-class-name 'video adapted-stream))
+      (define video-snip (read-snip-from-port video-snip-class-name 'video stream))
       (cond
         [text-only?
          (define code (send video-snip read-special #f #f #f))
