@@ -39,7 +39,10 @@
    30)
   (check-equal?
    (send new-3ed get-min-width)
-   100))
+   100)
+  (check-equal?
+   (syntax->datum (send new-3ed read-special #f #f #f #f))
+   (syntax->datum (send 3ed read-special #f #f #f #f))))
 
 (let ()
   (define ned
@@ -61,10 +64,10 @@
   (send ed on-default-event (new mouse-event% [event-type 'right-down]))
   (define text-ed
     (new video-text%))
-  (send text-ed on-default-event (new mouse-event% [event-type 'right-down]))
+  (send text-ed on-event (new mouse-event% [event-type 'right-down]))
   (define file-ed
     (new video-file%))
-  (send file-ed on-default-event (new mouse-event% [event-type 'right-down])))
+  (send file-ed on-event (new mouse-event% [event-type 'right-down])))
 
 (let ()
   (define ed
