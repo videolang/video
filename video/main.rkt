@@ -25,8 +25,10 @@
          (all-from-out video/base))
 
 (require (prefix-in core: video/core)
+         (only-in "private/video.rkt" current-video-directory)
          video/base
          racket/list
+         racket/path
          (except-in pict clip frame blank)
          racket/draw
          racket/splicing
@@ -40,6 +42,11 @@
   (syntax-parse stx
     [(_ id:id post-process exprs . body)
      #'(#%module-begin
+        (current-video-directory
+         (let ([p (variable-reference->module-source (#%variable-reference))])
+           (if (path? p)
+               (path-only p)
+               (current-directory))))
         (video-begin id post-process exprs . body))]))
 
 (define-syntax (λ/video stx)

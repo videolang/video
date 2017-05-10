@@ -144,12 +144,12 @@
 
 (define-producer (clip path)
   #:source clip-path
-  (define clip-path (path->string (path->complete-path path))))
+  (define clip-path (relative-path->string path)))
 
 (define-producer (image path)
   #:source (format "pixbuf:~a" image-path)
   #:unbounded? #t
-  (define image-path (path->string (path->complete-path path))))
+  (define image-path (relative-path->string path)))
 
 (define-producer (color c)
   #:source (format "color:0x~a~a~a~a"
@@ -349,3 +349,8 @@
       #:align 'right
       (format "~x" number)))
 
+;; Convert a path relative to a video file to
+;; a string that is the absolute path.
+;; Path -> String
+(define (relative-path->string path)
+  (path->string (path->complete-path path (current-video-directory))))
