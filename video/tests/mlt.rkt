@@ -18,6 +18,7 @@
 (require racket/stxparam
          rackunit
          ffi/unsafe
+         "../private/init-mlt.rkt"
          "../private/mlt.rkt")
 
 (syntax-parameterize ([current-func-name (make-rename-transformer #'hello)])
@@ -47,3 +48,23 @@
   (define-mlt* mlt-factory-init
     (_fun _path -> _mlt-repository/null))
   (void))
+
+(let ()
+  (define prof (mlt-profile-init #f))
+  (define prod
+    (mlt-factory-producer prof #f "color:green"))
+  (define props
+    (mlt-producer-properties prod))
+  (check-true (string? (mlt-profile-description prof)))
+  (check-true (integer? (mlt-profile-progressive prof)))
+  (check-true (integer? (mlt-profile-sample-aspect-num prof)))
+  (check-true (integer? (mlt-profile-sample-aspect-den prof)))
+  (check-true (integer? (mlt-profile-display-aspect-num prof)))
+  (check-true (integer? (mlt-profile-display-aspect-den prof)))
+  (check-true (integer? (mlt-profile-colorspace prof)))
+  (check-true (integer? (mlt-profile-is-explicit prof)))
+  (check-false (mlt-properties-child props))
+  (check-false (mlt-properties-local props))
+  (check-false (mlt-properties-close-object props))
+  (mlt-producer-close prod)
+  (mlt-profile-close prof))

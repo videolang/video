@@ -141,7 +141,7 @@
    [sample-aspect-num _int]
    [sample-aspect-den _int]
    [display-aspect-num _int]
-   [disaply-aspect-den _int]
+   [display-aspect-den _int]
    [colorspace _int]
    [is-explicit _int]))
 (define-cstruct _mlt-properties
@@ -315,6 +315,7 @@
 (define-mlt* mlt-producer-frame (_fun _mlt-producer-pointer -> _mlt-position))
 (define-mlt* mlt-producer-frame-time (_fun _mlt-producer-pointer -> _string))
 (define-mlt* mlt-producer-position (_fun _mlt-producer-pointer -> _mlt-position))
+(define-mlt* mlt-producer-properties (_fun _mlt-producer-pointer -> _mlt-properties))
 
 ;; Playlist
 (define-mlt* mlt-playlist-init (_fun -> [v : _mlt-playlist-pointer/null]
