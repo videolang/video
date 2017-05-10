@@ -480,7 +480,7 @@
     (init-field [track-height 100])
     (super-new)
     
-    (define (make-right-click-menu x y)
+    (define/public (make-right-click-menu x y)
       (define p (new popup-menu%))
       (new menu-item%
            [parent p]
@@ -554,7 +554,7 @@
           (send this insert "NO FILE"))
       (send this lock #t))
 
-    (define (make-right-click-menu x y)
+    (define/public (make-right-click-menu x y)
       (define p (new popup-menu%))
       (new menu-item%
            [parent p]
