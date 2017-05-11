@@ -260,7 +260,6 @@
 (define-constructor blank producer ([length 0])
   (convert (make-playlist #:elements (list this))))
 
-(require racket/pretty)
 (define-constructor playlist producer ([elements '()])
   (define playlist* (mlt-playlist-init))
   (for ([i (in-list elements)])
