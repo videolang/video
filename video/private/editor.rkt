@@ -162,12 +162,12 @@
       (define new-track (gvector-ref tracks track#))
       (hash-set! new-track video (video-prop position length)))
     
-    (define/augment (after-resize s w h r?)
-      (when r?
-        (define track# (hash-ref snip-table s))
-        (define track (gvector-ref tracks track#))
-        (define start-time (video-prop-start (hash-ref track s)))
-        (hash-set! track s (video-prop start-time w))))
+    (define/augment (on-resize s w h)
+      (define track# (hash-ref snip-table s))
+      (define track (gvector-ref tracks track#))
+      (define start-time (video-prop-start (hash-ref track s)))
+      (hash-set! track s (video-prop start-time w))
+      (send this move s 0 0))
     
     (define/augment (after-move-to s x y d)
       (unless (or d (adjusting-clip?))
@@ -448,6 +448,7 @@
         `(let ()
            (define multitrack (dynamic-require 'video/base 'multitrack))
            (define blank (dynamic-require 'video/base 'blank))
+           (define cut-producer (dynamic-require 'video/base 'cut-producer))
            (multitrack
             ,@(for/list ([i (in-gvector tracks)])
                 (define track-queue
@@ -468,7 +469,7 @@
                           (cons (blank start-delta) acc)))
                     (define snip-stx
                       (send snip read-special source line column position))
-                    (values (cons snip-stx acc*) time)))
+                    (values (cons `(cut-producer ,snip-stx #:end ,length) acc*) time)))
                 `(list ,@(reverse playlist))))))
       (datum->syntax #f data (list source line column position #f)))))
 

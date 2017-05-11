@@ -162,4 +162,40 @@
   (check-equal?
    (send ve get-min-height)
    1000))
+
+(let ()
+  (define admin (new editor-admin%))
+  (define ve (new video-editor%
+                  [track-height 10]
+                  [initial-tracks 2]))
+  (send ve set-admin admin)
+  (define vs (new video-snip%
+                  [editor (new video-editor%)]))
+  (send ve insert-video vs 1 0 10)
+  (send ve resize vs 1 1)
+  (define ve2 (new video-editor%
+                   [track-height 10]
+                   [initial-tracks 2]))
+  (define vs2 (new video-snip%
+                   [editor (new video-editor%)]))
+  (send ve2 insert-video vs2 1 0 1)
+  (check-equal? (syntax->datum (send ve read-special #f #f #f #f))
+                (syntax->datum (send ve2 read-special #f #f #f #f)))
+  (define ve3 (new video-editor%
+                   [track-height 10]
+                   [initial-tracks 2]))
+  (define vs3 (new video-snip%
+                   [editor (new video-editor%)]))
+  (send ve3 insert-video vs3 1 0 10)
+  (check-not-equal? (syntax->datum (send ve read-special #f #f #f #f))
+                    (syntax->datum (send ve3 read-special #f #f #f #f))) )
   
+
+(let ()
+  (define ve (new video-editor%
+                  [minimum-width 1000]
+                  [initial-tracks 10]
+                  [track-height 100]))
+  (define dc (new bitmap-dc% [bitmap (make-object bitmap% 1000 1000)]))
+  (check-equal? (send ve on-paint #t dc 0 0 1000 1000 0 0 'no-carot)
+                (void)))
