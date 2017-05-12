@@ -79,7 +79,7 @@
     (define/public (get-position)
       (mlt-producer-position video-mlt))
     (define/public (get-fps)
-      (mlt-producer-get-fps video-mlt))
+      (send renderer get-fps))
     (define/public (set-video v)
       ;; Really should be atomic.... :/
       (call-as-atomic

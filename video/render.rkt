@@ -100,6 +100,9 @@
       (begin0 (format "resource~a" res-counter)
               (set! res-counter (add1 res-counter))))
 
+    (define/public (get-fps)
+      fps)
+
     (define/public (get-profile)
       profile)
     
