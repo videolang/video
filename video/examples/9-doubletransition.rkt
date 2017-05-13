@@ -3,11 +3,11 @@
 (multitrack
  blocks
  circ
- ;red
+ red
  #:transitions (list (composite-transition 0.1 0.1 0.3 0.3
                                            #:top circ
                                            #:bottom blocks)
-                     #;(composite-transition 0.6 0.6 0.2 0.2
+                     (composite-transition 0.6 0.6 0.2 0.2
                                            #:top red
                                            #:bottom blocks)))
                      
