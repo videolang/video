@@ -37,7 +37,6 @@
 (define current-renderer (make-parameter #f))
 (define current-profile (make-parameter #f))
 (define current-video-directory (make-parameter (current-directory)))
-(define current-multitrack-length (make-parameter #f))
 
 ;; A helper function to convert videos to MLT object
 ;; Video (U Renderer% #f) -> _mlt-object

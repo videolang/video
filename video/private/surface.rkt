@@ -140,8 +140,8 @@
      #:with arg1 #'[p1 #f]
      #:with arg2 #'[p2 #f]
      #`(define (f.name #,@(match (syntax-e (attribute direction))
-                            [(or 't/b 'top/bottom) #'(#:top arg1 #:bottom arg2)]
-                            [(or 's/e 'start/end _) #'(#:start arg1 #:end arg2)])
+                            [(or 't/b 'top/bottom) #'(#:top arg2 #:bottom arg1)]
+                            [(or 's/e 'start/end _) #'(#:start arg2 #:end arg1)])
                        #:length [len* #f]
                        . f.args)
          body ...
