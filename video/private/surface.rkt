@@ -61,15 +61,14 @@
            (error "Cannot define both start/end and length"))
          (when (and start end (> start end))
            (error "Start of clip cannot be larger than its end"))
-         (define start* (or start (and len 0)))
-         (define end* (or end len))
-         (define length* (or len (and start end (- end start))))
+         (define start* (or start (and len 0) 0))
+         (define end* (or end len -1))
+         (define length* (or len (and start end (- end start)) -1))
          (define properties
            #,(if (syntax-e (attribute unbounded?))
                  #'(hash-set* prop
                               "start" start*
-                              "end" end*
-                              "length" (and start* end* (- end* start*)))
+                              "end" end*)
                  #'prop))
          body ...
          (make-producer

@@ -37,6 +37,7 @@
 (define current-renderer (make-parameter #f))
 (define current-profile (make-parameter #f))
 (define current-video-directory (make-parameter (current-directory)))
+(define current-multitrack-length (make-parameter #f))
 
 ;; A helper function to convert videos to MLT object
 ;; Video (U Renderer% #f) -> _mlt-object
@@ -248,8 +249,8 @@
                                       [seek #f]
                                       [unbounded? #f])
   (define producer* (mlt-factory-producer (current-profile) type source))
-  (define start* (or start -1))
-  (define end* (or end -1))
+  (define start* (or start 0))
+  (define end* (or end 0))
   (mlt-producer-set-in-and-out producer* start* (- end* 1))
   (when speed
     (mlt-producer-set-speed producer* speed))
