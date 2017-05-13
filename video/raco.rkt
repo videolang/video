@@ -87,4 +87,4 @@
              #:speed (output-speed)
              #:dest-filename output-file
              #:render-mixin render-mixin)]
-    [_ (preview video)]))
+    [_ (void (preview video))]))
