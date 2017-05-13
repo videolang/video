@@ -61,10 +61,10 @@ currently documented.
            (eval:alts (color 255 255 0) (void))]}
 
 @defproducer[(image [file (or/c path-string? path?)])]{
- Contents}
+ Creates a producer that is a still image.}
               
 @defproducer[(clip [file (or/c path-string? path?)])]{
- Stuff}
+ Creates a producer from a video file.}
 
 @section{Video Compositing}
 

@@ -81,7 +81,7 @@
     (void)))
 
 (define render<%>
-  (interface () get-profile setup-profile prepare render play))
+  (interface () get-fps get-profile setup-profile prepare render play))
 
 (define render%
   (class* object% (render<%>)

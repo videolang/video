@@ -48,9 +48,9 @@
          content))
 
 @colorize[#:color "red"]{
-  This is a highly unstable and experimental DSL for editing videos. Do
-  not use this library in production as core parts of it are still being
-  designed.}
+ Video is still an experimental library. While Video's
+ surface syntax is unlikely to change, certain core libraries
+ might change.}
 
 Video Language is a DSL for
 editing...videos.@margin-note["Creative name, I know..."]
@@ -64,6 +64,7 @@ interface may or may not change in the near future.
    @para{This libraries requires that you have the following
  libraries on your system.}
    @itemlist[
+ #:style 'compact
  @item[@hyperlink["https://mltframework.org/"]{libmlt}]
  @item[@hyperlink["https://ffmpeg.org/"]{ffmpeg/libav}]
  @item[@hyperlink["http://ftp.gnome.org/pub/GNOME/sources/gdk-pixbuf/"]{GDK Pixbuf}]
@@ -94,7 +95,7 @@ interface may or may not change in the near future.
  Helper function to create a new @racket[video-player%]
  object, and start playback. The resulting
  @racket[video-player%] object is returned.
-
+λ
  @racket[data] is the @racket[producer] that the video player will render.}
 
 @defclass[video-player% frame% ()]{
@@ -123,36 +124,17 @@ interface may or may not change in the near future.
  @defmethod[(get-position) exact-positive-integer?]
  @defmethod[(get-fps) number?]
  @defmethod[(set-video [video producer?]) void?]
- 
 }
+
+@include-section{render.scrbl}
          
-@section{Rendering}
-@defmodule[video/render]
-
-@defproc[(render [data video?])
-         void?]{
- Renders a video object using @tt{MLT}. Examples
- of how to use it in @tt{private/examples.rkt}.}
-
-@defproc[(convert-to-mlt! [data video?] [profile any/c #f]) any/c]{
- Compiles a video object to a @tt{MLT} format. The resulting
- compiled video object is also stored in the original data
- object passed in. If the object has already been compiled,
- nothing will occur.
-
- This method is useful if you wish to modify the traversal
- of compilation. Such as, if you want to compile the second
- producer in a playlist before you compile the first.
-
- Because this additionally modifies the input, it can still be passed into @racket[render].
-
- @racket[data] is the video to be compiled. If it already
- has been converted this function does nothing.
-
- @racket[profile] is an @tt{MLT} profile object. For now
- leave it as @racket[#f] and pretend it doesn't exist.}
-
 @section{Graphical Non-Linear Video Editors}
+
+The graphical NLVE is very experimental and will likely
+break with newer versions of the library.
+
+You can test drive it by going to
+@menuitem["Insert" "Insert Video Editor"]
 
 @section{Core Library}
 @defmodule[video/core]
@@ -411,5 +393,23 @@ here. Examples are found in @tt{private/examples.rkt}.
   in particular is likely to get removed!!!}}
 
 @section{Extending Video}
+
+@defmodule[video/surface]
+
+Video also has basic syntax for creating new types of
+producers, transitions, and filters.
+
+@colorize[#:color "red"]{
+ This API is very experimental and WILL change without
+ notice. Proceed with caution. The documentation only lists
+ the forms available, as the details themselves will change.}
+
+
+@defidentifier[#'define-producer]
+@defidentifier[#'->producer]
+@defidentifier[#'defproducer]
+@defidentifier[#'define-transition]
+@defidentifier[#'->transition]
+@defidentifier[#'deftransition]
 
 @index-section[]

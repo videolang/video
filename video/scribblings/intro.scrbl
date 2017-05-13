@@ -243,6 +243,12 @@ their definition.@margin-note{This is also true of functions
                    [b (in-list the-ball-drop)])
           (shot (hc-append r b))))]
 
-@section{Command Line Interaction}
+@section[#:tag "raco-video"]{Command Line Interaction}
 
-@exec{raco video}
+The @exec{raco video} tool is the most simple way to render
+video files. To get a list of its current set of features, run:
+
+@nested[@exec{raco video --help}]
+
+By default, @exec{raco video} will open up a Video file in a
+preview window.

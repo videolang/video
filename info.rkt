@@ -18,7 +18,7 @@
 
 (define collection 'multi)
 
-(define deps '(("base" "6.8.0.2")
+(define deps '(("base" "6.9")
                "rackunit-lib"
                "gui-lib"
                "draw-lib"
@@ -36,6 +36,6 @@
                      "draw-doc"
                      "ppict"))
 
-(define version "0.1")
+(define version "0.2")
 (define pkg-authors '(leif))
 (define pkg-desc "Video Language")
