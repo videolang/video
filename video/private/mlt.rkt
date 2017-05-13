@@ -226,9 +226,9 @@
   ([producer _mlt-producer-pointer/null]
    [event _mlt-event/null]))
 (define-cstruct (_mlt-multitrack _mlt-producer)
-   ([list* _mlt-track-pointer]
-   [size* _int]
-   [count* _int]))
+   ([list* _mlt-track-pointer/null]
+    [size* _int]
+    [count* _int]))
 
 ;; Factory
 (define-mlt* mlt-factory-init (_fun _path -> [v : _mlt-repository/null]
