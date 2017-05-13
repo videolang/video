@@ -268,3 +268,12 @@ TODO: bug in mlt, should be 4
    (clip vid-mp4 #:start 0 #:end 4))
   "length" 'int)
  8)
+
+(let ()
+  (define r (color "red"))
+  (define props (debug:properties-prop r))
+  (check-equal? (hash-ref props "start") 0)
+  (check-equal? (hash-ref props "end") -1)
+  (check-equal? (producer-start r) #f)
+  (check-equal? (producer-end r) #f)
+  (check-equal? (producer-length r) #f))
