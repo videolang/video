@@ -20,6 +20,7 @@
          camera-button)
 (require racket/class
          racket/draw
+         racket/path
          racket/gui/base
          images/icons/style
          mrlib/switchable-button
@@ -63,6 +64,10 @@
                        (read vid-port)))
      (parameterize ([current-namespace (make-gui-namespace)])
        (define mod-name (second program))
+       (eval `(current-directory ,(let ([v (send t get-filename)])
+                                      (if v
+                                          (path-only v)                                     
+                                      (current-directory)))))
        (eval program)
        (eval `(require ',mod-name))
        (eval '(require video/player))
