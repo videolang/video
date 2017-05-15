@@ -23,5 +23,12 @@
 
 (let ()
   (define p (new video-player% [video green:vid]))
-  (send p show #f))
-
+  (send p show #f)
+  (check-true (>= (send p get-video-length) 9999))
+  (send p stop)
+  (check-true (send p is-stopped?))
+  (send p seek 10)
+  (check-equal? (send p get-position) 10)
+  (send p play)
+  (check-false (send p is-stopped?))
+  (check-equal? (send p get-fps) 25))
