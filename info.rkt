@@ -29,7 +29,8 @@
                "wxme-lib"
                "sandbox-lib"
                "at-exp-lib"
-               "scribble-lib"))
+               "scribble-lib"
+               "bitsyntax"))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
