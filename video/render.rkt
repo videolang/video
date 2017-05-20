@@ -22,6 +22,7 @@
          racket/dict
          racket/class
          racket/file
+         (except-in ffi/unsafe ->)
          (prefix-in file: file/convertible)
          (only-in pict pict? pict->bitmap)
          "private/init-mlt.rkt"
@@ -147,7 +148,8 @@
           (loop (and timeout (sub1 timeout))))))))
 
 ;; Set the current renderer
-(let ([r (new render% [dest-dir #f])])
-  (send r setup-profile)
-  (current-renderer r)
-  (current-profile (send r get-profile)))
+(when (ffi-lib? mlt-lib)
+  (let ([r (new render% [dest-dir #f])])
+    (send r setup-profile)
+    (current-renderer r)
+    (current-profile (send r get-profile))))
