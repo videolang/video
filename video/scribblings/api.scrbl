@@ -86,6 +86,11 @@ currently documented.
                         [filter filter?] ...)
          producer?]
 
+@defproc[(cut-producer [producer producer?]
+                       [#:start start (or/c nonnegative-integer? #f) #f]
+                       [#:end end (or/c nonnegative-integer? #f) #f])
+         producer?]
+
 @section{Bundled Transitions}
 
 @deftransition[(fade-transition)
