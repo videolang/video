@@ -35,6 +35,12 @@
 (define output-timeout (make-parameter #f))
 (define output-speed (make-parameter #f))
 
+(define (cmd-str->num who val)
+  (define ret (string->number val))
+  (unless ret
+    (raise-user-error '|raco video| "The ~a parameter must be a number" val))
+  ret)
+
 (module+ main
   (define video-file
     (command-line
@@ -45,22 +51,22 @@
                       (output-type type)]
      [("-w" "--width") width
                        "Video width"
-                       (output-width width)]
+                       (output-width  (cmd-str->num "--width" width))]
      [("-l" "--height") height
                         "Video height"
-                        (output-height height)]
+                        (output-height (cmd-str->num "--height" height))]
      [("-s" "--start") start
                        "Rendering start start"
-                       (output-start start)]
+                       (output-start (cmd-str->num "--start" start))]
      [("-e" "--end")  end
                       "Rendering end position"
-                      (output-end end)]
+                      (output-end (cmd-str->num "--end" end))]
      [("--timeout")   timeout
                       "Set a timeout for the renderer"
-                      (output-timeout timeout)]
+                      (output-timeout (cmd-str->num "--timeout" timeout))]
      [("--speed")     speed
                       "Set the speed of the output video"
-                      (output-speed speed)]
+                      (output-speed (cmd-str->num "--speed" speed))]
      #:args (video)
      video))
 

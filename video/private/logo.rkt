@@ -71,4 +71,4 @@
   (bitmap-render-icon plain-logo))
 
 logo
-(send logo save-file "camera.png" 'png 100)
+(send logo save-file "logo.png" 'png 100)

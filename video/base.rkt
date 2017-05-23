@@ -27,7 +27,6 @@
          syntax/location
          (except-in pict frame blank)
          "private/video.rkt"
-         "private/utils.rkt"
          "private/surface.rkt"
          (prefix-in core: "private/video.rkt")
          (for-syntax syntax/parse

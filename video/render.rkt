@@ -130,6 +130,11 @@
                            (file:convert source 'video)))
            (or ret (error "Not convertible to video data"))]
           [else (raise-user-error 'render "~a is not convertible" source)])))
+
+    #;
+    (define/public (get-video-length)
+      (or (base:producer-length video)
+          99999))
       
     (define/public (render source)
       (parameterize ([current-renderer this])
