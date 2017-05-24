@@ -96,8 +96,21 @@ currently documented.
 @deftransition[(fade-transition)
                #:direction s/e]
 
-@deftransition[(composite-transition)
-                #:direction t/b]
+@deftransition[(composite-transition [x (or/c (between/c 0 1) pixel?)]
+                                     [y (or/c (between/c 0 1) pixel?)]
+                                     [width (or/c (between/c 0 1) pixel?)]
+                                     [height (or/c (between/c 0 1) pixel?)])
+               #:direction t/b]{
+                                
+ The @racket[x] and @racket[y] coordinates specify the top-left point of
+ overlayed image. If a @racket[pixel?] struct is provided
+ then the point is in terms of pixels, otherwise the point is
+ a number between 0 and 1, 0 being top-left, and 1 being
+ bottom-right.
+
+ The @racket[width] and @racket[height] coordinates specify
+ the width and height of the overlayed image, either in
+ pixels or a ratio.}
 
 @section{Bundled Filters}
 
@@ -115,3 +128,9 @@ currently documented.
  seems to be a bit buggy at times.
 
  @racket[producer] is the video who's length will be tested.}
+
+@section{Alternate Units}
+
+@defmodule{video/units}
+
+@defstruct[pixel ([value nonnegative-integer?])]
