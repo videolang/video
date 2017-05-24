@@ -29,6 +29,7 @@
          "private/video.rkt"
          "private/surface.rkt"
          (prefix-in core: "private/video.rkt")
+         "units.rkt"
          (for-syntax syntax/parse
                      racket/base
                      racket/syntax))
@@ -87,10 +88,10 @@
 
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  [composite-transition (->transition [(between/c 0 1)
-                                       (between/c 0 1)
-                                       (between/c 0 1)
-                                       (between/c 0 1)]
+  [composite-transition (->transition [(or/c (between/c 0 1) pixel?)
+                                       (or/c (between/c 0 1) pixel?)
+                                       (or/c (between/c 0 1) pixel?)
+                                       (or/c (between/c 0 1) pixel?)]
                                        []
                                        #:direction t/b)]
 
@@ -264,11 +265,13 @@
 (define-transition (composite-transition x y w h)
   #:direction t/b
   #:type 'composite
+  #:prod-1 back
+  #:prod-2 front
   #:source (format "~a%/~a%:~a%x~a%"
-                   (inexact->exact (round (* x 100)))
-                   (inexact->exact (round (* y 100)))
-                   (inexact->exact (round (* w 100)))
-                   (inexact->exact (round (* h 100)))))
+                   (unit-dispatch back "width" x)
+                   (unit-dispatch back "height" y)
+                   (unit-dispatch front "width" w)
+                   (unit-dispatch front "height" h)))
 
 (define-transition (swipe-transition #:direction dir)
   #:direction t/b
@@ -353,3 +356,12 @@
 ;; Path -> String
 (define (relative-path->string path)
   (path->string (path->complete-path path (current-video-directory))))
+
+;; Dispatch on the type of value given to it
+;; any/c -> Nonnegative-Integer
+(define (unit-dispatch prod prop val)
+  (cond
+    [(pixel? val)
+     (* (pixel-val val) (get-property prod prop))]
+    [else
+     (inexact->exact (round (* val 100)))]))
