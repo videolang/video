@@ -37,6 +37,10 @@
 
 (provide
  (contract-out
+  [rendering? (-> any/c boolean?)]
+  [get-rendering-length (-> rendering? (or/c nonnegative-integer? #f))]
+  [get-rendering-position (-> rendering? (or/c nonnegative-integer? #f))]
+  
   ;; Render a video object (including the links
   [render (->* [any/c]
                [(or/c path-string? path? #f)
@@ -49,7 +53,8 @@
                 #:start (or/c nonnegative-integer? #f)
                 #:end (or/c nonnegative-integer? #f)
                 #:speed (or/c number? #f)
-                #:timeout (or/c number? #f)]
+                #:timeout (or/c number? #f)
+                #:rendering-box (or/c box? #f)]
                void?)])
  render%
  render<%>)
@@ -65,7 +70,8 @@
                 #:end [end #f]
                 #:fps [fps 25]
                 #:speed [speed #f]
-                #:timeout [timeout #f])
+                #:timeout [timeout #f]
+                #:rendering-box [rendering-box #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define r% (render-mixin render%))
   (define renderer
@@ -78,6 +84,8 @@
   (let* ([res (send renderer setup-profile)]
          [res (send renderer prepare video)]
          [target (send renderer render res)]
+         [_ (when (box? rendering-box)
+              (set-box! rendering-box (rendering res)))]
          [res (send renderer play res target start end speed timeout)])
     (void)))
 
@@ -106,7 +114,7 @@
 
     (define/public (get-profile)
       profile)
-    
+
     (define/public (setup-profile)
       (define fps* (rationalize (inexact->exact fps) 1/1000000))
       (set-mlt-profile-width! profile width)
@@ -131,15 +139,10 @@
            (or ret (error "Not convertible to video data"))]
           [else (raise-user-error 'render "~a is not convertible" source)])))
 
-    #;
-    (define/public (get-video-length)
-      (or (base:producer-length video)
-          99999))
-      
     (define/public (render source)
       (parameterize ([current-renderer this])
         (mlt-*-connect (make-consumer) source)))
-    
+
     (define/public (play source target start end speed timeout)
       (mlt-producer-set-in-and-out source (or start -1) (or end -1))
       (when speed
@@ -151,6 +154,14 @@
           (mlt-consumer-stop target))
         (unless (mlt-consumer-is-stopped target)
           (loop (and timeout (sub1 timeout))))))))
+
+(struct rendering (obj))
+
+(define (get-rendering-length source)
+  (mlt-producer-get-length (rendering-obj source)))
+
+(define (get-rendering-position source)
+  (mlt-producer-position (rendering-obj source)))
 
 ;; Set the current renderer
 (when (ffi-lib? mlt-lib)

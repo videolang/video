@@ -35,6 +35,8 @@
 (define output-timeout (make-parameter #f))
 (define output-speed (make-parameter #f))
 
+(define rendering-box (box #f))
+
 (define (cmd-str->num who val)
   (define ret (string->number val))
   (unless ret
@@ -84,13 +86,31 @@
   
   (match (output-type)
     [(or "png" "jpg" "mp4" "xml")
-     (render video output-dir
-             #:start (output-start)
-             #:end (output-end)
-             #:width (output-width)
-             #:height (output-height)
-             #:timeout (output-timeout)
-             #:speed (output-speed)
-             #:dest-filename output-file
-             #:render-mixin render-mixin)]
+     (define t
+       (thread
+        (λ ()
+          (render video output-dir
+                  #:start (output-start)
+                  #:end (output-end)
+                  #:width (output-width)
+                  #:height (output-height)
+                  #:timeout (output-timeout)
+                  #:speed (output-speed)
+                  #:dest-filename output-file
+                  #:render-mixin render-mixin
+                  #:rendering-box rendering-box))))
+     (newline)
+     (let loop ()
+       (let ()
+         (define r (unbox rendering-box))
+         (when r
+           (define len (get-rendering-length r))
+           (define pos (get-rendering-position r))
+           (if len
+               (printf "\r~a/~a (~a%)            " pos len (* (/ pos len) 100.0))
+               (displayln "Unbounded Video"))))
+       (sleep 1)
+       (if (thread-running? t)
+           (loop)
+           (newline)))]
     [_ (void (preview video))]))
