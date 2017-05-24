@@ -131,6 +131,6 @@ currently documented.
 
 @section{Alternate Units}
 
-@defmodule{video/units}
+@defmodule[video/units]
 
 @defstruct[pixel ([value nonnegative-integer?])]
