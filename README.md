@@ -16,7 +16,7 @@ raco pkg install video
 
 # Documentation
 
-The Documentation for Video can be found at: http://leifandersen.net/racket-video/
+The Documentation for Video can be found at: http://docs.racket-lang.org/video/index.html
 
 [1]: https://racket-lang.org
 
