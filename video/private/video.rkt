@@ -315,7 +315,7 @@
                 [else o]))])))
   (for ([track (in-list tracks)])
     (when (unbounded-video? track)
-      (mlt-producer-set-in-and-out track (or max-bounded-in -1) (or max-bounded-out -1))))
+      (mlt-producer-set-in-and-out (convert track) (or max-bounded-in -1) (or max-bounded-out -1))))
   (mlt-producer-set-in-and-out tractor* (or max-bounded-in -1) (or max-bounded-out -1))
   (register-mlt-close mlt-multitrack-close multitrack*)
   (define field* (mlt-tractor-field tractor*))           ; Field
