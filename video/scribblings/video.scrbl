@@ -360,12 +360,6 @@ here. Examples are found in @tt{private/examples.rkt}.
 @section{Extended Video Lib}
 @defmodule[video/lib]
 
-@defproc[(converted-video? [video video?]) boolean?]{
-                                                     
- Determines if the video has been compiled (using @racket[convert-to-mlt!] or @racket[render]).
-
- @racket[video] is the video to test.}
-
 @defproc[(producer-length/uneditied [producer (and/c video? converted-video?)])
          number?]{
                   

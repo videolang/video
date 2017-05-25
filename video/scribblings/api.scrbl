@@ -118,15 +118,36 @@ currently documented.
 
 @section{Properties}
 
-@defproc[(producer-length [producer (and/c video? converted-video?)])
+Each producer has a table of properties attached to it.
+These tables contain both values given to it with the
+@racket[#:prop] keyword when the producer is created, and
+innate properties based on the producer type. Different
+producers will have different types of innate properties,
+but some common ones are: @racket["length"],
+@racket["width"], and @racket["height"].
+
+@defproc[(get-property [producer video?]
+                       [key string?])
+         any/c]{
+ Gets the attached property associated with the producer.
+
+ If an explicit property was given for @racket[key] to the producer when it
+ is created, that is returned first.
+
+ If no explicit property was given for @racket[key], then it
+ searches for an innate property.
+
+ If no explicit or innate property is associated with the
+ producer, an error is thrown.}
+
+@defproc[(producer-length [producer video?])
          number?]{
  Determines the length of the producer in frames.
 
- Note that this function requires the video to already be
- converted. In the future, this restriction may be lifted.
- Also note that this function uses @tt{MLT}'s length feature, which
- seems to be a bit buggy at times.
-
+ Note that this function will be removed in future versions
+ of Video. And will be replaced with @racket[get-property]
+ once it has been thoroughly tested.
+ 
  @racket[producer] is the video who's length will be tested.}
 
 @section{Alternate Units}
