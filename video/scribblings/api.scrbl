@@ -63,7 +63,9 @@ currently documented.
 @defproducer[(image [file (or/c path-string? path?)])]{
  Creates a producer that is a still image.}
               
-@defproducer[(clip [file (or/c path-string? path?)])]{
+@defproducer[(clip [file (or/c path-string? path?)]
+                   [#:video-index video-index (or/c nonnegative-integer? #f) #f]
+                   [#:audio-index audio-index (or/c nonnegative-integer? #f)])]{
  Creates a producer from a video file.}
 
 @section{Video Compositing}

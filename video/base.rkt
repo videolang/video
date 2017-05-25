@@ -67,7 +67,8 @@
   
   ;; Creates a producer that plays a clip from a file
   [clip (->producer [(or/c path-string? path?)]
-                    [])]
+                    [#:video-index (or/c nonnegative-integer? #f)
+                     #:audio-index (or/c nonnegative-integer? #f)])]
 
   ;; Creates a producer that is a solid color
   [color (->producer [(or/c string? (is-a?/c color%)
@@ -142,9 +143,21 @@
                               "end" length))
       (color "white")))
 
-(define-producer (clip path)
+(define-producer (clip path
+                       #:video-index [video-index #f]
+                       #:audio-index [audio-index #f])
   #:source clip-path
-  (define clip-path (relative-path->string path)))
+  #:properties properties
+  #:prod-properties prod-properties
+  (define clip-path (relative-path->string path))
+  (define properties
+    (let* ([p (if video-index
+                  (hash-set prod-properties "video-index" video-index)
+                  prod-properties)]
+           [p (if audio-index
+                  (hash-set prod-properties "audio-index" audio-index)
+                  p)])
+      p)))
 
 (define-producer (image path)
   #:source (format "pixbuf:~a" image-path)

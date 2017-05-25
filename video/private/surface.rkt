@@ -45,7 +45,9 @@
              (~optional (~seq #:length prod-length) #:defaults ([prod-length #'length*]))
              (~optional (~seq #:unbounded? unbounded?)
                         #:defaults ([unbounded? #'#f]))
-             (~optional (~seq #:properties prop*) #:defaults ([prop* #'properties]))
+             (~optional (~seq #:properties properties) #:defaults ([properties #'properties]))
+             (~optional (~seq #:prod-properties prod-properties)
+                        #:defaults ([prod-properties #'properties]))
              (~optional (~seq #:properties-default-porc pdp)
                         #:defaults ([pdp #'mlt-prop-default-proc])))
         ...
@@ -64,7 +66,7 @@
          (define start* (or start (and len 0)))
          (define end* (or end len))
          (define length* (or len (and start end (- end start))))
-         (define properties
+         (define prod-properties
            #,(if (syntax-e (attribute unbounded?))
                  #'(hash-set* prop
                               "start" (or start* 0)
