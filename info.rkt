@@ -30,7 +30,8 @@
                "sandbox-lib"
                "at-exp-lib"
                "scribble-lib"
-               "bitsyntax"))
+               "bitsyntax"
+               "ffi-definer-convention")) ; <-- Hope to remove this dep
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
