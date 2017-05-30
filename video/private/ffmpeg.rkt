@@ -664,16 +664,8 @@
   (define frame* (or frame
                      (ptr-ref (malloc _avpacket) _avpacket)))
   (av-read-frame ctx frame*))
-(define av-packet-unref
-  (let ()
-    (define-avformat av-packet-unref (_fun _avpacket-pointer
-                                           -> _void)
-      #:fail (λ () #f))
-    (or av-packet-unref
-        (let ()
-          (define-avformat av-free-packet (_fun _avpacket-pointer
-                                                -> _void))
-          av-free-packet))))
+(define-avformat av-packet-unref (_fun _avpacket-pointer
+                                           -> _void))
 
 (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                            -> _avcodec-pointer))

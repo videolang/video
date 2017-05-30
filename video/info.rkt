@@ -28,4 +28,5 @@
 (define drracket-tool-icons '(#f))
 
 (define test-omit-paths
-  '("private/examples.rkt"))
+  '("private/examples.rkt"
+    "private/ffmpeg.rkt"))
