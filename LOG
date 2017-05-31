@@ -1,0 +1,25 @@
+v0.1:
+Date: 2017-05-24
+Commit#: f83e0b2e45361c9e188ddd4f6a5e4c8be3c2c006
+- Actually adds #lang and syntax for video.
+- Adds minimal documentation, needs improvement.
+- Add video-editor% widget for DrRacket.
+- Build a proper rendering interface.
+  - (No longer need to explicitly call out to MLT)
+- Videos are converted to MLT object automatically.
+- Added testing framework.
+- Added language forms for writing documentation for Video.
+- This was the release associated with the ICFP 2017 Paper: Super 8 Languages for Making Movies (DRAFT)
+
+
+v0.0:
+Date: 2016-11-11
+Commit#: 39112ec3b7fbc6b611a67cc5f9ac3c988c50f16d
+- First release of Video
+- Depends on MLT (not included)
+- API still very unstable
+- No language yet, just video library.
+- Must manually convert video object to MLT ones with `convert-to-mlt!`
+- Preview player added.
+- This was the version used to build the RacketCon 2016 videos.
+
