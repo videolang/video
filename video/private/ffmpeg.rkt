@@ -56,7 +56,8 @@
 (define AVERROR-EOF (FFERRTAG #\E #\O #\F))
 (define AV-NUM-DATA-POINTERS 8)
 (define MAX-REORDER-DELAY 16)
-(define EAGAIN 35)
+(define EAGAIN (lookup-errno 'EAGAIN))
+(define EINVAL (lookup-errno 'EINVAL))
 
 (define SWS-BILINEAR 2)
 
@@ -595,7 +596,7 @@
 
 (define-cstruct _av-frame
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
-   [linesize (_array _pointer AV-NUM-DATA-POINTERS)]
+   [linesize (_array _int AV-NUM-DATA-POINTERS)]
    [extended-data _pointer]
    [width _int]
    [height _int]
