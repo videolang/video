@@ -122,6 +122,34 @@
                                  monoblack
                                  pal8
                                  yuvj420p
+                                 yuvj422p
+                                 yuvj444p
+                                 ;xvmc-mpeg2-mc
+                                 ;xvmc-mpeg2-idct
+                                 uyvy422
+                                 uyyvyy411
+                                 bgr8
+                                 bgr4
+                                 bgr4-bytes
+                                 rgb8
+                                 rgb4
+                                 rgb4-byte
+                                 nv12
+                                 nv21
+                                 argb
+                                 rgba
+                                 abgr
+                                 bgra
+                                 gray16be
+                                 gray16le
+                                 yuv440p
+                                 yuvj440p
+                                 yuva420p
+                                 vdpau-h264
+                                 vdpau-mpeg1
+                                 vdpau-mpeg2
+                                 vdpau-wmv3
+                                 wvdpau-vc1
                                  ))) ;; XXX And more! :)
 (define _avcolor-transfer-characteristic _fixint)
 (define _avcolor-space _fixint)
