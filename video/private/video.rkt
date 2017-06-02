@@ -37,6 +37,8 @@
 (define current-renderer (make-parameter #f))
 (define current-profile (make-parameter #f))
 (define current-video-directory (make-parameter (current-directory)))
+(define current-skip-memoize? (make-parameter #f))
+(define current-video-len (make-parameter #f))
 
 ;; A helper function to convert videos to MLT object
 ;; Video (U Renderer% #f) -> _mlt-object
@@ -176,17 +178,21 @@
              (λ (v request def)
                (match request
                  ['mlt
-                  (hash-ref! memo-table v
-                             (λ ()
-                               (define ret (let ([this v])
-                                             (let #,(for/list ([i (in-list all-structs)]
-                                                               [j (in-list all-ids)])
-                                                      #`[#,(datum->syntax stx j)
-                                                         (#,(format-id stx "~a-~a" i j) v)])
-                                               #f body ...)))
-                               (when ret
-                                 (finish-mlt-object-init! ret v))
-                               ret))]
+                  (define (conv)
+                    (let ([this v])
+                      (let #,(for/list ([i (in-list all-structs)]
+                                        [j (in-list all-ids)])
+                               #`[#,(datum->syntax stx j)
+                                  (#,(format-id stx "~a-~a" i j) v)])
+                        #f body ...)))
+                  (if (current-skip-memoize?)
+                      (conv)
+                      (hash-ref! memo-table v
+                                 (λ ()
+                                   (define ret (conv))
+                                   (when ret
+                                     (finish-mlt-object-init! ret v))
+                                   ret)))]
                  [_ def]))))
          (define (constructor #,@(append*
                                   (for/list ([i (in-list all-ids)]
@@ -291,28 +297,30 @@
 (define-constructor multitrack producer ([tracks '()] [field '()])
   (define tractor* (mlt-tractor-new))                    ; Tractor
   (define multitrack* (mlt-tractor-multitrack tractor*)) ; Multitrack
-  (for ([track (in-list tracks)]
-        [i (in-naturals)])
-    (define track* (convert track))
-    (mlt-multitrack-connect multitrack* track* i))
   (define-values (max-bounded-in max-bounded-out)
-    (for/fold ([i 0]    ;; MLT multitracks will become largest producer
-               [o #f])  ;; which is a problem for unbounded data.
-              ([track (in-list tracks)])
-      (define unbounded? (unbounded-video? track))
-      (cond
-        [unbounded? (values i o)]
-        [else
-         (define in (get-property track "in" 'int))
-         (define out (get-property track "out" 'int))
-         (values
-          (if in
-              (min i in)
-              i)
-          (cond [(and o out)
-                 (max o out)]
-                [out out]
-                [else o]))])))
+    (parameterize ([current-skip-memoize? #t])
+      (for/fold ([i 0]    ;; MLT multitracks will become largest producer
+                 [o #f])  ;; which is a problem for unbounded data.
+                ([track (in-list tracks)])
+        (define unbounded? (unbounded-video? track))
+        (cond
+          [unbounded? (values i o)]
+          [else
+           (define in (get-property track "in" 'int))
+           (define out (get-property track "out" 'int))
+           (values
+            (if in
+                (min i in)
+                i)
+            (cond [(and o out)
+                   (max o out)]
+                  [out out]
+                  [else o]))]))))
+  (parameterize ([current-video-len (and max-bounded-out (- max-bounded-out max-bounded-in))])
+    (for ([track (in-list tracks)]
+          [i (in-naturals)])
+      (define track* (convert track))
+      (mlt-multitrack-connect multitrack* track* i)))
   (for ([track (in-list tracks)])
     (when (unbounded-video? track)
       (mlt-producer-set-in-and-out (convert track) (or max-bounded-in -1) (or max-bounded-out -1))))
