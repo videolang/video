@@ -38,7 +38,8 @@
 (define current-profile (make-parameter #f))
 (define current-video-directory (make-parameter (current-directory)))
 (define current-skip-memoize? (make-parameter #f))
-(define current-video-len (make-parameter #f))
+(define current-video-start (make-parameter #f))
+(define current-video-end (make-parameter #f))
 
 ;; A helper function to convert videos to MLT object
 ;; Video (U Renderer% #f) -> _mlt-object
@@ -254,8 +255,8 @@
                                       [seek #f]
                                       [unbounded? #f])
   (define producer* (mlt-factory-producer (current-profile) type source))
-  (define start* (or start 0))
-  (define end* (or end 0))
+  (define start* (or start (current-video-start) 0))
+  (define end* (or end (current-video-end) 0))
   (mlt-producer-set-in-and-out producer* start* (- end* 1))
   (when speed
     (mlt-producer-set-speed producer* speed))
@@ -316,7 +317,8 @@
                    (max o out)]
                   [out out]
                   [else o]))]))))
-  (parameterize ([current-video-len (and max-bounded-out (- max-bounded-out max-bounded-in))])
+  (parameterize ([current-video-start max-bounded-in]
+                 [current-video-end max-bounded-out])
     (for ([track (in-list tracks)]
           [i (in-naturals)])
       (define track* (convert track))
