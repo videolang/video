@@ -105,7 +105,8 @@
 (define (finish-mlt-object-init! mlt-object video)
   ;; Set properties
   (when (properties? video)
-    (for ([(k v) (in-dict (properties-prop video))])
+    (for ([(k* v*) (in-dict (properties-prop video))])
+      (define-values (k v) ((properties-mlt-default-proc video) k* v*))
       (cond
         [(integer? v) (mlt-properties-set-int64 mlt-object k v)]
         [(real? v) (mlt-properties-set-double mlt-object k v)]
@@ -180,20 +181,19 @@
                (match request
                  ['mlt
                   (define (conv)
-                    (let ([this v])
-                      (let #,(for/list ([i (in-list all-structs)]
-                                        [j (in-list all-ids)])
-                               #`[#,(datum->syntax stx j)
-                                  (#,(format-id stx "~a-~a" i j) v)])
-                        #f body ...)))
+                    (define ret
+                      (let ([this v])
+                        (let #,(for/list ([i (in-list all-structs)]
+                                          [j (in-list all-ids)])
+                                 #`[#,(datum->syntax stx j)
+                                    (#,(format-id stx "~a-~a" i j) v)])
+                          #f body ...)))
+                    (when ret
+                      (finish-mlt-object-init! ret v))
+                    ret)
                   (if (current-skip-memoize?)
                       (conv)
-                      (hash-ref! memo-table v
-                                 (λ ()
-                                   (define ret (conv))
-                                   (when ret
-                                     (finish-mlt-object-init! ret v))
-                                   ret)))]
+                      (hash-ref! memo-table v conv))]
                  [_ def]))))
          (define (constructor #,@(append*
                                   (for/list ([i (in-list all-ids)]
@@ -210,7 +210,8 @@
   (mlt-*-connect target (mlt-*-service source) index))
 
 (define-constructor properties video ([prop (hash)]
-                                      [prop-default-proc mlt-prop-default-proc]))
+                                      [prop-default-proc mlt-prop-default-proc]
+                                      [mlt-default-proc mlt-mlt-default-proc]))
 
 (define (get-property dict key
                       [extra-info #f])
@@ -228,6 +229,12 @@
     ['mlt-position (mlt-properties-get-position v key)]
     ['double (mlt-properties-get-double v key)]
     [else (error 'properties "Not a valid default-type ~a" default-type)]))
+
+(define (mlt-mlt-default-proc key val)
+  (match key
+    ["start" (values "in" val)]
+    ["end" (values "out" val)]
+    [else (values key val)]))
 
 (define-constructor anim-property video ([value #f] [position #f] [length #f]))
 
