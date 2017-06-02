@@ -146,11 +146,31 @@
                                  yuv440p
                                  yuvj440p
                                  yuva420p
-                                 vdpau-h264
-                                 vdpau-mpeg1
-                                 vdpau-mpeg2
-                                 vdpau-wmv3
-                                 wvdpau-vc1
+                                 ;vdpau-h264
+                                 ;vdpau-mpeg1
+                                 ;vdpau-mpeg2
+                                 ;vdpau-wmv3
+                                 ;vdpau-vc1
+                                 rgb48be
+                                 rgb48le
+                                 rgb565be
+                                 rgb565le
+                                 rgb555be
+                                 rgb555le
+                                 vaapi-moco
+                                 vaapi-idct
+                                 vaapi-vld
+                                 yuv420p16le
+                                 yuv420p16be
+                                 yuv422p16le
+                                 yuv422p16be
+                                 ;vdpau-mp4
+                                 dxva2-vld
+                                 rgb444le
+                                 rgb444be
+                                 bgr444le
+                                 bgr444be
+                                 ya8
                                  ))) ;; XXX And more! :)
 (define _avcolor-transfer-characteristic _fixint)
 (define _avcolor-space _fixint)
