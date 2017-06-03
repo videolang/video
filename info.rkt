@@ -31,6 +31,8 @@
                "at-exp-lib"
                "scribble-lib"
                "bitsyntax"
+               "opengl"
+               "sdl"
                "ffi-definer-convention")) ; <-- Hope to remove this dep
 (define build-deps '("scribble-lib"
                      "racket-doc"
