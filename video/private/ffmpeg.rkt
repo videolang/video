@@ -99,6 +99,29 @@
                              cyuv
                              h264
                              indeo3
+                             mp2 = #x15000
+                             mp3
+                             aac
+                             ac3
+                             dts
+                             vorbis
+                             dvaudio
+                             wmav1
+                             wmav2
+                             mace3
+                             mace6
+                             wmdaudio
+                             flac
+                             mp3adu
+                             mp3on4
+                             shorten
+                             alac
+                             westwood-snd1
+                             gsm
+                             qdm2
+                             cook
+                             truespeech
+                             tta
                              ))) ;; XXX AND MORE! :)
 (define _av-duration-estimation-method _fixint)
 (define _avmedia-type (_enum '(unknown = -1
