@@ -335,6 +335,10 @@
    [pos _int64]
    [convergence-duration _int64]))
 
+(define-cstruct _avpacket-list
+  ([pkt _avpacket]
+   [next _avpacket-pointer]))
+
 (define-cstruct _avcodec-context
   ([av-class _pointer]
    [log-level-offset _int]
