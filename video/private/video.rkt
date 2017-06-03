@@ -233,7 +233,7 @@
 (define (mlt-mlt-default-proc key val)
   (match key
     ["start" (values "in" val)]
-    ["end" (values "out" val)]
+    ["end" (values "out" (and val (- val 1)))]
     [else (values key val)]))
 
 (define-constructor anim-property video ([value #f] [position #f] [length #f]))
