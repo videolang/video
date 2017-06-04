@@ -742,6 +742,10 @@
   (av-read-frame ctx frame*))
 (define-avformat av-packet-unref (_fun _avpacket-pointer
                                            -> _void))
+(define-avformat av-dup-packet (_fun _avpacket-pointer
+                                     -> [ret : _int]
+                                     -> (unless (= ret 0)
+                                          (error "dup-packet?"))))
 
 (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                            -> _avcodec-pointer))

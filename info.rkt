@@ -32,7 +32,7 @@
                "scribble-lib"
                "bitsyntax"
                "opengl"
-               "sdl"
+               "portaudio"
                "ffi-definer-convention")) ; <-- Hope to remove this dep
 (define build-deps '("scribble-lib"
                      "racket-doc"
