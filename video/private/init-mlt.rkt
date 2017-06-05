@@ -25,7 +25,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          "mlt.rkt"
-         "semaphore.rkt")
+         "threading.rkt")
 
 (define counter-key "mlt-support-counter")
 (define counter-type _int)

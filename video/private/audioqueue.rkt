@@ -16,7 +16,7 @@
    limitations under the License.
 |#
 
-(require "semaphore.rkt"
+(require "threading.rkt"
          "init-mlt.rkt"
          "ffmpeg.rkt")
 
@@ -24,7 +24,8 @@
                     last
                     nb-packets
                     size
-                    mutex)
+                    mutex
+                    cond)
   #:mutable)
 
 (struct packet-link (packet
@@ -32,14 +33,16 @@
   #:mutable)
 
 (define (mk-queue)
-  (define sema (sema-create 1))
-  (register-mlt-close sema-destroy sema)
-  (audioqueue #f #f 0 0 sema))
+  (define mutex (mutex-create))
+  (define cond-var (cond-create))
+  (register-mlt-close mutex-destroy mutex)
+  (register-mlt-close cond-destroy cond-var)
+  (audioqueue #f #f 0 0 mutex cond-var))
 (define (queue-put q p)
   (av-dup-packet p)
   (define p* (packet-link p #f))
   (dynamic-wind
-   (λ () (sema-wait (audioqueue-mutex q)))
+   (λ () (mutex-lock (audioqueue-mutex q)))
    (λ ()
      (cond [(audioqueue-last q)
             (set-packet-link-next! (audioqueue-last q) p*)]
@@ -50,10 +53,10 @@
      (set-audioqueue-size! q
       (+ (audioqueue-nb-packets q)
          (avpacket-size p))))
-   (λ () (sema-post (audioqueue-mutex q)))))
+   (λ () (mutex-unlock (audioqueue-mutex q)))))
 (define (queue-get q)
   (dynamic-wind
-   (λ () (sema-wait (audioqueue-mutex q)))
+   (λ () (mutex-lock (audioqueue-mutex q)))
    (λ ()
      (define p (audioqueue-first q))
      (cond [p
@@ -66,4 +69,4 @@
                   (avpacket-size p)))
             p]
            [else (error "Need conditional variables. :( ")]))
-   (λ () (sema-post (audioqueue-mutex q)))))
+   (λ () (mutex-unlock (audioqueue-mutex q)))))
