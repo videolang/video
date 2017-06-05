@@ -66,8 +66,7 @@
 (define counter-mutex
   (scheme-install-global! mutex-key
                           (λ ()
-                            (define-values (s _)
-                              (sema-create 1))
+                            (define s (sema-create 1))
                             s)
                           (λ (sema)
                             (sema-destroy sema))

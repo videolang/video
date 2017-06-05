@@ -20,6 +20,10 @@
 (require ffi/unsafe
          racket/place)
 
+;; This module provides a place safe semaphore library.
+;; If being place safe is not needed, then using the semaphores
+;; provided by racket/base should work fine.
+
 (define enabled? (place-enabled?))
 
 (define-cpointer-type _sema)
@@ -27,19 +31,22 @@
   (if enabled?
       (get-ffi-obj 'mzrt_sema_create #f
                    (_fun [boxed : (_box _sema/null) = (box #f)]  _int
-                         -> [ret : _int]
-                         -> (values (unbox boxed) ret)))
-      (λ (count) (values 0 0))))
+                         -> [ret : _bool]
+                         -> (let ()
+                              (when ret
+                                (error 'semaphore "Could not create Semaphore"))
+                              (unbox boxed))))
+      make-semaphore))
 (define sema-post
   (if enabled?
       (get-ffi-obj 'mzrt_sema_post #f (_fun _sema -> _int))
-      (λ (sema) 0)))
+      semaphore-post))
 (define sema-wait
   (if enabled?
       (get-ffi-obj 'mzrt_sema_wait #f (_fun _sema -> _int))
-      (λ (sema) 0)))
+      semaphore-wait))
 
 (define sema-destroy
   (if enabled?
       (get-ffi-obj 'mzrt_sema_destroy #f (_fun _sema -> _int))
-      (λ (sema) 0)))
+      void))
