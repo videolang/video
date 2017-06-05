@@ -48,25 +48,29 @@
             (set-packet-link-next! (audioqueue-last q) p*)]
            [else (set-audioqueue-first! q p*)])
      (set-audioqueue-last! p*)
-     (set-audioqueue-nb-packets! q
-      (add1 (audioqueue-nb-packets q)))
-     (set-audioqueue-size! q
-      (+ (audioqueue-nb-packets q)
-         (avpacket-size p))))
+     (set-audioqueue-nb-packets!
+      q (add1 (audioqueue-nb-packets q)))
+     (set-audioqueue-size!
+      q (+ (audioqueue-nb-packets q)
+           (avpacket-size p)))
+     (cond-signal (audioqueue-cond q)))
    (λ () (mutex-unlock (audioqueue-mutex q)))))
 (define (queue-get q)
   (dynamic-wind
    (λ () (mutex-lock (audioqueue-mutex q)))
    (λ ()
-     (define p (audioqueue-first q))
-     (cond [p
-            (set-audioqueue-first!
-             q (packet-link-next p))
-            (set-audioqueue-nb-packets!
-             q (sub1 (audioqueue-nb-packets q)))
-            (set-audioqueue-size!
-             q (- (audioqueue-size q)
-                  (avpacket-size p)))
-            p]
-           [else (error "Need conditional variables. :( ")]))
+     (let loop ()
+       (define p (audioqueue-first q))
+       (cond [p
+              (set-audioqueue-first!
+               q (packet-link-next p))
+              (set-audioqueue-nb-packets!
+               q (sub1 (audioqueue-nb-packets q)))
+              (set-audioqueue-size!
+               q (- (audioqueue-size q)
+                    (avpacket-size p)))
+              p]
+             [else (cond-wait (audioqueue-cond q)
+                              (audioqueue-mutex q))
+                   (loop)])))
    (λ () (mutex-unlock (audioqueue-mutex q)))))
