@@ -705,10 +705,6 @@
    [qp-table-buf _int]))
 (define-cpointer-type _sws-context-pointer)
 
-(define-cstruct _avpicture
-  ([data (_array _pointer AV-NUM-DATA-POINTERS)]
-   [linesize (_array _int AV-NUM-DATA-POINTERS)]))
-
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
@@ -764,16 +760,18 @@
                                     -> [ret : _bool]
                                     -> (when ret
                                          (error "Sigh"))))
-(define-avcodec avpicture-fill (_fun _avpicture-pointer
-                                     _pointer ;; XX FIXME
-                                     _avpixel-format
-                                     _int
-                                     _int
-                                     -> [ret : _int]
-                                     -> (let ()
-                                          (when (< ret 0)
-                                            (error "avpicture"))
-                                          ret)))
+(define-avcodec av-image-fill-arrays (_fun (_array _pointer 4)
+                                           (_array _int 4)
+                                           _pointer ;; XXX FIXME
+                                           _avpixel-format
+                                           _int
+                                           _int
+                                           _int
+                                           -> [ret : _int]
+                                           -> (let ()
+                                                (when (< ret 0)
+                                                  (error "av-image"))
+                                                ret)))
 (define-avcodec avcodec-send-packet (_fun _avcodec-context-pointer
                                           (_ptr i _avpacket)
                                           -> [ret : _int]
