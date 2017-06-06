@@ -53,7 +53,12 @@
 (define (FFERRTAG [a #\space] [b #\space] [c #\space] [d #\space])
   (- (MK-TAG a b c d)))
 
-(define AVERROR-EOF (FFERRTAG #\E #\O #\F))
+(define AVERROR-EOF              (FFERRTAG #\E #\O #\F))
+(define AVERROR-INVALIDDATA      (FFERRTAG #\I #\N #\D #\A))
+(define AVERROR-BUG              (FFERRTAG #\B #\U #\G #\!))
+(define AVERROR-BUFFER_TOO_SMALL (FFERRTAG #\B #\U #\F #\S))
+(define AVERROR-EXIT             (FFERRTAG #\E #\X #\I #\T))
+
 (define AV-NUM-DATA-POINTERS 8)
 (define MAX-REORDER-DELAY 16)
 (define EAGAIN (lookup-errno 'EAGAIN))
@@ -783,8 +788,14 @@
 (define-avcodec avcodec-send-packet (_fun _avcodec-context-pointer
                                           (_ptr i _avpacket)
                                           -> [ret : _int]
-                                          -> (unless (= ret 0)
-                                               (error "FOO"))))
+                                          -> (cond
+                                               [(= ret 0) (void)]
+                                               [(= (- ret) EAGAIN)
+                                                (raise (exn:ffmpeg:again
+                                                        "send-packet"))]
+                                               [(= ret AVERROR-EOF) eof]
+                                               [else
+                                                (error 'send-packet "ERROR: ~a" (convert-err ret))])))
 (define-avcodec avcodec-receive-frame (_fun _avcodec-context-pointer
                                             _av-frame-pointer
                                             -> [ret : _int]
@@ -795,7 +806,8 @@
                                                           "recev-frame"
                                                           (current-continuation-marks)))]
                                                  [(= ret AVERROR-EOF) eof]
-                                                 [else (error 'recev "Error: ~a" (- ret))])))
+                                                 [else
+                                                  (error 'recev "Error: ~a" (convert-err ret))])))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
@@ -813,6 +825,12 @@
                  [else 1]))
   (define-avutil av-malloc (_fun _size -> (_array type size)))
   (av-malloc (* size (ctype-sizeof type))))
+(define-avutil av-samples-get-buffer-size (_fun _pointer _int _int _avsample-format _int
+                                                -> [ret : _int]
+                                                -> (let ()
+                                                     (when (< ret 0)
+                                                       (error "sample error")
+                                                       ret))))
 
 (define-swscale sws-getContext (_fun _int
                                      _int

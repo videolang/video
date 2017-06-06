@@ -70,8 +70,8 @@
                q (sub1 (audioqueue-nb-packets q)))
               (set-audioqueue-size!
                q (- (audioqueue-size q)
-                    (avpacket-size p)))
-              p]
+                    (avpacket-size (packet-link-packet p))))
+              (packet-link-packet p)]
              [else (cond-wait (audioqueue-cond q)
                               (audioqueue-mutex q))
                    (loop)])))
