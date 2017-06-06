@@ -37,9 +37,9 @@
 
 (provide
  (contract-out
-  [rendering? (-> any/c boolean?)]
-  [get-rendering-length (-> rendering? (or/c nonnegative-integer? #f))]
-  [get-rendering-position (-> rendering? (or/c nonnegative-integer? #f))]
+  [rendering-ref? (-> any/c boolean?)]
+  [get-rendering-length (-> rendering-ref? (or/c nonnegative-integer? #f))]
+  [get-rendering-position (-> rendering-ref? (or/c nonnegative-integer? #f))]
   
   ;; Render a video object (including the links
   [render (->* [any/c]
@@ -85,7 +85,7 @@
          [res (send renderer prepare video)]
          [target (send renderer render res)]
          [_ (when (box? rendering-box)
-              (set-box! rendering-box (rendering res)))]
+              (set-box! rendering-box (rendering-ref res)))]
          [res (send renderer play res target start end speed timeout)])
     (void)))
 
@@ -155,13 +155,13 @@
         (unless (mlt-consumer-is-stopped target)
           (loop (and timeout (sub1 timeout))))))))
 
-(struct rendering (obj))
+(struct rendering-ref (obj))
 
 (define (get-rendering-length source)
-  (mlt-producer-get-length (rendering-obj source)))
+  (mlt-producer-get-length (rendering-ref-obj source)))
 
 (define (get-rendering-position source)
-  (mlt-producer-position (rendering-obj source)))
+  (mlt-producer-position (rendering-ref-obj source)))
 
 ;; Set the current renderer
 (when (ffi-lib? mlt-lib)

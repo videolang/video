@@ -152,6 +152,12 @@ but some common ones are: @racket["length"],
  
  @racket[producer] is the video who's length will be tested.}
 
+@section{Misc. Functions}
+
+@defform[(external-video module)]{ Given a module path to a
+ video file, dynamically require that file, and place its
+ @racket[vid] values in place of @racket[external-video].}
+
 @section{Alternate Units}
 
 @defmodule[video/units]
