@@ -16,6 +16,8 @@
    limitations under the License.
 |#
 
+(provide (all-defined-out))
+
 (require "threading.rkt"
          "init-mlt.rkt"
          "ffmpeg.rkt")
@@ -32,13 +34,13 @@
                      next)
   #:mutable)
 
-(define (mk-queue)
+(define (mk-audioqueue)
   (define mutex (mutex-create))
   (define cond-var (cond-create))
   (register-mlt-close mutex-destroy mutex)
   (register-mlt-close cond-destroy cond-var)
   (audioqueue #f #f 0 0 mutex cond-var))
-(define (queue-put q p)
+(define (audioqueue-put q p)
   (av-dup-packet p)
   (define p* (packet-link p #f))
   (dynamic-wind
@@ -55,7 +57,7 @@
            (avpacket-size p)))
      (cond-signal (audioqueue-cond q)))
    (λ () (mutex-unlock (audioqueue-mutex q)))))
-(define (queue-get q)
+(define (audioqueue-get q)
   (dynamic-wind
    (λ () (mutex-lock (audioqueue-mutex q)))
    (λ ()

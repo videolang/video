@@ -61,6 +61,9 @@
 
 (define SWS-BILINEAR 2)
 
+;; Although deprecated, still seems useful
+(define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
+
 ;; ===================================================================================================
 
 (struct exn:ffmpeg exn ())
@@ -723,6 +726,8 @@
                                                  -> (let ()
                                                       (when (< r 0) (error "NOO2"))
                                                       (void))))
+(define-avformat avformat-close-input (_fun (_ptr i _avformat-context-pointer)
+                                            -> _void))
 (define-avformat av-dump-format (_fun _avformat-context-pointer _int _path _int
                                       -> _void))
 (define (av-read-frame ctx [frame #f])
