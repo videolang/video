@@ -412,6 +412,7 @@
    [me-threashold _int]
    [mb-threashold _int]
    [intra-dc-precision _int]
+   [xvmc-acceleration _int] ;; Maybe kill?
    [skip-top _int]
    [skip-bottom _int]
    [border-masking _float]
@@ -433,6 +434,7 @@
    [chroma-sample-location _avchroma-location]
    [slices _int]
    [field-order _avfield-order]
+   [padding _int] ;; XXX: ALMOST CERTAINLY MISSING SOMETHING
    [sample-rate _int]
    [channels _int]
    [sample-fmt _avsample-format]
