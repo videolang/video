@@ -636,7 +636,7 @@
    [encode-sub _fpointer]
    [encode2 _fpointer]
    [decode _fpointer]
-   [close _fpointer]
+   [close* _fpointer]
    [send-frame _fpointer]
    [send-packet* _fpointer]
    [receive-frame* _fpointer]
@@ -767,6 +767,7 @@
                                     -> [ret : _bool]
                                     -> (when ret
                                          (error "Sigh"))))
+(define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
 (define-avcodec av-image-fill-arrays (_fun (_array _pointer 4)
                                            (_array _int 4)
                                            _pointer ;; XXX FIXME

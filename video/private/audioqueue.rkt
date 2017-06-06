@@ -49,7 +49,7 @@
      (cond [(audioqueue-last q)
             (set-packet-link-next! (audioqueue-last q) p*)]
            [else (set-audioqueue-first! q p*)])
-     (set-audioqueue-last! p*)
+     (set-audioqueue-last! q p*)
      (set-audioqueue-nb-packets!
       q (add1 (audioqueue-nb-packets q)))
      (set-audioqueue-size!
