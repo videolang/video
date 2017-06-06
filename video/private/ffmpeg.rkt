@@ -797,6 +797,8 @@
                                                  [else (error 'recev "Error: ~a" (- ret))])))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
+(define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
+                                   -> _void))
 (define-avutil av-image-get-buffer-size (_fun _avpixel-format _int _int _int
                                               -> _int))
 (define (av-malloc [a #f] [b #f])
