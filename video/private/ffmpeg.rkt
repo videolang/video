@@ -107,6 +107,71 @@
                              cyuv
                              h264
                              indeo3
+                             vp3
+                             theora
+                             asv1
+                             asv2
+                             ffv1
+                             4xm
+                             vcr1
+                             cljr
+                             mdec
+                             roq
+                             interplay-video
+                             xan-wc3
+                             xan-wc4
+                             rpza
+                             cinepak
+                             ws-vqa
+                             msrle
+                             msvideo1
+                             idcin
+                             8bps
+                             smc
+                             flic
+                             truemotion1
+                             vmdvideo
+                             mszh
+                             zlib
+                             qtrle
+                             tscc
+                             ulti
+                             qdraw
+                             vixl
+                             qpeg
+                             png
+                             ppm
+                             pbm
+                             pgm
+                             pgmyuv
+                             pam
+                             ffvhuff
+                             rv30
+                             rv40
+                             vc1
+                             wmv3
+                             loco
+                             wnv1
+                             aasc
+                             indeo2
+                             fraps
+                             truemotion2
+                             bmp
+                             cscd
+                             zmbv
+                             avs
+                             smackvideo
+                             nuv
+                             kmvc
+                             flashsv
+                             cavs
+                             jpeg2000
+                             vp5
+                             vp6
+                             vp6f
+                             targa
+                             dsicinvideo
+                             
                              mp2 = #x15000
                              mp3
                              aac
