@@ -22,6 +22,8 @@
          "init-mlt.rkt"
          "ffmpeg.rkt")
 
+(struct exn:audioqueue-empty ())
+
 (struct audioqueue (first
                     last
                     nb-packets
@@ -41,7 +43,7 @@
   (register-mlt-close cond-destroy cond-var)
   (audioqueue #f #f 0 0 mutex cond-var))
 (define (audioqueue-put q p)
-  (av-dup-packet p)
+  ;(define p (av-packet-ref packet))
   (define p* (packet-link p #f))
   (dynamic-wind
    (λ () (mutex-lock (audioqueue-mutex q)))
@@ -57,7 +59,7 @@
            (avpacket-size p)))
      (cond-signal (audioqueue-cond q)))
    (λ () (mutex-unlock (audioqueue-mutex q)))))
-(define (audioqueue-get q)
+(define (audioqueue-get q [wait #t])
   (dynamic-wind
    (λ () (mutex-lock (audioqueue-mutex q)))
    (λ ()
@@ -72,7 +74,9 @@
                q (- (audioqueue-size q)
                     (avpacket-size (packet-link-packet p))))
               (packet-link-packet p)]
-             [else (cond-wait (audioqueue-cond q)
+             [wait (cond-wait (audioqueue-cond q)
                               (audioqueue-mutex q))
-                   (loop)])))
+                   (loop)]
+             [else
+              (raise (exn:audioqueue-empty))])))
    (λ () (mutex-unlock (audioqueue-mutex q)))))

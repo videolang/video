@@ -748,6 +748,19 @@
   (define frame* (or frame
                      (ptr-ref (malloc _avpacket) _avpacket)))
   (av-read-frame ctx frame*))
+(define (av-packet-ref dst/src [src #f])
+  (define-avformat av-packet-ref (_fun [out : _avpacket-pointer]
+                                       _avpacket-pointer
+                                       -> [ret : _int]
+                                       -> (cond
+                                            [(< ret 0)
+                                             (unless src
+                                               (av-packet-unref out))
+                                             #f]
+                                            [else out])))
+  (if src
+      (av-packet-ref dst/src src)
+      (av-packet-ref (ptr-ref (malloc _avpacket) _avpacket) dst/src)))
 (define-avformat av-packet-unref (_fun _avpacket-pointer
                                            -> _void))
 (define-avformat av-dup-packet (_fun _avpacket-pointer
@@ -792,7 +805,8 @@
                                                [(= ret 0) (void)]
                                                [(= (- ret) EAGAIN)
                                                 (raise (exn:ffmpeg:again
-                                                        "send-packet"))]
+                                                        "send-packet"
+                                                        (current-continuation-marks)))]
                                                [(= ret AVERROR-EOF) eof]
                                                [else
                                                 (error 'send-packet "ERROR: ~a" (convert-err ret))])))
@@ -829,8 +843,8 @@
                                                 -> [ret : _int]
                                                 -> (let ()
                                                      (when (< ret 0)
-                                                       (error "sample error")
-                                                       ret))))
+                                                       (error "sample error"))
+                                                     ret)))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
