@@ -25,7 +25,6 @@
 (require ffi/unsafe
          ffi/unsafe/define
          "mlt.rkt"
-         "ffmpeg.rkt"
          "threading.rkt")
 
 (define counter-key "mlt-support-counter")
@@ -96,7 +95,10 @@
   (sema-wait counter-mutex)
   (when (= (ptr-ref counter counter-type) 0)
     (void (mlt-factory-init #f))
-    (av-register-all))
+    ;; XXX BAD!!! Don't do this!!! (Needs to be replaced!!!)
+    (with-handlers ([exn? (λ (e) (void))])
+      (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-egister-all))
+      (av-register-all)))
   (ptr-set! counter counter-type
             (add1 (ptr-ref counter counter-type)))
   ;(set! tmp (ptr-ref counter counter-type))
