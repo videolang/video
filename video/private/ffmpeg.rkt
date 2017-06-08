@@ -111,6 +111,8 @@
 
 
 (define _avcodec-id (_enum '(none
+                             
+                             ;; Video
                              mpeg1video
                              mpeg2video
                              mpeg2video-xvmc ; Depricated and might be removed
@@ -203,8 +205,11 @@
                              vp6
                              vp6f
                              targa
-                             dsicinvideo
-                             
+                             dsicinvideo ;; XXX More
+
+                             ;; XXX MORE
+
+                             ;; Audio
                              mp2 = #x15000
                              mp3
                              aac
@@ -227,8 +232,23 @@
                              qdm2
                              cook
                              truespeech
-                             tta
-                             ))) ;; XXX AND MORE! :)
+                             tta ;; XXX MORE
+
+                             ;; Subtitle
+                             dvd-subtitle = #x17000
+                             dvb-subtitle
+                             text
+                             xsub
+                             ssa
+                             mov-text
+                             hdmv-pgs-subtitle
+                             dvb-teletext
+
+                             ;; Misc
+                             ttf = #x18000
+                             probe = #x19000
+                             mpeg2ts = #x20000
+                             )))
 (define _av-duration-estimation-method _fixint)
 (define _avmedia-type (_enum '(unknown = -1
                                video
@@ -774,6 +794,25 @@
    [key-frame _bool]
    [pict-type _avpicture-type]))
 
+(define-cstruct _av-output-format
+  ([name _string]
+   [long-name _string]
+   [mime-type _string]
+   [extensions _string]
+   [priv-data-size _int]
+   [audio-codec _avcodec-id]
+   [video-codec _avcodec-id]
+   [write-header _fpointer]
+   [video-packet _fpointer]
+   [write-trailer _fpointer]
+   [flags _int]
+   [set-parameters _fpointer]
+   [interleave-packet _fpointer]
+   [codec-tag _pointer]
+   [sbutitle-codec _avcodec-id]
+   [metadata-conv _pointer]
+   [next _pointer]))
+
 (define-cpointer-type _sws-context-pointer)
 (define-cpointer-type _swr-context-pointer)
 
@@ -830,6 +869,7 @@
                                      -> [ret : _int]
                                      -> (unless (= ret 0)
                                           (error "dup-packet?"))))
+(define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
 
 (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                            -> _avcodec-pointer))

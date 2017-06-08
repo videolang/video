@@ -17,13 +17,13 @@
   (when packet
     (av-packet-unref packet)))
 
-(define (stream-file file
-                     #:video-callback [video-callback empty-proc]
-                     #:audio-callback [audio-callback empty-proc]
-                     #:subtitle-callback [subtitle-callback empty-proc]
-                     #:data-callback [data-callback empty-proc]
-                     #:attachment-callback [attachment-callback empty-proc]
-                     #:by-index-callback [by-index-callback #f])
+(define (decoder-stream file
+                        #:video-callback [video-callback empty-proc]
+                        #:audio-callback [audio-callback empty-proc]
+                        #:subtitle-callback [subtitle-callback empty-proc]
+                        #:data-callback [data-callback empty-proc]
+                        #:attachment-callback [attachment-callback empty-proc]
+                        #:by-index-callback [by-index-callback #f])
   ;; Open file
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
@@ -92,3 +92,12 @@
        (avcodec-close orig-codec-context)
        (avcodec-close codec-context)]))
   (avformat-close-input avformat))
+
+(define (encoder-stream file
+                        #:video-callback [video-callback empty-proc]
+                        #:audio-callback [audio-callback empty-proc]
+                        #:subtitle-callback [subtitle-callback empty-proc]
+                        #:data-callback [data-callback empty-proc]
+                        #:attachment-callback [attachment-callback empty-proc]
+                        #:by-index-callback [by-index-callback #f])
+  (void))
