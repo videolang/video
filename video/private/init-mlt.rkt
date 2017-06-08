@@ -25,6 +25,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          "mlt.rkt"
+         "ffmpeg.rkt"
          "threading.rkt")
 
 (define counter-key "mlt-support-counter")
@@ -94,7 +95,8 @@
   ;(define tmp #f)
   (sema-wait counter-mutex)
   (when (= (ptr-ref counter counter-type) 0)
-    (void (mlt-factory-init #f)))
+    (void (mlt-factory-init #f))
+    (av-register-all))
   (ptr-set! counter counter-type
             (add1 (ptr-ref counter counter-type)))
   ;(set! tmp (ptr-ref counter counter-type))
