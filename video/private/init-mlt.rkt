@@ -97,7 +97,7 @@
     (void (mlt-factory-init #f))
     ;; XXX BAD!!! Don't do this!!! (Needs to be replaced!!!)
     (with-handlers ([exn? (λ (e) (void))])
-      (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-egister-all))
+      (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-register-all))
       (av-register-all)))
   (ptr-set! counter counter-type
             (add1 (ptr-ref counter counter-type)))

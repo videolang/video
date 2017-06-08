@@ -784,10 +784,11 @@
                                            _path
                                            _pointer
                                            _pointer
-                                           -> [r : _bool]
-                                           -> (let ()
-                                                (when r (error "NOO"))
-                                                out)))
+                                           -> [ret : _int]
+                                           -> (cond
+                                                [(= ret 0) out]
+                                                [(< ret 0)
+                                                 (error 'avformat (convert-err ret))])))
 (define-avformat avformat-find-stream-info (_fun _avformat-context-pointer _pointer
                                                  -> [r : _int]
                                                  -> (let ()
