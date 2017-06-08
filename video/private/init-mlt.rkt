@@ -98,7 +98,9 @@
     ;; XXX BAD!!! Don't do this!!! (Needs to be replaced!!!)
     (with-handlers ([exn? (λ (e) (void))])
       (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-register-all))
-      (av-register-all)))
+      (av-register-all)
+      (define avformat-network-init (dynamic-require 'video/private/ffmpeg 'avformat-network-init))
+      (avformat-network-init)))
   (ptr-set! counter counter-type
             (add1 (ptr-ref counter counter-type)))
   ;(set! tmp (ptr-ref counter counter-type))

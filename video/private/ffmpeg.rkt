@@ -67,10 +67,13 @@
 (define EAGAIN (lookup-errno 'EAGAIN))
 (define EINVAL (lookup-errno 'EINVAL))
 
+
+(define AVSTREAM-INIT-IN-WRITE-HEADER 0)
+(define AVSTREAM-INIT-IN-INIT-OUTPUT 1)
+
 (define SWS-BILINEAR 2)
 
 (define SWR-CH-MAX 16)
-
 
 ;; Although deprecated, still seems useful
 (define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
@@ -794,6 +797,30 @@
    [key-frame _bool]
    [pict-type _avpicture-type]))
 
+(define-cstruct _av-input-format
+  ([name _string]
+   [long-name _string]
+   [flags _int]
+   [extensions _string]
+   [codec-tag _pointer]
+   [priv-class _pointer]
+   [mime-type _string]
+   [next _pointer]
+   [raw-codec-id _int]
+   [priv-data-size _int]
+   [read-probe _fpointer]
+   [read-header _fpointer]
+   [read-packet _fpointer]
+   [read-close _fpointer]
+   [read-seek _fpointer]
+   [read-timestamp _fpointer]
+   [read-play _fpointer]
+   [read-pause _fpointer]
+   [read-seek2 _fpointer]
+   [get-device-list _fpointer]
+   [create-device-capabilities _fpointer]
+   [free-device-capabilities _fpointer]))
+
 (define-cstruct _av-output-format
   ([name _string]
    [long-name _string]
@@ -819,6 +846,7 @@
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
+(define-avformat avformat-network-init (_fun -> _int -> (void)))
 (define-avformat avformat-open-input (_fun (out : (_ptr io _avformat-context-pointer/null) = #f)
                                            _path
                                            _pointer
@@ -871,6 +899,8 @@
                                           (error "dup-packet?"))))
 (define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
 
+(define-avcodec avcodec-find-encoder (_fun _avcodec-id
+                                           -> _avcodec-pointer))
 (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
 (define-avcodec avcodec-alloc-context3 (_fun _avcodec-pointer/null
