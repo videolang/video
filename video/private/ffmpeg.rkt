@@ -37,6 +37,9 @@
 (define swscale-lib (ffi-lib "libswscale"))
 (define-ffi-definer define-swscale swscale-lib
   #:make-c-id convention:hyphen->underscore)
+(define swresample-lib (ffi-lib "libswresample"))
+(define-ffi-definer define-swresample swresample-lib
+  #:make-c-id convention:hyphen->underscore)
 
 ;; ===================================================================================================
 
@@ -66,6 +69,9 @@
 
 (define SWS-BILINEAR 2)
 
+(define SWR-CH-MAX 16)
+
+
 ;; Although deprecated, still seems useful
 (define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
 
@@ -76,6 +82,33 @@
 (struct exn:ffmpeg:eof exn:ffmpeg ())
 
 ;; ===================================================================================================
+
+(define _av-ch
+  (_bitmask '(front-left = #x1
+              front-right = #x2
+              front-center = #x4
+              low-frequency = #x8
+              back-left = #x10
+              back-right = #x20
+              front-left-of-center = #x40
+              front-right-of-center = #x80
+              back-center = #x100
+              side-left = #x200
+              side-right = #x400
+              top-center = #x800
+              top-front-left = #x1000
+              top-front-center = #x2000
+              top-front-right = #x4000
+              back-left = #x8000
+              back-center = #x10000
+              back-right = #x20000
+              sterio = 3
+              mono = 4
+              2-point-1 = 11)))
+(define AV-CH-FRONT-RIGHT #x2)
+(define AV-CH-FRONT-CENTER #x4)
+
+
 
 (define _avcodec-id (_enum '(none
                              mpeg1video
@@ -273,7 +306,19 @@
 (define _avcolor-range _fixint)
 (define _avchroma-location _fixint)
 (define _avfield-order _fixint)
-(define _avsample-format _fixint)
+(define _avsample-format
+  (_enum '(none = -1
+           u8
+           s16
+           s32
+           flt
+           dbl
+           u8p
+           s16p
+           s32p
+           fltp
+           dblp
+           nb)))
 (define _avaudio-service-type _fixint)
 (define _avdiscard _fixint)
 (define _avstream-parse-type _fixint)
@@ -716,6 +761,8 @@
    [init-thread-copy _fpointer]
    [update-thread-context _fpointer]))
 
+;; The actual avframe struct is much bigger,
+;; but only these fields are part of the public ABI.
 (define-cstruct _av-frame
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]
@@ -725,60 +772,10 @@
    [nb-samples _int]
    [format _int]
    [key-frame _bool]
-   [pict-type _avpicture-type]
-   [base (_array _pointer AV-NUM-DATA-POINTERS)]
-   [sample-aspect-ration _avrational]
-   [pts _int64]
-   [pkt-pts _int64]
-   [pkt-dts _int64]
-   [coded-picture-number _int]
-   [display-picture-number _int]
-   [quality _int]
-   [reference _int]
-   [qscale-table _pointer]
-   [qstride _int]
-   [qscale-type* _int]
-   [mbskip-table _pointer]
-   [motion-val _fpointer]
-   [mb-type _pointer]
-   [dct-coeff _pointer]
-   [ref-index (_array _pointer 2)]
-   [opaque _pointer]
-   [error (_array _uint64 AV-NUM-DATA-POINTERS)]
-   [type _int]
-   [repeat_pict _int]
-   [interlaced-frame _int]
-   [top-field-first _int]
-   [palette-has-changed _int]
-   [buffer-hints _int]
-   [pan-scan _pointer]
-   [reordered-opaque _int64]
-   [hwaccel-picture-private _pointer]
-   [owner _pointer]
-   [thread-opaque _pointer]
-   [motion-subsample-log2 _uint8]
-   [sample-rate _int]
-   [channel-layout _uint64]
-   [buf (_array _pointer AV-NUM-DATA-POINTERS)]
-   [extended-buf _pointer]
-   [nb-extended-buf _int]
-   [side-data _pointer]
-   [nb-side-data _int]
-   [flags _int]
-   [color-range _avcolor-range]
-   [color-primitives _avcolor-primaries]
-   [color-trc _avcolor-transfer-characteristic]
-   [colorspace _avcolor-space]
-   [chroma-location _avchroma-location]
-   [best-effort-timestamp _int64]
-   [pkt-pos _int64]
-   [pkt-duration _int64]
-   [metadata _pointer]
-   [decode-error-flags _int]
-   [channels _int]
-   [pkt-size _int]
-   [qp-table-buf _int]))
+   [pict-type _avpicture-type]))
+
 (define-cpointer-type _sws-context-pointer)
+(define-cpointer-type _swr-context-pointer)
 
 ;; ===================================================================================================
 
@@ -891,6 +888,12 @@
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
                                    -> _void))
+(define-avutil av-frame-get-channels (_fun _av-frame-pointer -> _int))
+(define-avutil av-frame-set-channels (_fun _av-frame-pointer _int -> _void))
+(define-avutil av-frame-get-channel-layout (_fun _av-frame-pointer -> _int64))
+(define-avutil av-frame-set-channel-layout (_fun _av-frame-pointer _int64 -> _void))
+(define-avutil av-frame-get-sample-rate (_fun _av-frame-pointer -> _int64))
+(define-avutil av-frame-set-sample-rate (_fun _av-frame-pointer _int64 -> _void))
 (define-avutil av-image-get-buffer-size (_fun _avpixel-format _int _int _int
                                               -> _int))
 (define (av-malloc [a #f] [b #f])
@@ -910,6 +913,14 @@
                                                      (when (< ret 0)
                                                        (error "sample error"))
                                                      ret)))
+(define-avutil av-opt-set-int (_fun _pointer _string _int64 _int
+                                    -> [ret : _int]
+                                    -> (when (< ret 0)
+                                         (error "AV_OPT"))))
+(define-avutil av-opt-set-sample-fmt (_fun _pointer _string _avsample-format _int
+                                           -> [ret : _int]
+                                           -> (when (< ret 0)
+                                                (error "AV_OPT"))))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
@@ -930,3 +941,14 @@
                                 _pointer
                                 _pointer
                                 -> _int))
+
+(define-swresample swr-alloc (_fun -> _swr-context-pointer))
+(define-swresample swr-init (_fun _swr-context-pointer -> [ret : _int]
+                                  -> (when (< ret 0)
+                                       (error "SWR"))))
+(define-swresample swr-convert (_fun _swr-context-pointer
+                                     _pointer
+                                     _int
+                                     _pointer
+                                     _int
+                                     -> _int))
