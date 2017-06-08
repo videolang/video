@@ -752,10 +752,10 @@
    [encode2 _fpointer]
    [decode _fpointer]
    [close* _fpointer]
-   [send-frame _fpointer]
+   [send-frame* _fpointer]
    [send-packet* _fpointer]
    [receive-frame* _fpointer]
-   [receive-packet _fpointer]
+   [receive-packet* _fpointer]
    [flush _fpointer]
    [caps-internal _int]
    [init-thread-copy _fpointer]
@@ -873,6 +873,30 @@
                                                [(= ret AVERROR-EOF) eof]
                                                [else
                                                 (error 'send-packet "ERROR: ~a" (convert-err ret))])))
+(define-avcodec avcodec-receive-packet (_fun _avcodec-context-pointer
+                                             _avpacket-pointer
+                                             -> [ret : _int]
+                                             -> (cond
+                                                  [(= ret 0) (void)]
+                                                  [(= (- ret) EAGAIN)
+                                                   (raise (exn:ffmpeg:again
+                                                           "receive-packet"
+                                                           (current-continuation-marks)))]
+                                                  [(= ret AVERROR-EOF) eof]
+                                                  [else
+                                                   (error 'recev-packet (convert-err ret))])))
+(define-avcodec avcodec-send-frame (_fun _avcodec-context-pointer
+                                         (_ptr i _av-frame)
+                                         -> [ret : _int]
+                                         -> (cond
+                                              [(= ret 0) (void)]
+                                              [(= (- ret) EAGAIN)
+                                               (raise (exn:ffmpeg:again
+                                                       "send-frame"
+                                                       (current-continuation-marks)))]
+                                              [(= ret AVERROR-EOF) eof]
+                                              [else
+                                               (error 'send-frame "ERROR: ~a" (convert-err ret))])))
 (define-avcodec avcodec-receive-frame (_fun _avcodec-context-pointer
                                             _av-frame-pointer
                                             -> [ret : _int]
@@ -880,11 +904,11 @@
                                                  [(= ret 0) (void)]
                                                  [(= (- ret) EAGAIN)
                                                   (raise (exn:ffmpeg:again
-                                                          "recev-frame"
+                                                          "receive-frame"
                                                           (current-continuation-marks)))]
                                                  [(= ret AVERROR-EOF) eof]
                                                  [else
-                                                  (error 'recev "Error: ~a" (convert-err ret))])))
+                                                  (error 'recev-frame "Error: ~a" (convert-err ret))])))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
