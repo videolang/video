@@ -86,7 +86,7 @@
 
 ;; ===================================================================================================
 
-(define _av-ch
+(define _av-channel-layout
   (_bitmask '(front-left = #x1
               front-right = #x2
               front-center = #x4
@@ -102,16 +102,72 @@
               top-front-left = #x1000
               top-front-center = #x2000
               top-front-right = #x4000
-              back-left = #x8000
-              back-center = #x10000
-              back-right = #x20000
+              top-back-left = #x8000
+              top-back-center = #x10000
+              top-back-right = #x20000
+              stereo-left = #x20000000
+              stereo-right = #x40000000
+              wide-left = #x80000000
+              wide-right = #x100000000
+              surround-direct-left = #x200000000
+              surround-direct-right = #x400000000
+              low-frequency-2 = #x800000000
+              layout-native = #x8000000000000000
               sterio = 3
               mono = 4
-              2-point-1 = 11)))
-(define AV-CH-FRONT-RIGHT #x2)
-(define AV-CH-FRONT-CENTER #x4)
+              2-point-1 = 11)
+            _uint64))
+(define-cpointer-type _av-channel-layout-pointer)
 
+(define _avformat-flags
+  (_bitmask '(nofile = #x1
+              neednumber = #x2
+              show-ids = #x8
+              rawpicture = #x20
+              globalheader = #x40
+              notimestamps = #x80
+              generic-index = #x100
+              ts-discound = #x200
+              variable-fps #x400
+              nodimensions = #x800
+              nostreams = #x1000
+              nobinsearch = #x2000
+              nogensearch = #x4000
+              no-byte-seek = #x8000
+              allow-flush = #x10000
+              ts-nonstrict = #x8020000
+              ts-negative = #x40000
+              seek-to-pts = #x4000000)))
 
+(define _avcodec-flags
+  (_bitmask `(unaligned
+              qscale
+              4mv
+              output-corupt
+              qpel
+              pass1 = #x512
+              pass2
+              loop-filter
+              gray = #x8192
+              psnr = ,(arithmetic-shift 1 15)
+              truncated
+              interlaced-dct = ,(arithmetic-shift 1 18)
+              low-delay
+              global-header = ,(arithmetic-shift 1 22)
+              bitexact
+              pred
+              interlaced-me = ,(arithmetic-shift 1 29)
+              closed-gop = ,(arithmetic-shift 1 31))))
+(define _avcodec-flags2
+  (_bitmask `(fast
+              no-ouput = 4
+              local-header
+              drop-frame-timecode = ,(arithmetic-shift 1 13)
+              chunks = ,(arithmetic-shift 1 15)
+              ignore-crop
+              show-all = ,(arithmetic-shift 1 22)
+              export-mvs = ,(arithmetic-shift 1 28)
+              skip-manual)))
 
 (define _avcodec-id (_enum '(none
                              
@@ -252,7 +308,9 @@
                              probe = #x19000
                              mpeg2ts = #x20000
                              )))
+
 (define _av-duration-estimation-method _fixint)
+
 (define _avmedia-type (_enum '(unknown = -1
                                video
                                audio
@@ -260,7 +318,9 @@
                                subtitle
                                attachment
                                nb)))
+
 (define _avcolor-primaries _fixint)
+
 (define _avpixel-format (_enum '(unknown = -1
                                  yuv420p
                                  yuyv422
@@ -324,11 +384,13 @@
                                  bgr444be
                                  ya8
                                  ))) ;; XXX And more! :)
+
 (define _avcolor-transfer-characteristic _fixint)
 (define _avcolor-space _fixint)
 (define _avcolor-range _fixint)
 (define _avchroma-location _fixint)
 (define _avfield-order _fixint)
+
 (define _avsample-format
   (_enum '(none = -1
            u8
@@ -342,6 +404,8 @@
            fltp
            dblp
            nb)))
+(define-cpointer-type _avsample-format-pointer)
+  
 (define _avaudio-service-type _fixint)
 (define _avdiscard _fixint)
 (define _avstream-parse-type _fixint)
@@ -383,7 +447,7 @@
 (define-cstruct _av-input-format
   ([name _string]
    [long-name _string]
-   [flags _int]
+   [flags _avformat-flags]
    [extensions _string]
    [codec-tag _pointer]
    [priv-class _pointer]
@@ -415,7 +479,7 @@
    [write-header _fpointer]
    [video-packet _fpointer]
    [write-trailer _fpointer]
-   [flags _int]
+   [flags _avformat-flags]
    [set-parameters _fpointer]
    [interleave-packet _fpointer]
    [codec-tag _pointer]
@@ -429,7 +493,7 @@
    [oformat _av-output-format-pointer/null]
    [priv_data _pointer]
    [pb _pointer]
-   [ctx-flags _int]
+   [ctx-flags _int] ; _avformat-context-flags
    [nb-streams _uint]
    [streams-data _pointer]
    [filename (_array _byte 1024)]
@@ -438,7 +502,7 @@
    [bit-rate _int]
    [packet-size _uint]
    [max-delay _uint]
-   [flags _int]
+   [flags _avformat-flags]
    [probesize _uint]
    [max-anlayze-duration _int]
    [key _pointer]
@@ -548,8 +612,8 @@
    [bit-rate-tolerance _int]
    [global-quality _int]
    [compression-level _int]
-   [flags _int]
-   [flags2 _int]
+   [flags _avcodec-flags]
+   [flags2 _avcodec-flags2]
    [extradata _pointer]
    [extradata-size _int]
    [time-base _avrational]
@@ -635,8 +699,8 @@
    [frame-number _int]
    [block-align _int]
    [cutoff _int]
-   [channel-layout _uint64]
-   [request-channel-layout _uint64]
+   [channel-layout _av-channel-layout]
+   [request-channel-layout _av-channel-layout]
    [audio-service-type _avaudio-service-type]
    [request-sample-format _avsample-format]
    [get-buffer2 _fpointer]
@@ -812,9 +876,9 @@
    [capabilities _int]
    [supported-framerates _pointer]
    [pix-fmts _pointer]
-   [supported-samplerates _pointer]
-   [sample-fmts _pointer]
-   [channel-layouts _pointer]
+   [supported-samplerates (_cpointer/null 'int)]
+   [sample-fmts _avsample-format-pointer/null]
+   [channel-layouts _av-channel-layout-pointer/null]
    [max-lowres _uint8]
    [priv-class _pointer]
    [profiles _pointer]
@@ -1059,6 +1123,7 @@
 (define-avutil av-dict-copy (_fun [out : (_ptr o _av-dictionary-pointer)] _av-dictionary-pointer _int
                                   -> _void
                                   -> out))
+(define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 
 (define-swscale sws-getContext (_fun _int
                                      _int

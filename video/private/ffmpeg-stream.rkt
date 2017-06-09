@@ -2,6 +2,8 @@
 
 (provide (all-defined-out))
 (require racket/match
+         ffi/unsafe
+         racket/set
          "init-mlt.rkt"
          "ffmpeg.rkt")
 
@@ -144,8 +146,48 @@
           (set-avcodec-context-bit-rate! ctx 400000)
           (set-avcodec-context-width! ctx 1920)
           (set-avcodec-context-height! ctx 1080)
-          ]
+          (set-avstream-time-base! str 25)
+          (set-avcodec-context-time-base! ctx 25)
+          (set-avcodec-context-gop-size! ctx 12)
+          (set-avcodec-context-pix-fmt! ctx 'yuv420p)
+          (when (eq? codec-id 'mpeg2video)
+            (set-avcodec-context-max-b-frames! ctx 2))
+          (when (eq? codec-id 'mpeg1video)
+            (set-avcodec-context-mb-decision! ctx 2))]
          ['audio
-          (void)]
+          (set-avcodec-context-sample-fmt!
+           ctx (if (avcodec-sample-fmts codec)
+                   (ptr-ref (avcodec-sample-fmts codec))
+                   'fltp))
+          (set-avcodec-context-bit-rate! ctx 64000)
+          (define supported-samplerates (avcodec-supported-samplerates codec))
+          (set-avcodec-context-sample-rate!
+           ctx
+           (if supported-samplerates
+               (let loop ([rate #f]
+                          [offset 0])
+                 (define new-rate (ptr-ref (avcodec-supported-samplerates codec)
+                                           offset))
+                 (cond [(= new-rate 44100) new-rate]
+                       [(= new-rate 0) (or rate 44100)]
+                       [else (loop (or rate new-rate) (add1 offset))]))
+               44100))
+          (define supported-layouts (avcodec-channel-layouts codec))
+          (set-avcodec-context-channel-layout!
+           ctx
+           (if supported-layouts
+               (or
+                (let loop ([layout #f]
+                           [offset 0])
+                  (define new-layout (ptr-ref (avcodec-channel-layouts codec)
+                                              offset))
+                  (cond [(set-member? new-layout 'stereo) 'stereo]
+                        [(set-empty? new-layout) (or layout 'stereo)]
+                        [else (loop (or layout new-layout) (add1 offset))])))
+               'stereo))
+          (set-avcodec-context-channels!
+           ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
+          (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))]
          [else (void)])
-       (void)])))
+       (when (set-member? (avformat-context-flags output-context) 'globalheader)
+         (set-add! (avcodec-context-flags ctx) 'global-heade))])))
