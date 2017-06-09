@@ -108,6 +108,7 @@
   (define format (avformat-context-oformat output-context))
   (define video-codec (av-output-format-video-codec format))
   (define audio-codec (av-output-format-audio-codec format))
+  (define subtitle-codec (av-output-format-subtitle-codec format))
   (define stream-table (make-hash))
   (define streams
     (cond [by-index-callback
@@ -124,10 +125,27 @@
   (for ([i streams])
     (match i
       [(struct* codec-obj
-                ([id id]))
-       (define ctx (avcodec-find-encoder id))
-       ;; Change this:
-       (define ns (avformat-new-stream output-context #f))
-       (void)
-       ])))
-       
+                ([id id]
+                 [type type]))
+       (define type-codec-id
+         (match type
+           ['video video-codec]
+           ['audio audio-codec]
+           ['subtitle subtitle-codec]
+           [else #f]))
+       (define codec-id (or id type-codec-id))
+       (define codec (avcodec-find-encoder codec-id))
+       (define str (avformat-new-stream output-context #f))
+       (set-avstream-id! str (sub1 (avformat-context-nb-streams output-context)))
+       (define ctx (avcodec-alloc-context3 codec))
+       (match type
+         ['video
+          (set-avcodec-context-codec-id! ctx codec-id)
+          (set-avcodec-context-bit-rate! ctx 400000)
+          (set-avcodec-context-width! ctx 1920)
+          (set-avcodec-context-height! ctx 1080)
+          ]
+         ['audio
+          (void)]
+         [else (void)])
+       (void)])))

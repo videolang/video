@@ -378,7 +378,7 @@
 (define (avformat-context-streams v)
   (cblock->list (avformat-context-streams-data v)
                 _avstream-pointer
-                (avformat-context-streams-nb v)))
+                (avformat-context-nb-streams v)))
 
 (define-cstruct _av-input-format
   ([name _string]
@@ -419,7 +419,7 @@
    [set-parameters _fpointer]
    [interleave-packet _fpointer]
    [codec-tag _pointer]
-   [sbutitle-codec _avcodec-id]
+   [subtitle-codec _avcodec-id]
    [metadata-conv _pointer]
    [next _pointer]))
 
@@ -430,7 +430,7 @@
    [priv_data _pointer]
    [pb _pointer]
    [ctx-flags _int]
-   [streams-nb _uint]
+   [nb-streams _uint]
    [streams-data _pointer]
    [filename (_array _byte 1024)]
    [start-time _int64]
@@ -494,9 +494,18 @@
    [data-codec-id _avcodec-id]
    [open-cb _pointer]))
 
-(define-cstruct _avrational
-  ([num _int]
-   [den _int]))
+(define _avrational
+  (let ()
+    (define-cstruct _avrational
+      ([num _int]
+       [den _int]))
+    (make-ctype _avrational
+                (λ (x)
+                  (make-avrational (numerator x)
+                                   (denominator x)))
+                (λ (x)
+                  (/ (avrational-num x)
+                     (avrational-den x))))))
 
 (define-cstruct _avbuffer-ref
   ([buffer _pointer]
