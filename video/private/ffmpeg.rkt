@@ -898,6 +898,12 @@
                                      -> (unless (= ret 0)
                                           (error "dup-packet?"))))
 (define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
+(define-avformat avformat-alloc-output-context2
+  (_fun [out : (_ptr o _avformat-context)] _av-output-format-pointer _string _string
+        -> [ret : _int]
+        -> (cond
+             [(>= ret 0) out]
+             [else (error 'alloc-ouput-context2 (convert-err ret))])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))

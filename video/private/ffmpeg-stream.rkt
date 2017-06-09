@@ -100,4 +100,20 @@
                         #:data-callback [data-callback empty-proc]
                         #:attachment-callback [attachment-callback empty-proc]
                         #:by-index-callback [by-index-callback #f])
-  (void))
+  (define output-context
+    (avformat-alloc-output-context2 #f #f file))
+  (define stream-table (make-hash))
+  (define streams
+    (cond [by-index-callback
+           (for/vector ([i (in-range (by-index-callback 'count))])
+             (by-index-callback 'get i))]
+          [else
+           (and video-callback (hash-set! stream-table 'video (video-callback 'get)))
+           (and audio-callback (hash-set! stream-table 'audio (audio-callback 'get)))
+           (and subtitle-callback (hash-set! stream-table 'subtitle (subtitle-callback 'get)))
+           (and data-callback (hash-set! stream-table 'data (data-callback 'get)))
+           (and attachment-callback (hash-set! stream-table 'attachment (attachment-callback 'get)))
+           (for/vector ([(k v) (in-hash stream-table)])
+             v)]))
+  (for ([i streams])
+    (void)))
