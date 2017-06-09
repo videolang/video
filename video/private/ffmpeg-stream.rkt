@@ -121,6 +121,7 @@
       [(struct* codec-obj
                 ([id id]))
        (define ctx (avcodec-find-encoder id))
-       (set! (avformat-new-stream output-context #f))
+       ;; Change this:
+       (define ns (avformat-new-stream output-context #f))
        ])))
        
