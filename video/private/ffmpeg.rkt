@@ -168,6 +168,12 @@
               show-all = ,(arithmetic-shift 1 22)
               export-mvs = ,(arithmetic-shift 1 28)
               skip-manual)))
+(define _avio-flags
+  (_bitmask `(read = 1
+              write = 2
+              read-write = 3
+              nonblock = 8
+              direct = #x8000)))
 
 (define _avcodec-id (_enum '(none
                              
@@ -413,7 +419,7 @@
 
 ;; ===================================================================================================
 
-(define-cstruct _byte-io-context
+(define-cstruct _avio-context
   ([buffer _bytes]
    [buffer-size _int]
    [buf-ptr _bytes]
@@ -426,16 +432,22 @@
    [must-flush _int]
    [eof-reached _int]
    [write-flag _int]
-   [is-streamd _int]
    [max-packet-size _int]
    [checksum _ulong]
    [checksum-ptr _pointer]
    [update-checksum _fpointer]
    [error _int]
    [read-pause _fpointer]
-   [read-seek _fpointer]))
+   [read-seek _fpointer]
+   [seekable _int]
+   [maxsize _int64]
+   [direct _int]
+   [bytes-read _int64]
+   [seek-count _int]
+   [writeout-count _int]
+   [orig-buffer-size _int]))
 
-(define-cstruct _av-io-interrupt-cb
+(define-cstruct _avio-interrupt-cb
   ([callback _fpointer]
    [opaque _pointer]))
 
@@ -492,7 +504,7 @@
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
    [priv_data _pointer]
-   [pb _pointer]
+   [pb _avio-context-pointer]
    [ctx-flags _int] ; _avformat-context-flags
    [nb-streams _uint]
    [streams-data _pointer]
@@ -520,7 +532,7 @@
    [start-time-realtime _int64]
    [fps-probe-size _int]
    [error-recognition _int]
-   [interrupt-callback _av-io-interrupt-cb]
+   [interrupt-callback _avio-interrupt-cb]
    [debug _int]
    [max-interleave-delay _int64]
    [string-std-compliance _int]
@@ -944,6 +956,7 @@
                                                       (void))))
 (define-avformat avformat-close-input (_fun (_ptr i _avformat-context-pointer)
                                             -> _void))
+(define-avformat avformat-free-context (_fun _avformat-context-pointer -> _void))
 (define-avformat av-dump-format (_fun _avformat-context-pointer _int _path _int
                                       -> _void))
 (define (av-read-frame ctx [frame #f])
@@ -993,6 +1006,19 @@
         -> (cond
              [(= ret 0) (void)]
              [else (convert-err ret)])))
+(define-avformat av-write-trailer (_fun _avformat-context-pointer -> [ret : _int]
+                                        -> (cond
+                                             [(= ret 0) (void)]
+                                             [else (convert-err ret)])))
+(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer)] _string _avio-flags
+                                 -> [ret : _int]
+                                 -> (cond
+                                      [(>= ret 0) out]
+                                      [else (error 'avio-open (convert-err ret))])))
+(define-avformat avio-close (_fun _avio-context -> [ret : _int]
+                                  -> (cond
+                                       [(= ret 0) (void)]
+                                       [else (error 'avio-close (convert-err ret))])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))

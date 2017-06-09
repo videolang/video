@@ -20,6 +20,70 @@
   (when packet
     (av-packet-unref packet)))
 
+(define (empty-encoder-video-proc mode obj)
+  (match mode
+    ['get #f]
+    ['get-context
+     (match obj
+       [(struct* codec-obj
+                 ([codec-context ctx]
+                  [id codec-id]
+                  [stream str]))
+        (set-avcodec-context-codec-id! ctx codec-id)
+        (set-avcodec-context-bit-rate! ctx 400000)
+        (set-avcodec-context-width! ctx 1920)
+        (set-avcodec-context-height! ctx 1080)
+        (set-avstream-time-base! str 25)
+        (set-avcodec-context-time-base! ctx 25)
+        (set-avcodec-context-gop-size! ctx 12)
+        (set-avcodec-context-pix-fmt! ctx 'yuv420p)
+        (when (eq? codec-id 'mpeg2video)
+          (set-avcodec-context-max-b-frames! ctx 2))
+        (when (eq? codec-id 'mpeg1video)
+          (set-avcodec-context-mb-decision! ctx 2))])]))
+
+(define (empty-encoder-audio-proc mode obj)
+  (match mode
+    ['get #f]
+    ['get-context
+     (match obj
+       [(struct* codec-obj
+                 ([codec-context ctx]
+                  [codec codec]
+                  [stream str]))
+        (set-avcodec-context-sample-fmt!
+         ctx (if (avcodec-sample-fmts codec)
+                 (ptr-ref (avcodec-sample-fmts codec))
+                 'fltp))
+        (set-avcodec-context-bit-rate! ctx 64000)
+        (define supported-samplerates (avcodec-supported-samplerates codec))
+        (set-avcodec-context-sample-rate!
+         ctx
+         (if supported-samplerates
+             (let loop ([rate #f]
+                        [offset 0])
+               (define new-rate (ptr-ref (avcodec-supported-samplerates codec)
+                                         offset))
+               (cond [(= new-rate 44100) new-rate]
+                     [(= new-rate 0) (or rate 44100)]
+                     [else (loop (or rate new-rate) (add1 offset))]))
+             44100))
+        (define supported-layouts (avcodec-channel-layouts codec))
+        (set-avcodec-context-channel-layout!
+         ctx
+         (if supported-layouts
+             (let loop ([layout #f]
+                        [offset 0])
+               (define new-layout (ptr-ref (avcodec-channel-layouts codec)
+                                           offset))
+               (cond [(set-member? new-layout 'stereo) 'stereo]
+                     [(set-empty? new-layout) (or layout 'stereo)]
+                     [else (loop (or layout new-layout) (add1 offset))]))
+             'stereo))
+        (set-avcodec-context-channels!
+         ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
+        (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))])]))
+
 (define (decoder-stream file
                         #:video-callback [video-callback empty-proc]
                         #:audio-callback [audio-callback empty-proc]
@@ -99,18 +163,20 @@
   (avformat-close-input avformat))
 
 (define (encoder-stream file
-                        #:video-callback [video-callback empty-proc]
-                        #:audio-callback [audio-callback empty-proc]
+                        #:video-callback [video-callback empty-encoder-video-proc]
+                        #:audio-callback [audio-callback empty-encoder-audio-proc]
                         #:subtitle-callback [subtitle-callback empty-proc]
                         #:data-callback [data-callback empty-proc]
                         #:attachment-callback [attachment-callback empty-proc]
                         #:by-index-callback [by-index-callback #f])
+  ;; Initial Setup
   (define output-context
     (avformat-alloc-output-context2 #f #f file))
   (define format (avformat-context-oformat output-context))
   (define video-codec (av-output-format-video-codec format))
   (define audio-codec (av-output-format-audio-codec format))
   (define subtitle-codec (av-output-format-subtitle-codec format))
+  ;; Get streams
   (define stream-table (make-hash))
   (define streams
     (cond [by-index-callback
@@ -124,7 +190,8 @@
            (and attachment-callback (hash-set! stream-table 'attachment (attachment-callback 'get)))
            (for/vector ([(k v) (in-hash stream-table)])
              v)]))
-  (for ([i streams])
+  ;; Get codec and other attributes of decoded video
+  (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj
                 ([id id]
@@ -137,57 +204,39 @@
            [else #f]))
        (define codec-id (or id type-codec-id))
        (define codec (avcodec-find-encoder codec-id))
+       (set-codec-obj-codec! i codec)
        (define str (avformat-new-stream output-context #f))
+       (set-codec-obj-stream! i str)
+       (set-codec-obj-id! i codec-id)
        (set-avstream-id! str (sub1 (avformat-context-nb-streams output-context)))
        (define ctx (avcodec-alloc-context3 codec))
+       (set-codec-obj-codec-context! i ctx)
        (match type
-         ['video
-          (set-avcodec-context-codec-id! ctx codec-id)
-          (set-avcodec-context-bit-rate! ctx 400000)
-          (set-avcodec-context-width! ctx 1920)
-          (set-avcodec-context-height! ctx 1080)
-          (set-avstream-time-base! str 25)
-          (set-avcodec-context-time-base! ctx 25)
-          (set-avcodec-context-gop-size! ctx 12)
-          (set-avcodec-context-pix-fmt! ctx 'yuv420p)
-          (when (eq? codec-id 'mpeg2video)
-            (set-avcodec-context-max-b-frames! ctx 2))
-          (when (eq? codec-id 'mpeg1video)
-            (set-avcodec-context-mb-decision! ctx 2))]
-         ['audio
-          (set-avcodec-context-sample-fmt!
-           ctx (if (avcodec-sample-fmts codec)
-                   (ptr-ref (avcodec-sample-fmts codec))
-                   'fltp))
-          (set-avcodec-context-bit-rate! ctx 64000)
-          (define supported-samplerates (avcodec-supported-samplerates codec))
-          (set-avcodec-context-sample-rate!
-           ctx
-           (if supported-samplerates
-               (let loop ([rate #f]
-                          [offset 0])
-                 (define new-rate (ptr-ref (avcodec-supported-samplerates codec)
-                                           offset))
-                 (cond [(= new-rate 44100) new-rate]
-                       [(= new-rate 0) (or rate 44100)]
-                       [else (loop (or rate new-rate) (add1 offset))]))
-               44100))
-          (define supported-layouts (avcodec-channel-layouts codec))
-          (set-avcodec-context-channel-layout!
-           ctx
-           (if supported-layouts
-               (or
-                (let loop ([layout #f]
-                           [offset 0])
-                  (define new-layout (ptr-ref (avcodec-channel-layouts codec)
-                                              offset))
-                  (cond [(set-member? new-layout 'stereo) 'stereo]
-                        [(set-empty? new-layout) (or layout 'stereo)]
-                        [else (loop (or layout new-layout) (add1 offset))])))
-               'stereo))
-          (set-avcodec-context-channels!
-           ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
-          (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))]
+         ['video (video-callback 'get-context i)]
+         ['audio (audio-callback 'get-context i)]
+         ['subtitle (subtitle-callback 'get-context i)]
          [else (void)])
        (when (set-member? (avformat-context-flags output-context) 'globalheader)
-         (set-add! (avcodec-context-flags ctx) 'global-heade))])))
+         (set-add! (avcodec-context-flags ctx) 'global-heade))]))
+  ;; Open Streams
+  (for ([i (in-vector streams)])
+    (match i
+      [(struct* codec-obj
+                ([type type]))
+       (void)]))
+  ;; Create file.
+  (when (set-member? (av-output-format-flags format) 'nofile)
+    (avio-open (avformat-context-pb output-context) file 'write))
+  ;; Write the stream
+  (avformat-write-header output-context #f)
+ 
+  (av-write-trailer output-context)
+  ;; Clean Up
+  (for ([i (in-vector streams)])
+    (match i
+      [(struct* codec-obj
+                ([type type]))
+       (void)]))
+  (when (set-member? (av-output-format-flags format) 'nofile)
+    (avio-close (avformat-context-pb output-context)))
+  (avformat-free-context output-context))
