@@ -123,5 +123,6 @@
        (define ctx (avcodec-find-encoder id))
        ;; Change this:
        (define ns (avformat-new-stream output-context #f))
+       (void)
        ])))
        
