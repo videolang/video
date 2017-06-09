@@ -380,10 +380,53 @@
                 _avstream-pointer
                 (avformat-context-streams-nb v)))
 
+(define-cstruct _av-input-format
+  ([name _string]
+   [long-name _string]
+   [flags _int]
+   [extensions _string]
+   [codec-tag _pointer]
+   [priv-class _pointer]
+   [mime-type _string]
+   [next _pointer]
+   [raw-codec-id _int]
+   [priv-data-size _int]
+   [read-probe _fpointer]
+   [read-header _fpointer]
+   [read-packet _fpointer]
+   [read-close _fpointer]
+   [read-seek _fpointer]
+   [read-timestamp _fpointer]
+   [read-play _fpointer]
+   [read-pause _fpointer]
+   [read-seek2 _fpointer]
+   [get-device-list _fpointer]
+   [create-device-capabilities _fpointer]
+   [free-device-capabilities _fpointer]))
+
+(define-cstruct _av-output-format
+  ([name _string]
+   [long-name _string]
+   [mime-type _string]
+   [extensions _string]
+   [priv-data-size _int]
+   [audio-codec _avcodec-id]
+   [video-codec _avcodec-id]
+   [write-header _fpointer]
+   [video-packet _fpointer]
+   [write-trailer _fpointer]
+   [flags _int]
+   [set-parameters _fpointer]
+   [interleave-packet _fpointer]
+   [codec-tag _pointer]
+   [sbutitle-codec _avcodec-id]
+   [metadata-conv _pointer]
+   [next _pointer]))
+
 (define-cstruct _avformat-context
   ([av-class _pointer]
-   [iformat _pointer]
-   [oformat _pointer]
+   [iformat _av-input-format-pointer/null]
+   [oformat _av-output-format-pointer/null]
    [priv_data _pointer]
    [pb _pointer]
    [ctx-flags _int]
@@ -797,49 +840,6 @@
    [key-frame _bool]
    [pict-type _avpicture-type]))
 
-(define-cstruct _av-input-format
-  ([name _string]
-   [long-name _string]
-   [flags _int]
-   [extensions _string]
-   [codec-tag _pointer]
-   [priv-class _pointer]
-   [mime-type _string]
-   [next _pointer]
-   [raw-codec-id _int]
-   [priv-data-size _int]
-   [read-probe _fpointer]
-   [read-header _fpointer]
-   [read-packet _fpointer]
-   [read-close _fpointer]
-   [read-seek _fpointer]
-   [read-timestamp _fpointer]
-   [read-play _fpointer]
-   [read-pause _fpointer]
-   [read-seek2 _fpointer]
-   [get-device-list _fpointer]
-   [create-device-capabilities _fpointer]
-   [free-device-capabilities _fpointer]))
-
-(define-cstruct _av-output-format
-  ([name _string]
-   [long-name _string]
-   [mime-type _string]
-   [extensions _string]
-   [priv-data-size _int]
-   [audio-codec _avcodec-id]
-   [video-codec _avcodec-id]
-   [write-header _fpointer]
-   [video-packet _fpointer]
-   [write-trailer _fpointer]
-   [flags _int]
-   [set-parameters _fpointer]
-   [interleave-packet _fpointer]
-   [codec-tag _pointer]
-   [sbutitle-codec _avcodec-id]
-   [metadata-conv _pointer]
-   [next _pointer]))
-
 (define-cpointer-type _sws-context-pointer)
 (define-cpointer-type _swr-context-pointer)
 
@@ -1038,6 +1038,18 @@
                                            -> [ret : _int]
                                            -> (when (< ret 0)
                                                 (error "AV_OPT"))))
+(define-avutil av-dict-set (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _int
+                                 -> [ret : _int]
+                                 -> (cond
+                                      [(>= ret 0) out]
+                                      [else (error 'av-dict-set (convert-err ret))])))
+(define-avutil av-dict-free (_fun (_ptr i _av-dictionary-pointer) -> _void))
+(define-avutil av-dict-count (_fun _av-dictionary-pointer -> _int))
+(define-avutil av-dict-get (_fun _av-dictionary-pointer _string _av-dictionary-entry-pointer _int
+                                 -> _av-dictionary-entry-pointer))
+(define-avutil av-dict-copy (_fun [out : (_ptr o _av-dictionary-pointer)] _av-dictionary-pointer _int
+                                  -> _void
+                                  -> out))
 
 (define-swscale sws-getContext (_fun _int
                                      _int

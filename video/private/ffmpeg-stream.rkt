@@ -42,6 +42,8 @@
       (define codec-ctx (avcodec-copy-context codec old-codec-ctx))
       (avcodec-open2 codec-ctx codec #f)
       (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f))
+      (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
+        (error 'decoder-stream "Stream type ~a already present" codec-name))
       (hash-set! stream-table codec-name obj)
       (when by-index-callback
         (by-index-callback 'init obj #f))
@@ -103,6 +105,9 @@
                         #:by-index-callback [by-index-callback #f])
   (define output-context
     (avformat-alloc-output-context2 #f #f file))
+  (define format (avformat-context-oformat output-context))
+  (define video-codec (av-output-format-video-codec format))
+  (define audio-codec (av-output-format-audio-codec format))
   (define stream-table (make-hash))
   (define streams
     (cond [by-index-callback
