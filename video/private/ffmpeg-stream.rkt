@@ -10,7 +10,8 @@
                    index
                    id
                    codec
-                   codec-context)
+                   codec-context
+                   stream)
   #:mutable)
 
 (define (empty-proc mode obj packet)
@@ -40,7 +41,7 @@
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-copy-context codec old-codec-ctx))
       (avcodec-open2 codec-ctx codec #f)
-      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx))
+      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f))
       (hash-set! stream-table codec-name obj)
       (when by-index-callback
         (by-index-callback 'init obj #f))
@@ -116,4 +117,10 @@
            (for/vector ([(k v) (in-hash stream-table)])
              v)]))
   (for ([i streams])
-    (void)))
+    (match i
+      [(struct* codec-obj
+                ([id id]))
+       (define ctx (avcodec-find-encoder id))
+       (set! (avformat-new-stream output-context #f))
+       ])))
+       

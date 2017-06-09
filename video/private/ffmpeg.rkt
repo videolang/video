@@ -843,6 +843,14 @@
 (define-cpointer-type _sws-context-pointer)
 (define-cpointer-type _swr-context-pointer)
 
+(define-cstruct _av-dictionary-entry
+  ([key _string]
+   [value _string]))
+
+(define-cstruct _av-dictionary
+  ([count _int]
+   [elems _av-dictionary-entry-pointer]))
+
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
@@ -904,6 +912,14 @@
         -> (cond
              [(>= ret 0) out]
              [else (error 'alloc-ouput-context2 (convert-err ret))])))
+(define-avformat avformat-new-stream (_fun _avformat-context-pointer _avcodec-pointer
+                                           -> _avstream-pointer))
+(define-avformat avformat-write-header
+  (_fun _avformat-context-pointer (_ptr io _av-dictionary-pointer)
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (convert-err ret)])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
