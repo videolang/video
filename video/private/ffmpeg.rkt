@@ -608,6 +608,37 @@
   ([pkt _avpacket]
    [next _avpacket-pointer]))
 
+(define-cstruct _avcodec-parameters
+  ([codec-type _avmedia-type]
+   [codec-id _avcodec-id]
+   [codec-tag _uint32]
+   [extradata _pointer]
+   [extradata-size _int]
+   [format _int]
+   [bit-rate _int64]
+   [bits-per-coded-sample _int]
+   [bits-per-raw-sample _int]
+   [profile _int]
+   [level _int]
+   [width _int]
+   [height _int]
+   [sample-aspect-ration _avrational]
+   [field-order _avfield-order]
+   [color-range _avcolor-range]
+   [color-primaries _avcolor-primaries]
+   [color-trc _avcolor-transfer-characteristic]
+   [color-space _avcolor-space]
+   [chroma-location _avchroma-location]
+   [video-delay _int]
+   [channel-layout _av-channel-layout]
+   [channels _int]
+   [sample-rate _int]
+   [block-allign _int]
+   [frame-size _int]
+   [initial-padding _int]
+   [trailing-padding _int]
+   [seek-preroll _int]))
+
 (define-cstruct _avcodec-context
   ([av-class _pointer]
    [log-level-offset _int]
@@ -1035,6 +1066,22 @@
                                                 (when ret
                                                   (error "NO3"))
                                                 out)))
+(define-avcodec avcodec-parameters-alloc (_fun -> _avcodec-parameters-pointer))
+(define-avcodec avcodec-parameters-free (_fun (_ptr i _avcodec-parameters-pointer) -> _void))
+(define (avcodec-parameters-from-context param/context [context #f])
+  (define-avcodec avcodec-parameters-from-context
+    (_fun [out : _avcodec-parameters] _avcodec-context-pointer
+          -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [else (error 'avcoded-parameters-from-context (convert-err ret))])))
+  (define param
+    (if context
+        param/context
+        (avcodec-parameters-alloc)))
+  (define context*
+    (or context param/context))
+  (avcodec-parameters-from-context param context*))
 (define-avcodec avcodec-open2 (_fun _avcodec-context-pointer _avcodec-pointer _pointer
                                     -> [ret : _bool]
                                     -> (when ret
@@ -1088,18 +1135,19 @@
                                               [(= ret AVERROR-EOF) eof]
                                               [else
                                                (error 'send-frame "ERROR: ~a" (convert-err ret))])))
-(define-avcodec avcodec-receive-frame (_fun _avcodec-context-pointer
-                                            _av-frame-pointer
-                                            -> [ret : _int]
-                                            -> (cond
-                                                 [(= ret 0) (void)]
-                                                 [(= (- ret) EAGAIN)
-                                                  (raise (exn:ffmpeg:again
-                                                          "receive-frame"
-                                                          (current-continuation-marks)))]
-                                                 [(= ret AVERROR-EOF) eof]
-                                                 [else
-                                                  (error 'recev-frame "Error: ~a" (convert-err ret))])))
+(define-avcodec avcodec-receive-frame
+  (_fun _avcodec-context-pointer
+        _av-frame-pointer
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [(= (- ret) EAGAIN)
+              (raise (exn:ffmpeg:again
+                      "receive-frame"
+                      (current-continuation-marks)))]
+             [(= ret AVERROR-EOF) eof]
+             [else
+              (error 'recev-frame "Error: ~a" (convert-err ret))])))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
@@ -1112,6 +1160,11 @@
 (define-avutil av-frame-set-sample-rate (_fun _av-frame-pointer _int64 -> _void))
 (define-avutil av-image-get-buffer-size (_fun _avpixel-format _int _int _int
                                               -> _int))
+(define-avutil av-frame-get-buffer
+  (_fun _av-frame-pointer _int -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (error 'av-frame-get-buffer (convert-err ret))])))
 (define (av-malloc [a #f] [b #f])
   (define type (cond
                  [(ctype? a) a]

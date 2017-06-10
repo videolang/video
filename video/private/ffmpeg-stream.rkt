@@ -84,6 +84,16 @@
          ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
         (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))])]))
 
+;; (U av-dictionary Hash #f) -> av-dictionary
+(define (convert-dict dict)
+  (cond
+    [(hash? dict)
+     (define ret #f)
+     (for ([(k v) (in-hash dict)])
+       (set! ret (av-dict-set ret k v 0)))
+     ret]
+    [else dict]))
+
 (define (decoder-stream file
                         #:video-callback [video-callback empty-proc]
                         #:audio-callback [audio-callback empty-proc]
@@ -163,6 +173,7 @@
   (avformat-close-input avformat))
 
 (define (encoder-stream file
+                        #:options-dict [options-dict #f]
                         #:video-callback [video-callback empty-encoder-video-proc]
                         #:audio-callback [audio-callback empty-encoder-audio-proc]
                         #:subtitle-callback [subtitle-callback empty-proc]
@@ -172,6 +183,7 @@
   ;; Initial Setup
   (define output-context
     (avformat-alloc-output-context2 #f #f file))
+  (define options (convert-dict options-dict))
   (define format (avformat-context-oformat output-context))
   (define video-codec (av-output-format-video-codec format))
   (define audio-codec (av-output-format-audio-codec format))
@@ -222,7 +234,27 @@
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj
-                ([type type]))
+                ([type type]
+                 [codec codec]
+                 [codec-context ctx]))
+       (define str-opt (av-dict-copy options #f))
+       (avcodec-open2 ctx codec str-opt)
+       (av-dict-free str-opt)
+       (match type
+         ['video
+          (define (alloc-frame ctx)
+            (define frame (av-frame-alloc))
+            (set-av-frame-format! frame (avcodec-context-pix-fmt ctx))
+            (set-av-frame-width! frame (avcodec-context-width ctx))
+            (set-av-frame-height! frame (avcodec-context-height ctx))
+            (av-frame-get-buffer frame 32))
+          (define frame (alloc-frame ctx))
+          (define tmp-frame (and (not (eq? (avcodec-context-pix-fmt ctx) 'yuv420p))
+                                 (alloc-frame ctx)))
+          
+          (void)]
+         ['audio (void)]
+         [else (void)])
        (void)]))
   ;; Create file.
   (when (set-member? (av-output-format-flags format) 'nofile)
