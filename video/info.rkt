@@ -30,5 +30,5 @@
 (define test-omit-paths
   '("private/examples.rkt"
     "private/ffmpeg.rkt"
-    "private/audioqueue.rkt"
+    "private/packetqueue.rkt"
     "private/ffmpeg-stream.rkt"))
