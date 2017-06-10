@@ -1,5 +1,21 @@
 #lang racket/base
 
+#|
+   Copyright 2016-2017 Leif Andersen
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+|#
+
 (provide (all-defined-out))
 (require racket/match
          ffi/unsafe
@@ -21,14 +37,14 @@
     (av-packet-unref packet)))
 
 (define (empty-encoder-video-proc mode obj)
-  (match mode
-    ['get #f]
-    ['get-context
-     (match obj
-       [(struct* codec-obj
-                 ([codec-context ctx]
-                  [id codec-id]
-                  [stream str]))
+  (match obj
+    [(struct* codec-obj
+              ([codec-context ctx]
+               [id codec-id]
+               [stream str]))
+     (match mode
+       ['get #f]
+       ['get-context
         (set-avcodec-context-codec-id! ctx codec-id)
         (set-avcodec-context-bit-rate! ctx 400000)
         (set-avcodec-context-width! ctx 1920)
@@ -40,7 +56,18 @@
         (when (eq? codec-id 'mpeg2video)
           (set-avcodec-context-max-b-frames! ctx 2))
         (when (eq? codec-id 'mpeg1video)
-          (set-avcodec-context-mb-decision! ctx 2))])]))
+          (set-avcodec-context-mb-decision! ctx 2))]
+       ['open
+        (define (alloc-frame ctx)
+          (define frame (av-frame-alloc))
+          (set-av-frame-format! frame (avcodec-context-pix-fmt ctx))
+          (set-av-frame-width! frame (avcodec-context-width ctx))
+          (set-av-frame-height! frame (avcodec-context-height ctx))
+          (av-frame-get-buffer frame 32))
+        (define frame (alloc-frame ctx))
+        (define tmp-frame (and (not (eq? (avcodec-context-pix-fmt ctx) 'yuv420p))
+                               (alloc-frame ctx)))
+        (avcodec-parameters-from-context (avstream-codecpar str) ctx)])]))
 
 (define (empty-encoder-audio-proc mode obj)
   (match mode
@@ -236,24 +263,14 @@
       [(struct* codec-obj
                 ([type type]
                  [codec codec]
-                 [codec-context ctx]))
+                 [codec-context ctx]
+                 [stream stream]))
        (define str-opt (av-dict-copy options #f))
        (avcodec-open2 ctx codec str-opt)
        (av-dict-free str-opt)
        (match type
-         ['video
-          (define (alloc-frame ctx)
-            (define frame (av-frame-alloc))
-            (set-av-frame-format! frame (avcodec-context-pix-fmt ctx))
-            (set-av-frame-width! frame (avcodec-context-width ctx))
-            (set-av-frame-height! frame (avcodec-context-height ctx))
-            (av-frame-get-buffer frame 32))
-          (define frame (alloc-frame ctx))
-          (define tmp-frame (and (not (eq? (avcodec-context-pix-fmt ctx) 'yuv420p))
-                                 (alloc-frame ctx)))
-          
-          (void)]
-         ['audio (void)]
+         ['video (video-callback 'open i)]
+         ['audio (audio-callback 'open i)]
          [else (void)])
        (void)]))
   ;; Create file.
@@ -261,14 +278,36 @@
     (avio-open (avformat-context-pb output-context) file 'write))
   ;; Write the stream
   (avformat-write-header output-context #f)
- 
+  (define remaining-streams (mutable-set))
+  (for ([i (in-vector streams)])
+    (set-add! remaining-streams i))
+  (let loop ()
+    (unless (set-empty? remaining-streams)
+      (define min-stream
+        (for/fold ([min-stream #f])
+                  ([i (in-set remaining-streams)])
+          (if min-stream
+              (match (av-compare-ts (error "TODO"))
+                [-1 (error "TODO")]
+                [0 (error "TODO")]
+                [1 (error "TODO")])
+              min-stream)))
+      (match (codec-obj-type min-stream)
+        ['video (video-callback 'write min-stream)]
+        ['audio (audio-callback 'write min-stream)]
+        ['subtitle (subtitle-callback 'write min-stream)]
+        [else (void)])
+      (loop)))
   (av-write-trailer output-context)
   ;; Clean Up
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj
                 ([type type]))
-       (void)]))
+       (match type
+         ['video (video-callback 'close i)]
+         ['audio (audio-callback 'close i)]
+         ['subtitle (subtitle-callback 'close i)])]))
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))

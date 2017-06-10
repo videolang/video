@@ -871,6 +871,7 @@
    [side-data _pointer]
    [nb-side-data _int]
    [event-flags _int]
+   [codecpar _avcodec-parameters-pointer]
    [info _pointer]
    [pts-wrap-bits _int]
    [first-dts _int64]
@@ -1203,6 +1204,8 @@
                                   -> _void
                                   -> out))
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
+(define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
+                                   -> _int))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
