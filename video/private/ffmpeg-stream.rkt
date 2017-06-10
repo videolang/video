@@ -29,7 +29,8 @@
                    id
                    codec
                    codec-context
-                   stream)
+                   stream
+                   next-pts)
   #:mutable)
 
 (define (empty-proc mode obj packet)
@@ -67,7 +68,9 @@
         (define frame (alloc-frame ctx))
         (define tmp-frame (and (not (eq? (avcodec-context-pix-fmt ctx) 'yuv420p))
                                (alloc-frame ctx)))
-        (avcodec-parameters-from-context (avstream-codecpar str) ctx)])]))
+        (avcodec-parameters-from-context (avstream-codecpar str) ctx)]
+       ['write (error "TODO")]
+       ['close (error "TODO")])]))
 
 (define (empty-encoder-audio-proc mode obj)
   (match mode
@@ -109,7 +112,9 @@
              'stereo))
         (set-avcodec-context-channels!
          ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
-        (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))])]))
+        (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))]
+       ['write (error "TODO")]
+       ['close (error "TODO")])]))
 
 ;; (U av-dictionary Hash #f) -> av-dictionary
 (define (convert-dict dict)
@@ -144,7 +149,7 @@
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-copy-context codec old-codec-ctx))
       (avcodec-open2 codec-ctx codec #f)
-      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f))
+      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f 0))
       (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
         (error 'decoder-stream "Stream type ~a already present" codec-name))
       (hash-set! stream-table codec-name obj)
@@ -287,16 +292,21 @@
         (for/fold ([min-stream #f])
                   ([i (in-set remaining-streams)])
           (if min-stream
-              (match (av-compare-ts (error "TODO"))
-                [-1 (error "TODO")]
-                [0 (error "TODO")]
-                [1 (error "TODO")])
+              (match (av-compare-ts (codec-obj-next-pts min-stream)
+                                    (avstream-time-base (codec-obj-stream min-stream))
+                                    (codec-obj-next-pts i)
+                                    (avstream-time-base (codec-obj-stream i)))
+                [(or -1 0) min-stream]
+                [1 i])
               min-stream)))
-      (match (codec-obj-type min-stream)
-        ['video (video-callback 'write min-stream)]
-        ['audio (audio-callback 'write min-stream)]
-        ['subtitle (subtitle-callback 'write min-stream)]
-        [else (void)])
+      (define stream-finished?
+        (match (codec-obj-type min-stream)
+          ['video (video-callback 'write min-stream)]
+          ['audio (audio-callback 'write min-stream)]
+          ['subtitle (subtitle-callback 'write min-stream)]
+          [else (void)]))
+      (when stream-finished?
+        (set-remove! remaining-streams min-stream))
       (loop)))
   (av-write-trailer output-context)
   ;; Clean Up
@@ -311,3 +321,7 @@
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))
+
+(define (link producer-proc
+              consumer-proc)
+  (error "TODO"))
