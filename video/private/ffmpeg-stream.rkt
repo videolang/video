@@ -26,8 +26,15 @@
          "threading.rkt")
 
 (struct stream-bundle (streams
-                       avformat-context)
+                       avformat-context
+                       options-dict
+                       file)
   #:mutable)
+(define (mk-stream-bundle #:streams [s '()]
+                          #:avformat-context [ctx #f]
+                          #:options [o #f]
+                          #:file [f #f])
+  (stream-bundle s ctx o f))
 
 (struct codec-obj (orig-codec-context
                    type
@@ -54,85 +61,6 @@
   (when packet
     (av-packet-unref packet)))
 
-(define (empty-encoder-video-proc mode obj)
-  (match obj
-    [(struct* codec-obj
-              ([codec-context ctx]
-               [id codec-id]
-               [stream str]))
-     (match mode
-       ['get #f]
-       ['get-context
-        (set-avcodec-context-codec-id! ctx codec-id)
-        (set-avcodec-context-bit-rate! ctx 400000)
-        (set-avcodec-context-width! ctx 1920)
-        (set-avcodec-context-height! ctx 1080)
-        (set-avstream-time-base! str 25)
-        (set-avcodec-context-time-base! ctx 25)
-        (set-avcodec-context-gop-size! ctx 12)
-        (set-avcodec-context-pix-fmt! ctx 'yuv420p)
-        (when (eq? codec-id 'mpeg2video)
-          (set-avcodec-context-max-b-frames! ctx 2))
-        (when (eq? codec-id 'mpeg1video)
-          (set-avcodec-context-mb-decision! ctx 2))]
-       ['open
-        (define (alloc-frame ctx)
-          (define frame (av-frame-alloc))
-          (set-av-frame-format! frame (avcodec-context-pix-fmt ctx))
-          (set-av-frame-width! frame (avcodec-context-width ctx))
-          (set-av-frame-height! frame (avcodec-context-height ctx))
-          (av-frame-get-buffer frame 32))
-        (define frame (alloc-frame ctx))
-        (define tmp-frame (and (not (eq? (avcodec-context-pix-fmt ctx) 'yuv420p))
-                               (alloc-frame ctx)))
-        (avcodec-parameters-from-context (avstream-codecpar str) ctx)]
-       ['write (error "TODO")]
-       ['close (error "TODO")])]))
-
-(define (empty-encoder-audio-proc mode obj)
-  (match mode
-    ['get #f]
-    ['get-context
-     (match obj
-       [(struct* codec-obj
-                 ([codec-context ctx]
-                  [codec codec]
-                  [stream str]))
-        (set-avcodec-context-sample-fmt!
-         ctx (if (avcodec-sample-fmts codec)
-                 (ptr-ref (avcodec-sample-fmts codec))
-                 'fltp))
-        (set-avcodec-context-bit-rate! ctx 64000)
-        (define supported-samplerates (avcodec-supported-samplerates codec))
-        (set-avcodec-context-sample-rate!
-         ctx
-         (if supported-samplerates
-             (let loop ([rate #f]
-                        [offset 0])
-               (define new-rate (ptr-ref (avcodec-supported-samplerates codec)
-                                         offset))
-               (cond [(= new-rate 44100) new-rate]
-                     [(= new-rate 0) (or rate 44100)]
-                     [else (loop (or rate new-rate) (add1 offset))]))
-             44100))
-        (define supported-layouts (avcodec-channel-layouts codec))
-        (set-avcodec-context-channel-layout!
-         ctx
-         (if supported-layouts
-             (let loop ([layout #f]
-                        [offset 0])
-               (define new-layout (ptr-ref (avcodec-channel-layouts codec)
-                                           offset))
-               (cond [(set-member? new-layout 'stereo) 'stereo]
-                     [(set-empty? new-layout) (or layout 'stereo)]
-                     [else (loop (or layout new-layout) (add1 offset))]))
-             'stereo))
-        (set-avcodec-context-channels!
-         ctx (av-get-channel-layout-nb-channels (avcodec-context-channel-layout ctx)))
-        (set-avstream-time-base! str (/ 1 (avcodec-context-sample-rate ctx)))]
-       ['write (error "TODO")]
-       ['close (error "TODO")])]))
-
 ;; (U av-dictionary Hash #f) -> av-dictionary
 (define (convert-dict dict)
   (cond
@@ -147,14 +75,8 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
-  (stream-bundle raw-strs avformat))
-
-(define (close-stream-bundle bundle)
-  (match bundle
-    [(struct* stream-bundle
-              ([streams streams]
-               [avformat-context avformat]))
-     (avformat-close-input avformat)]))
+  (mk-stream-bundle #:streams raw-strs
+                    #:avformat avformat))
 
 ;; Callback ops:
 ;;   'init
@@ -234,45 +156,49 @@
        (when by-index-callback
          (by-index-callback 'close i #f))
        (avcodec-close orig-codec-context) ;; XXX, should probably nix, deprecated
-       (avcodec-close codec-context)])))
+       (avcodec-close codec-context)]))
+  (avformat-close-input avformat))
+
+(define (bundle-for-file file bundle
+                         #:options-dict [options-dict #f])
+  (define streams
+    (for/vector ([i (stream-bundle-streams bundle)])
+      (match i
+        [(struct* codec-obj ([type t]
+                             [id i]))
+         (mk-codec-obj #:type t
+                       #:id i)]
+        [x (mk-codec-obj #:type x)])))
+  (define output-context
+    (avformat-alloc-output-context2 #f #f file))
+  (mk-stream-bundle #:avformat-context output-context
+                    #:options-dict options-dict
+                    #:file file))
 
 ;; Callback ops:
-;;   'count
-;;   'get
-;;   'get-context
+;;   'init
 ;;   'open
 ;;   'write
 ;;   'close
-(define (mux-stream file
-                        #:options-dict [options-dict #f]
-                        #:video-callback [video-callback empty-encoder-video-proc]
-                        #:audio-callback [audio-callback empty-encoder-audio-proc]
-                        #:subtitle-callback [subtitle-callback empty-proc]
-                        #:data-callback [data-callback empty-proc]
-                        #:attachment-callback [attachment-callback empty-proc]
-                        #:by-index-callback [by-index-callback #f])
+(define (mux-stream bundle
+                    #:video-callback [video-callback empty-proc]
+                    #:audio-callback [audio-callback empty-proc]
+                    #:subtitle-callback [subtitle-callback empty-proc]
+                    #:data-callback [data-callback empty-proc]
+                    #:attachment-callback [attachment-callback empty-proc]
+                    #:by-index-callback [by-index-callback #f])
   ;; Initial Setup
   (define output-context
-    (avformat-alloc-output-context2 #f #f file))
-  (define options (convert-dict options-dict))
+    (stream-bundle-avformat-context bundle))
+  (define options (convert-dict (stream-bundle-options-dict bundle)))
+  (define file (stream-bundle-file bundle))
   (define format (avformat-context-oformat output-context))
   (define video-codec (av-output-format-video-codec format))
   (define audio-codec (av-output-format-audio-codec format))
   (define subtitle-codec (av-output-format-subtitle-codec format))
   ;; Get streams
   (define stream-table (make-hash))
-  (define streams
-    (cond [by-index-callback
-           (for/vector ([i (in-range (by-index-callback 'count))])
-             (by-index-callback 'get i))]
-          [else
-           (and video-callback (hash-set! stream-table 'video (video-callback 'get)))
-           (and audio-callback (hash-set! stream-table 'audio (audio-callback 'get)))
-           (and subtitle-callback (hash-set! stream-table 'subtitle (subtitle-callback 'get)))
-           (and data-callback (hash-set! stream-table 'data (data-callback 'get)))
-           (and attachment-callback (hash-set! stream-table 'attachment (attachment-callback 'get)))
-           (for/vector ([(k v) (in-hash stream-table)])
-             v)]))
+  (define streams (stream-bundle-streams bundle))
   ;; Get codec and other attributes of decoded video
   (for ([i (in-vector streams)])
     (match i
@@ -295,9 +221,9 @@
        (define ctx (avcodec-alloc-context3 codec))
        (set-codec-obj-codec-context! i ctx)
        (match type
-         ['video (video-callback 'get-context i)]
-         ['audio (audio-callback 'get-context i)]
-         ['subtitle (subtitle-callback 'get-context i)]
+         ['video (video-callback 'init i)]
+         ['audio (audio-callback 'init i)]
+         ['subtitle (subtitle-callback 'init i)]
          [else (void)])
        (when (set-member? (avformat-context-flags output-context) 'globalheader)
          (set-add! (avcodec-context-flags ctx) 'global-heade))]))
@@ -371,22 +297,19 @@
 
 (define (link infile
               outfile)
-  (define bundle (file->stream-bundle infile))
-  (dynamic-wind
-   (λ () (void))
-   (λ ()
-     (define (dequeue-stream mode obj)
-       (match obj
-         [(struct* codec-obj ())
-          (match mode
-            ['count (length (stream-bundle-streams bundle))]
-            [else (void)])]))
-     (define in-thread
-       (thread
-        (λ () (demux-stream infile #:by-index-callback queue-stream))))
-     (define out-thread
-       (thread
-        (λ () (mux-stream outfile (error "TODO")))))
-     (thread-wait in-thread)
-     (thread-wait out-thread))
-  (λ () (close-stream-bundle bundle))))
+  (define in-bundle (file->stream-bundle infile))
+  (define out-bundle (bundle-for-file outfile
+                                      (map codec-obj-type in-bundle)))
+  (define (dequeue-stream mode obj)
+    (match obj
+      [(struct* codec-obj ([callback-data callback-data]))
+       (match mode
+         [else (void)])]))
+  (define in-thread
+    (thread
+     (λ () (demux-stream in-bundle #:by-index-callback queue-stream))))
+  (define out-thread
+    (thread
+     (λ () (mux-stream out-bundle (error "TODO")))))
+  (thread-wait in-thread)
+  (thread-wait out-thread))
