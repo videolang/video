@@ -54,9 +54,10 @@
      (set-packetqueue-last! q p*)
      (set-packetqueue-nb-packets!
       q (add1 (packetqueue-nb-packets q)))
-     (set-packetqueue-size!
-      q (+ (packetqueue-nb-packets q)
-           (avpacket-size p)))
+     (when (avpacket? p)
+       (set-packetqueue-size!
+        q (+ (packetqueue-nb-packets q)
+             (avpacket-size p))))
      (cond-signal (packetqueue-cond q)))
    (λ () (mutex-unlock (packetqueue-mutex q)))))
 (define (packetqueue-get q [wait #t])
@@ -70,9 +71,10 @@
                q (packet-link-next p))
               (set-packetqueue-nb-packets!
                q (sub1 (packetqueue-nb-packets q)))
-              (set-packetqueue-size!
-               q (- (packetqueue-size q)
-                    (avpacket-size (packet-link-packet p))))
+              (when (avpacket? (packet-link-packet p))
+                (set-packetqueue-size!
+                 q (- (packetqueue-size q)
+                      (avpacket-size (packet-link-packet p)))))
               (packet-link-packet p)]
              [wait (cond-wait (packetqueue-cond q)
                               (packetqueue-mutex q))

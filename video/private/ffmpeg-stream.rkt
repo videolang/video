@@ -25,16 +25,33 @@
          "ffmpeg.rkt"
          "threading.rkt")
 
-(struct stream-bundle (streams
+(struct stream-bundle (raw-streams
+                       cooked-streams
+                       streams-ready-lock
                        avformat-context
                        options-dict
                        file)
   #:mutable)
-(define (mk-stream-bundle #:streams [s '()]
+(define (mk-stream-bundle #:raw-streams [rs '()]
+                          #:streams [s '()]
                           #:avformat-context [ctx #f]
-                          #:options [o #f]
+                          #:options-dict [o #f]
                           #:file [f #f])
-  (stream-bundle s ctx o f))
+  (define streams-ready (mutex-create))
+  (register-mlt-close mutex-destroy streams-ready)
+  (mutex-lock streams-ready)
+  (stream-bundle rs s streams-ready ctx o f))
+(define (stream-bundle-post-streams-ready bundle)
+  (mutex-unlock (stream-bundle-streams-ready-lock bundle)))
+(define (stream-bundle-streams-ready? bundle)
+  (mutex-lock (stream-bundle-streams-ready-lock bundle))
+  (mutex-unlock (stream-bundle-streams-ready-lock bundle)))
+(define (stream-bundle-streams bundle)
+  (stream-bundle-streams-ready? bundle)
+  (stream-bundle-cooked-streams bundle))
+(define (set-stream-bundle-streams! bundle streams)
+  (set-stream-bundle-cooked-streams! bundle streams)
+  (stream-bundle-post-streams-ready bundle))
 
 (struct codec-obj (orig-codec-context
                    type
@@ -75,7 +92,7 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
-  (mk-stream-bundle #:streams raw-strs
+  (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat))
 
 ;; Callback ops:
@@ -91,7 +108,7 @@
                       #:by-index-callback [by-index-callback #f])
   ;; Open file
   (define avformat (stream-bundle-avformat-context bundle))
-  (define raw-strs (stream-bundle-streams bundle))
+  (define raw-strs (stream-bundle-raw-streams bundle))
   ;(av-dump-format avformat 0 testfile 0)
   ;; Init Streams
   (define stream-table (make-hash))
@@ -119,6 +136,7 @@
         ['subtitle (subtitle-callback 'init v #f)]
         ['data (data-callback 'init v #f)]
         ['attachment (attachment-callback 'init v #f)])))
+  (set-stream-bundle-streams! bundle streams)
   ;; Main Loop
   (let loop ()
     (define packet (av-read-frame avformat))
@@ -160,6 +178,8 @@
   (avformat-close-input avformat))
 
 (define (bundle-for-file file bundle
+                         #:output-format [output-format #f]
+                         #:format-name [format-name #f]
                          #:options-dict [options-dict #f])
   (define streams
     (for/vector ([i (stream-bundle-streams bundle)])
@@ -170,7 +190,7 @@
                        #:id i)]
         [x (mk-codec-obj #:type x)])))
   (define output-context
-    (avformat-alloc-output-context2 #f #f file))
+    (avformat-alloc-output-context2 output-format format-name file))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
                     #:file file))
@@ -291,9 +311,9 @@
   (match obj
     [(struct* codec-obj ([callback-data callback-data]))
      (match mode
-       ['init (set-codec-obj-callback-data! (mk-packetqueue))]
+       ['init (set-codec-obj-callback-data! obj (mk-packetqueue))]
        ['loop (packetqueue-put callback-data packet)]
-       ['close (packetqueue-put eof)])]))
+       ['close (packetqueue-put callback-data eof)])]))
 
 (define ((dequeue-stream passthrough-proc) mode obj)
   (match obj
@@ -312,11 +332,11 @@
 (define (link infile
               outfile)
   (define in-bundle (file->stream-bundle infile))
-  (define out-bundle (bundle-for-file outfile
-                                      (map codec-obj-type in-bundle)))
   (define in-thread
     (thread
      (λ () (demux-stream in-bundle #:by-index-callback queue-stream))))
+  (define out-bundle (bundle-for-file outfile
+                                      (map codec-obj-type in-bundle)))
   (define out-thread
     (thread
      (λ () (mux-stream out-bundle (error "TODO")))))
