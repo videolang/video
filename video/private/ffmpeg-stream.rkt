@@ -76,7 +76,7 @@
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
   (mk-stream-bundle #:streams raw-strs
-                    #:avformat avformat))
+                    #:avformat-context avformat))
 
 ;; Callback ops:
 ;;   'init
@@ -238,11 +238,11 @@
        (define str-opt (av-dict-copy options #f))
        (avcodec-open2 ctx codec str-opt)
        (av-dict-free str-opt)
+       (avcodec-parameters-from-context (avstream-codecpar stream) ctx)
        (match type
          ['video (video-callback 'open i)]
          ['audio (audio-callback 'open i)]
-         [else (void)])
-       (void)]))
+         [else (void)])]))
   ;; Create file.
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-open (avformat-context-pb output-context) file 'write))
@@ -293,18 +293,27 @@
      (match mode
        ['init (set-codec-obj-callback-data! (mk-packetqueue))]
        ['loop (packetqueue-put callback-data packet)]
-       [else (void)])]))
+       ['close (packetqueue-put eof)])]))
+
+(define ((dequeue-stream passthrough-proc) mode obj)
+  (match obj
+    [(struct* codec-obj ([callback-data callback-data]))
+     (match mode
+       ['init (passthrough-proc mode obj)]
+       ['open (passthrough-proc mode obj)]
+       ['write (define packet (packetqueue-get callback-data))
+               (cond
+                 [(eof-object? packet) #f]
+                 [else
+                  (passthrough-proc mode obj packet)
+                  #t])]
+       ['close (passthrough-proc mode obj)])]))
 
 (define (link infile
               outfile)
   (define in-bundle (file->stream-bundle infile))
   (define out-bundle (bundle-for-file outfile
                                       (map codec-obj-type in-bundle)))
-  (define (dequeue-stream mode obj)
-    (match obj
-      [(struct* codec-obj ([callback-data callback-data]))
-       (match mode
-         [else (void)])]))
   (define in-thread
     (thread
      (λ () (demux-stream in-bundle #:by-index-callback queue-stream))))

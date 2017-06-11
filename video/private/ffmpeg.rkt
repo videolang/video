@@ -128,7 +128,7 @@
               notimestamps = #x80
               generic-index = #x100
               ts-discound = #x200
-              variable-fps #x400
+              variable-fps = #x400
               nodimensions = #x800
               nostreams = #x1000
               nobinsearch = #x2000
