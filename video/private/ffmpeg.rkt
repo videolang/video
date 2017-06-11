@@ -856,7 +856,7 @@
 (define-cstruct _avstream
   ([index _int]
    [id _int]
-   [codec _avcodec-context-pointer]
+   [codec _avcodec-context-pointer] ;; Deprecated/will remove
    [priv-data _pointer]
    [time-base _avrational]
    [start-time _int64]

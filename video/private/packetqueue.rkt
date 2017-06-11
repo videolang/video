@@ -36,7 +36,7 @@
                      next)
   #:mutable)
 
-(define (mk-audioqueue)
+(define (mk-packetqueue)
   (define mutex (mutex-create))
   (define cond-var (cond-create))
   (register-mlt-close mutex-destroy mutex)

@@ -21,7 +21,13 @@
          ffi/unsafe
          racket/set
          "init-mlt.rkt"
-         "ffmpeg.rkt")
+         "packetqueue.rkt"
+         "ffmpeg.rkt"
+         "threading.rkt")
+
+(struct stream-bundle (streams
+                       avformat-context)
+  #:mutable)
 
 (struct codec-obj (orig-codec-context
                    type
@@ -30,8 +36,19 @@
                    codec
                    codec-context
                    stream
-                   next-pts)
+                   next-pts
+                   callback-data)
   #:mutable)
+(define (mk-codec-obj #:orig-codec-context [occ #f]
+                      #:type [t #f]
+                      #:index [i #f]
+                      #:id [id #f]
+                      #:codec [codec #f]
+                      #:codec-context [codec-context #f]
+                      #:stream [s #f]
+                      #:next-pts [n #f]
+                      #:callback-data [cd #f])
+  (codec-obj occ t i id codec codec-context s n cd))
 
 (define (empty-proc mode obj packet)
   (when packet
@@ -126,19 +143,35 @@
      ret]
     [else dict]))
 
-(define (decoder-stream file
-                        #:video-callback [video-callback empty-proc]
-                        #:audio-callback [audio-callback empty-proc]
-                        #:subtitle-callback [subtitle-callback empty-proc]
-                        #:data-callback [data-callback empty-proc]
-                        #:attachment-callback [attachment-callback empty-proc]
-                        #:by-index-callback [by-index-callback #f])
-  ;; Open file
+(define (file->stream-bundle file)
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
+  (define raw-strs (avformat-context-streams avformat))
+  (stream-bundle raw-strs avformat))
+
+(define (close-stream-bundle bundle)
+  (match bundle
+    [(struct* stream-bundle
+              ([streams streams]
+               [avformat-context avformat]))
+     (avformat-close-input avformat)]))
+
+;; Callback ops:
+;;   'init
+;;   'loop
+;;   'close
+(define (demux-stream bundle
+                      #:video-callback [video-callback empty-proc]
+                      #:audio-callback [audio-callback empty-proc]
+                      #:subtitle-callback [subtitle-callback empty-proc]
+                      #:data-callback [data-callback empty-proc]
+                      #:attachment-callback [attachment-callback empty-proc]
+                      #:by-index-callback [by-index-callback #f])
+  ;; Open file
+  (define avformat (stream-bundle-avformat-context bundle))
+  (define raw-strs (stream-bundle-streams bundle))
   ;(av-dump-format avformat 0 testfile 0)
   ;; Init Streams
-  (define raw-strs (avformat-context-streams avformat))
   (define stream-table (make-hash))
   (define streams
     (for/vector ([i raw-strs]
@@ -149,7 +182,7 @@
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-copy-context codec old-codec-ctx))
       (avcodec-open2 codec-ctx codec #f)
-      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f 0))
+      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f 0 #f))
       (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
         (error 'decoder-stream "Stream type ~a already present" codec-name))
       (hash-set! stream-table codec-name obj)
@@ -200,11 +233,17 @@
                  [index index]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (avcodec-close orig-codec-context)
-       (avcodec-close codec-context)]))
-  (avformat-close-input avformat))
+       (avcodec-close orig-codec-context) ;; XXX, should probably nix, deprecated
+       (avcodec-close codec-context)])))
 
-(define (encoder-stream file
+;; Callback ops:
+;;   'count
+;;   'get
+;;   'get-context
+;;   'open
+;;   'write
+;;   'close
+(define (mux-stream file
                         #:options-dict [options-dict #f]
                         #:video-callback [video-callback empty-encoder-video-proc]
                         #:audio-callback [audio-callback empty-encoder-audio-proc]
@@ -322,6 +361,32 @@
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))
 
-(define (link producer-proc
-              consumer-proc)
-  (error "TODO"))
+(define (queue-stream mode obj packet)
+  (match obj
+    [(struct* codec-obj ([callback-data callback-data]))
+     (match mode
+       ['init (set-codec-obj-callback-data! (mk-packetqueue))]
+       ['loop (packetqueue-put callback-data packet)]
+       [else (void)])]))
+
+(define (link infile
+              outfile)
+  (define bundle (file->stream-bundle infile))
+  (dynamic-wind
+   (λ () (void))
+   (λ ()
+     (define (dequeue-stream mode obj)
+       (match obj
+         [(struct* codec-obj ())
+          (match mode
+            ['count (length (stream-bundle-streams bundle))]
+            [else (void)])]))
+     (define in-thread
+       (thread
+        (λ () (demux-stream infile #:by-index-callback queue-stream))))
+     (define out-thread
+       (thread
+        (λ () (mux-stream outfile (error "TODO")))))
+     (thread-wait in-thread)
+     (thread-wait out-thread))
+  (λ () (close-stream-bundle bundle))))
