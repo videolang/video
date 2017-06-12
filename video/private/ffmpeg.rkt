@@ -50,10 +50,10 @@
   (bytes->string/locale (integer->integer-bytes (abs err) 4 #t)))
 
 (define (MK-TAG [a #\space] [b #\space] [c #\space] [d #\space])
-  (integer-bytes->integer (bytes (char->integer a)
-                                 (char->integer b)
-                                 (char->integer c)
-                                 (char->integer d))
+  (integer-bytes->integer (bytes (if (integer? a) a (char->integer a))
+                                 (if (integer? a) a (char->integer b))
+                                 (if (integer? a) a (char->integer c))
+                                 (if (integer? a) a (char->integer d)))
                           #t))
 
 (define (FFERRTAG [a #\space] [b #\space] [c #\space] [d #\space])
@@ -64,6 +64,8 @@
 (define AVERROR-BUG              (FFERRTAG #\B #\U #\G #\!))
 (define AVERROR-BUFFER_TOO_SMALL (FFERRTAG #\B #\U #\F #\S))
 (define AVERROR-EXIT             (FFERRTAG #\E #\X #\I #\T))
+(define AVERROR-STREAM-NOT-FOUND (FFERRTAG #xf8 #\S #\T #\R))
+(define AVERROR-DECODER-NOT-FOUND (FFERRTAG #xf8 #\D #\E #\C))
 
 (define AV-NUM-DATA-POINTERS 8)
 (define MAX-REORDER-DELAY 16)
@@ -1286,6 +1288,15 @@
                                   -> (cond
                                        [(= ret 0) (void)]
                                        [else (error 'avio-close (convert-err ret))])))
+(define-avformat avformat-find-best-stream (_fun _avformat-context-pointer
+                                                 _avmedia-type
+                                                 _int
+                                                 _int
+                                                 (_ptr io _avcodec-pointer)
+                                                 _int
+                                                 -> [ret : _int]
+                                                 -> (cond [(>= ret 0) ret]
+                                                          [else (raise (convert-err ret))])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
@@ -1318,6 +1329,12 @@
   (define context*
     (or context param/context))
   (avcodec-parameters-from-context param context*))
+(define-avcodec avcodec-parameters-to-context
+  (_fun _avcodec-context-pointer _avcodec-parameters-pointer
+        -> [ret : _int]
+        -> (cond
+             [(>= ret 0) (void)]
+             [else (error 'parameters-to-context (convert-err ret))])))
 (define-avcodec avcodec-open2 (_fun _avcodec-context-pointer _avcodec-pointer _pointer
                                     -> [ret : _bool]
                                     -> (when ret
@@ -1483,3 +1500,14 @@
 (define-avfilter avfilter-register-all (_fun -> _void))
 (define-avfilter avfilter-graph-alloc (_fun -> _avfilter-graph-pointer))
 (define-avfilter avfilter-graph-free (_fun (_ptr io _avfilter-graph-pointer/null) -> _void))
+(define-avfilter avfilter-graph-create-filter
+  (_fun [out : (_ptr o _avfilter-context-pointer/null)]
+        _avfilter-pointer
+        _string
+        _string
+        _pointer
+        _avfilter-graph-pointer
+        -> [ret : _int]
+        -> (cond
+             [(>= ret 0) out]
+             [else (error 'graph-create-filter (convert-err ret))])))
