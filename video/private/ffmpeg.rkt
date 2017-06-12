@@ -976,6 +976,34 @@
   ([count _int]
    [elems _av-dictionary-entry-pointer]))
 
+(define-cstruct _avfilter-pad
+  ([name _string]
+   [type _avmedia-type]
+   [get-video-buffer _fpointer]
+   [get-audio-buffer _fpointer]
+   [filter-frame _fpointer]
+   [poll-frame _fpointer]
+   [request-frame _fpointer]
+   [config-props _fpointer]
+   [needs-fifo _int]
+   [needs-writable _int]))
+
+(define-cstruct _avfilter
+  ([name _string]
+   [description _string]
+   [inputs _avfilter-pad-pointer/null]
+   [outputs _avfilter-pad-pointer/null]
+   [priv-class _pointer]
+   [flags _int]
+   [init _fpointer]
+   [init-dict _fpointer]
+   [uninit _fpointer]
+   [query-formats _fpointer]
+   [priv-size _int]
+   [next _avfilter-pointer/null]
+   [process-command _fpointer]
+   [init-opaque _fpointer]))
+
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
