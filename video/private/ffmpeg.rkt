@@ -185,6 +185,17 @@
               dont-strdup-val
               dont-overwrite
               append)))
+(define _avfilter-flags
+  (_bitmask `(dynamic-inputs
+              dynamic-outputs
+              slice-threads
+              support-timeline-generic = ,(arithmetic-shift 1 16)
+              support-timeline-internal
+              support-timeline = ,(bitwise-ior (arithmetic-shift 1 16)
+                                               (arithmetic-shift 1 17)))))
+(define _avfilter-command-flags
+  (_bitmask `(one
+              fast)))
 
 (define _avcodec-id (_enum '(none
                              
@@ -281,7 +292,101 @@
                              vp6
                              vp6f
                              targa
-                             dsicinvideo ;; XXX More
+                             dsicinvideo
+                             tiertexseqvideo
+                             tiff
+                             gif
+                             dxa
+                             dnxhd
+                             thp
+                             sgi
+                             c93
+                             bethsoftvid
+                             ptx
+                             txd
+                             vp6a
+                             amv
+                             vb
+                             pcx
+                             sunrast
+                             indeo4
+                             indeo5
+                             mimic
+                             rl2
+                             escape124
+                             dirac
+                             bfi
+                             cmv
+                             motionpixels
+                             tgv
+                             tgq
+                             tqi
+                             aura
+                             aura2
+                             v210x
+                             tmv
+                             v210
+                             dpx
+                             mad
+                             frwu
+                             flashsv2
+                             cdgraphics
+                             r210
+                             anm
+                             binkvideo
+                             iff-ilbm
+                             kgvi
+                             yop
+                             vp8
+                             pictor
+                             ansi
+                             a64-multi
+                             a64-multi5
+                             r10k
+                             mxpeg
+                             lagarith
+                             prores
+                             jv
+                             dfa
+                             wmv3image
+                             vc1image
+                             utvideo
+                             dxtory
+                             v410
+                             xwd
+                             cdxl
+                             xbm
+                             zerocodec
+                             mss1
+                             msa1
+                             tscc2
+                             mts2
+                             cllc
+                             mss2
+                             vp9
+                             aic
+                             escape130
+                             g2m
+                             webp
+                             hevc
+                             fic
+                             alias-pix
+                             brender-pix
+                             paf-video
+                             exp
+                             vp7
+                             sanm
+                             sgirle
+                             mvc1
+                             mvc2
+                             hqx
+                             tdsc
+                             hq-hqa
+                             hap
+                             dos
+                             dxv
+                             screenpresso
+                             rscc
 
                              ;; XXX MORE
 
@@ -1028,7 +1133,7 @@
    [inputs _avfilter-pad-pointer/null]
    [outputs _avfilter-pad-pointer/null]
    [priv-class _pointer]
-   [flags _int]
+   [flags _avfilter-flags]
    [init _fpointer]
    [init-dict _fpointer]
    [uninit _fpointer]
@@ -1056,6 +1161,26 @@
    [aresample-swr-opts _pointer]
    [sink-links _pointer]
    [disable-auto-convert _uint]))
+
+(define-cstruct _avfilter-command
+  ([time _double]
+   [command _string]
+   [arg _string]
+   [flags _avfilter-command-flags]
+   [next _avfilter-command-pointer]))
+
+(define-cstruct _avfilter-context
+  ([av-class _avclass-pointer]
+   [filter _avfilter-pointer]
+   [name _string]
+   [input-count _uint]
+   [input-pads _avfilter-pad-pointer]
+   [inputs (_cpointer 'avfilter-link-pointer-pointer)]
+   [output-count _uint]
+   [output-pads _avfilter-pad-pointer]
+   [outputs (_cpointer 'avfilter-link-pointer-pointerr)]
+   [priv _pointer]
+   [commandqueue _avfilter-command-pointer]))
 
 ;; ===================================================================================================
 
@@ -1356,3 +1481,5 @@
                                      -> _int))
 
 (define-avfilter avfilter-register-all (_fun -> _void))
+(define-avfilter avfilter-graph-alloc (_fun -> _avfilter-graph-pointer))
+(define-avfilter avfilter-graph-free (_fun (_ptr io _avfilter-graph-pointer/null) -> _void))
