@@ -220,7 +220,8 @@
   (define stream-table (make-hash))
   (define streams (stream-bundle-streams bundle))
   ;; Get codec and other attributes of decoded video
-  (for ([i (in-vector streams)])
+  (for ([i (in-vector streams)]
+        [index (in-naturals)])
     (match i
       [(struct* codec-obj
                 ([id id]
@@ -237,14 +238,18 @@
        (define str (avformat-new-stream output-context #f))
        (set-codec-obj-stream! i str)
        (set-codec-obj-id! i codec-id)
+       (set-codec-obj-index! i index)
        (set-avstream-id! str (sub1 (avformat-context-nb-streams output-context)))
        (define ctx (avcodec-alloc-context3 codec))
        (set-codec-obj-codec-context! i ctx)
-       (match type
-         ['video (video-callback 'init i)]
-         ['audio (audio-callback 'init i)]
-         ['subtitle (subtitle-callback 'init i)]
-         [else (void)])
+       (if by-index-callback
+           (by-index-callback 'init i)
+           (match type
+             ['video (video-callback 'init i)]
+             ['audio (audio-callback 'init i)]
+             ['subtitle (subtitle-callback 'init i)]
+             ['data (data-callback 'init i)]
+             ['attachment (attachment-callback 'init i)]))
        (when (set-member? (avformat-context-flags output-context) 'globalheader)
          (set-add! (avcodec-context-flags ctx) 'global-heade))]))
   ;; Open Streams
@@ -259,10 +264,14 @@
        (avcodec-open2 ctx codec str-opt)
        (av-dict-free str-opt)
        (avcodec-parameters-from-context (avstream-codecpar stream) ctx)
-       (match type
-         ['video (video-callback 'open i)]
-         ['audio (audio-callback 'open i)]
-         [else (void)])]))
+       (if by-index-callback
+           (by-index-callback 'open i)
+           (match type
+             ['video (video-callback 'open i)]
+             ['audio (audio-callback 'open i)]
+             ['subtitle (subtitle-callback 'open i)]
+             ['data (data-callback 'open i)]
+             ['attachment (attachment-callback 'open i)]))]))
   ;; Create file.
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-open (avformat-context-pb output-context) file 'write))
@@ -284,14 +293,18 @@
                 [(or -1 0) min-stream]
                 [1 i])
               min-stream)))
-      (define stream-finished?
-        (match (codec-obj-type min-stream)
-          ['video (video-callback 'write min-stream)]
-          ['audio (audio-callback 'write min-stream)]
-          ['subtitle (subtitle-callback 'write min-stream)]
-          [else (void)]))
-      (when stream-finished?
-        (set-remove! remaining-streams min-stream))
+      (define next-packet
+        (if by-index-callback
+            (by-index-callback 'write min-stream)
+            (match (codec-obj-type min-stream)
+              ['video (video-callback 'write min-stream)]
+              ['audio (audio-callback 'write min-stream)]
+              ['subtitle (subtitle-callback 'write min-stream)]
+              ['data (data-callback 'write min-stream)]
+              ['attachment (attachment-callback 'write min-stream)])))
+      (cond [(eof-object? next-packet)
+             (set-remove! remaining-streams min-stream)]
+            [else (av-interleaved-write-frame output-context next-packet)])
       (loop)))
   (av-write-trailer output-context)
   ;; Clean Up
@@ -299,10 +312,14 @@
     (match i
       [(struct* codec-obj
                 ([type type]))
-       (match type
-         ['video (video-callback 'close i)]
-         ['audio (audio-callback 'close i)]
-         ['subtitle (subtitle-callback 'close i)])]))
+       (if by-index-callback
+           (by-index-callback 'close i)
+           (match type
+             ['video (video-callback 'close i)]
+             ['audio (audio-callback 'close i)]
+             ['subtitle (subtitle-callback 'close i)]
+             ['data (data-callback 'close i)]
+             ['attachment (attachment-callback 'close i)]))]))
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))

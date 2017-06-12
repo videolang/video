@@ -83,6 +83,7 @@
 (struct exn:ffmpeg exn ())
 (struct exn:ffmpeg:again exn:ffmpeg ())
 (struct exn:ffmpeg:eof exn:ffmpeg ())
+(struct exn:ffmpeg:flush exn:ffmpeg ())
 
 ;; ===================================================================================================
 
@@ -1023,6 +1024,8 @@
                                      -> [ret : _int]
                                      -> (unless (= ret 0)
                                           (error "dup-packet?"))))
+(define-avformat av-packet-rescale-ts (_fun _avpacket-pointer _avrational _avrational
+                                            -> _void))
 (define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
 (define-avformat avformat-alloc-output-context2
   (_fun [out : (_ptr o _avformat-context-pointer)] _av-output-format-pointer/null _string _string
@@ -1042,6 +1045,25 @@
                                         -> (cond
                                              [(= ret 0) (void)]
                                              [else (convert-err ret)])))
+(define-avformat av-write-frame (_fun _avformat-context-pointer _avpacket-pointer/null
+                                      -> [ret : _int]
+                                      -> (cond
+                                           [(= ret 0) (void)]
+                                           [(< ret 0) (error 'write-frame (convert-err ret))]
+                                           [(> ret 0)
+                                            (raise (exn:ffmpeg:flush
+                                                    "send-frame"
+                                                    (current-continuation-marks)))])))
+(define-avformat av-interleaved-write-frame (_fun _avformat-context-pointer _avpacket-pointer/null
+                                                  -> [ret : _int]
+                                                  -> (cond
+                                                       [(= ret 0) (void)]
+                                                       [(< ret 0)
+                                                        (error 'write-frame (convert-err ret))]
+                                                       [(> ret 0)
+                                                        (raise (exn:ffmpeg:flush
+                                                                "send-frame"
+                                                                (current-continuation-marks)))])))
 (define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer)] _string _avio-flags
                                  -> [ret : _int]
                                  -> (cond
