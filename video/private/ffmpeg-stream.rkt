@@ -32,14 +32,16 @@
                        options-dict
                        file)
   #:mutable)
-(define (mk-stream-bundle #:raw-streams [rs '()]
-                          #:streams [s '()]
+(define (mk-stream-bundle #:raw-streams [rs #'()]
+                          #:streams [s #'()]
+                          #:locked? [locked? #t]
                           #:avformat-context [ctx #f]
                           #:options-dict [o #f]
                           #:file [f #f])
   (define streams-ready (mutex-create))
   (register-mlt-close mutex-destroy streams-ready)
-  (mutex-lock streams-ready)
+  (when locked?
+    (mutex-lock streams-ready))
   (stream-bundle rs s streams-ready ctx o f))
 (define (stream-bundle-post-streams-ready bundle)
   (mutex-unlock (stream-bundle-streams-ready-lock bundle)))
@@ -193,7 +195,9 @@
     (avformat-alloc-output-context2 output-format format-name file))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
-                    #:file file))
+                    #:file file
+                    #:streams streams
+                    #:locked? #f))
 
 ;; Callback ops:
 ;;   'init
@@ -304,7 +308,15 @@
               ['attachment (attachment-callback 'write min-stream)])))
       (cond [(eof-object? next-packet)
              (set-remove! remaining-streams min-stream)]
-            [else (av-interleaved-write-frame output-context next-packet)])
+            [else
+             (match min-stream
+               [(struct* codec-obj ([codec-context codec-context]
+                                    [stream stream]))
+                (av-packet-rescale-ts next-packet
+                                      (avcodec-context-time-base codec-context)
+                                      (avstream-time-base stream))
+                (set-avpacket-stream-index! next-packet (avstream-index min-stream))
+                (av-interleaved-write-frame output-context next-packet)])])
       (loop)))
   (av-write-trailer output-context)
   ;; Clean Up
@@ -336,15 +348,15 @@
   (match obj
     [(struct* codec-obj ([callback-data callback-data]))
      (match mode
-       ['init (passthrough-proc mode obj)]
-       ['open (passthrough-proc mode obj)]
+       ['init (passthrough-proc mode obj #f)]
+       ['open (passthrough-proc mode obj #f)]
        ['write (define packet (packetqueue-get callback-data))
                (cond
                  [(eof-object? packet) #f]
                  [else
                   (passthrough-proc mode obj packet)
                   #t])]
-       ['close (passthrough-proc mode obj)])]))
+       ['close (passthrough-proc mode obj #f)])]))
 
 (define (link infile
               outfile)
