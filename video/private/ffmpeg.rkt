@@ -175,6 +175,13 @@
               read-write = 3
               nonblock = 8
               direct = #x8000)))
+(define _av-dictionary-flags
+  (_bitmask `(match-case
+              ignore-suffix
+              dont-strdup-key
+              dont-strdup-val
+              dont-overwrite
+              append)))
 
 (define _avcodec-id (_enum '(none
                              
@@ -1033,7 +1040,7 @@
         -> (cond
              [(>= ret 0) out]
              [else (error 'alloc-ouput-context2 (convert-err ret))])))
-(define-avformat avformat-new-stream (_fun _avformat-context-pointer _avcodec-pointer
+(define-avformat avformat-new-stream (_fun _avformat-context-pointer _avcodec-pointer/null
                                            -> _avstream-pointer))
 (define-avformat avformat-write-header
   (_fun _avformat-context-pointer (_ptr io _av-dictionary-pointer)
@@ -1218,13 +1225,20 @@
                                  -> (cond
                                       [(>= ret 0) out]
                                       [else (error 'av-dict-set (convert-err ret))])))
-(define-avutil av-dict-free (_fun (_ptr i _av-dictionary-pointer) -> _void))
+(define-avutil av-dict-free (_fun (_ptr i _av-dictionary-pointer/null) -> _void))
 (define-avutil av-dict-count (_fun _av-dictionary-pointer -> _int))
 (define-avutil av-dict-get (_fun _av-dictionary-pointer _string _av-dictionary-entry-pointer _int
                                  -> _av-dictionary-entry-pointer))
-(define-avutil av-dict-copy (_fun [out : (_ptr o _av-dictionary-pointer)] _av-dictionary-pointer _int
-                                  -> _void
-                                  -> out))
+(define (av-dict-copy dst/src src/flags [flags #f])
+  (define-avutil av-dict-copy (_fun [out : (_ptr io _av-dictionary-pointer/null)]
+                                    _av-dictionary-pointer/null
+                                    _av-dictionary-flags
+                                    -> _void
+                                    -> out))
+  (define dst (and flags dst/src))
+  (define src (if dst src/flags dst/src))
+  (define flgs (or flags src/flags))
+  (av-dict-copy dst src flgs))
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))

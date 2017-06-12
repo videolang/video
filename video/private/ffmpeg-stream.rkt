@@ -255,7 +255,8 @@
              ['data (data-callback 'init i)]
              ['attachment (attachment-callback 'init i)]))
        (when (set-member? (avformat-context-flags output-context) 'globalheader)
-         (set-add! (avcodec-context-flags ctx) 'global-heade))]))
+         (set-avcodec-context-flags!
+          ctx (set-add (avcodec-context-flags ctx) 'global-header)))]))
   ;; Open Streams
   (for ([i (in-vector streams)])
     (match i
@@ -264,7 +265,7 @@
                  [codec codec]
                  [codec-context ctx]
                  [stream stream]))
-       (define str-opt (av-dict-copy options #f))
+       (define str-opt (av-dict-copy options '()))
        (avcodec-open2 ctx codec str-opt)
        (av-dict-free str-opt)
        (avcodec-parameters-from-context (avstream-codecpar stream) ctx)
