@@ -345,19 +345,14 @@
        ['loop (packetqueue-put callback-data packet)]
        ['close (packetqueue-put callback-data eof)])]))
 
-(define ((dequeue-stream passthrough-proc) mode obj)
+(define (dequeue-stream mode obj)
   (match obj
     [(struct* codec-obj ([callback-data callback-data]))
      (match mode
-       ['init (passthrough-proc mode obj #f)]
-       ['open (passthrough-proc mode obj #f)]
-       ['write (define packet (packetqueue-get callback-data))
-               (cond
-                 [(eof-object? packet) #f]
-                 [else
-                  (passthrough-proc mode obj packet)
-                  #t])]
-       ['close (passthrough-proc mode obj #f)])]))
+       ['init (void)]
+       ['open (void)]
+       ['write (packetqueue-get callback-data)]
+       ['close (void)])]))
 
 (define (link infile
               outfile)

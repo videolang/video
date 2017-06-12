@@ -164,6 +164,7 @@
               pred
               interlaced-me = ,(arithmetic-shift 1 29)
               closed-gop = ,(arithmetic-shift 1 31))))
+
 (define _avcodec-flags2
   (_bitmask `(fast
               no-ouput = 4
@@ -174,12 +175,14 @@
               show-all = ,(arithmetic-shift 1 22)
               export-mvs = ,(arithmetic-shift 1 28)
               skip-manual)))
+
 (define _avio-flags
   (_bitmask `(read = 1
               write = 2
               read-write = 3
               nonblock = 8
               direct = #x8000)))
+
 (define _av-dictionary-flags
   (_bitmask `(match-case
               ignore-suffix
@@ -187,6 +190,7 @@
               dont-strdup-val
               dont-overwrite
               append)))
+
 (define _avfilter-flags
   (_bitmask `(dynamic-inputs
               dynamic-outputs
@@ -195,9 +199,16 @@
               support-timeline-internal
               support-timeline = ,(bitwise-ior (arithmetic-shift 1 16)
                                                (arithmetic-shift 1 17)))))
+
 (define _avfilter-command-flags
   (_bitmask `(one
               fast)))
+
+(define _av-buffer-sink-flags
+  (_bitmask '(peek
+              no-request)))
+
+;; ===================================================================================================
 
 (define _avcodec-id (_enum '(none
                              
@@ -508,6 +519,7 @@
                                  bgr444be
                                  ya8
                                  ))) ;; XXX And more! :)
+(define-cpointer-type _avpixel-format-pointer)
 
 (define _avcolor-transfer-characteristic _fixint)
 (define _avcolor-space _fixint)
@@ -1184,6 +1196,22 @@
    [priv _pointer]
    [commandqueue _avfilter-command-pointer]))
 
+(define-cstruct _avfilter-in-out
+  ([name _string]
+   [filter-ctx _avfilter-context-pointer]
+   [pad-idx _int]
+   [next _avfilter-in-out-pointer]))
+
+(define-cstruct _av-buffersink-params
+  ([pixel-fmts _avpixel-format-pointer/null]))
+
+(define-cstruct _av-buffersink-aparams
+  ([sample-fmts _avsample-format-pointer/null]
+   [channel-layout _pointer]
+   [channel-counts _pointer]
+   [all-channel-counts _int]
+   [sample-rates _int]))
+
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
@@ -1465,6 +1493,7 @@
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))
+(define-avutil av-strdup (_fun _string -> _pointer))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
@@ -1511,3 +1540,16 @@
         -> (cond
              [(>= ret 0) out]
              [else (error 'graph-create-filter (convert-err ret))])))
+(define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
+                                            -> (or ret (error 'avfilter "Invalid Filter Name"))))
+(define (av-buffersink-get-frame ptr [out #f])
+  (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
+                                                 -> [ret : _int]
+                                                 -> (cond
+                                                      [(>= ret 0) out]
+                                                      [else (error 'buffersink-get-frame
+                                                                   (convert-err ret))])))
+  (define o (or out (av-frame-alloc)))
+  (av-buffersink-get-frame ptr o))
+(define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
+(define-avfilter av-buffersink-aparams-alloc (_fun -> _av-buffersink-aparams-pointer))
