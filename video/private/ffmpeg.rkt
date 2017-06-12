@@ -40,6 +40,9 @@
 (define swresample-lib (ffi-lib "libswresample"))
 (define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
+(define avfilter-lib (ffi-lib "libavfilter"))
+(define-ffi-definer define-avfilter avfilter-lib
+  #:make-c-id convention:hyphen->underscore)
 
 ;; ===================================================================================================
 
@@ -425,7 +428,38 @@
 (define _avstream-parse-type _fixint)
 (define _avpicture-type _fixint)
 
+(define _avclass-category (_enum '(na = 0
+                                   input
+                                   output
+                                   muxer
+                                   demuxer
+                                   encoder
+                                   decoder
+                                   filter
+                                   bitstream-filter
+                                   swscaler
+                                   swresampler
+                                   device-video-output = 40
+                                   device-video-input
+                                   audio-output
+                                   audio-input
+                                   device-output
+                                   device-input
+                                   nb)))
+
 ;; ===================================================================================================
+
+(define-cstruct _avclass
+  ([class-name _string]
+   [item-name _fpointer]
+   [option _pointer]
+   [version _int]
+   [log-level-offset-offset _int]
+   [parent-log-context-offset _int]
+   [child-next _pointer]
+   [catagory _avclass-category]
+   [get-catagory _fpointer]
+   [query-range _fpointer]))
 
 (define-cstruct _avio-context
   ([buffer _bytes]
@@ -1004,6 +1038,25 @@
    [process-command _fpointer]
    [init-opaque _fpointer]))
 
+(define-cstruct _avfilter-graph-internal
+  ([thread _pointer]
+   [thread-execute _fpointer]))
+
+(define-cstruct _avfilter-graph
+  ([av-class _avclass-pointer/null]
+   [filters (_cpointer 'avfilter-pointer-pointer)]
+   [nb-filters _int]
+   [scale-sws-opts _pointer]
+   [resample-lavr-options _pointer]
+   [thread-type _int]
+   [nb-threads _int]
+   [internal* _avfilter-graph-internal-pointer]
+   [opaque _pointer]
+   [execute _fpointer]
+   [aresample-swr-opts _pointer]
+   [sink-links _pointer]
+   [disable-auto-convert _uint]))
+
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
@@ -1301,3 +1354,5 @@
                                      _pointer
                                      _int
                                      -> _int))
+
+(define-avfilter avfilter-register-all (_fun -> _void))
