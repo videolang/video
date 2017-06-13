@@ -23,6 +23,7 @@
          ffi-definer-convention
          ; Uncomment w/ Racket 6.10:
          ; ffi/unsafe/define/conventions
+         (for-syntax racket/base)
          )
 
 (define avcodec-lib (ffi-lib "libavcodec" "57"))
@@ -31,6 +32,7 @@
 (define avformat-lib (ffi-lib "libavformat" "57"))
 (define-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
+(define-for-syntax avformat-version 57)
 (define avutil-lib (ffi-lib "libavutil" "55"))
 (define-ffi-definer define-avutil avutil-lib
   #:make-c-id convention:hyphen->underscore)
@@ -1014,11 +1016,18 @@
    [buf-size _int]
    [mime-type _bytes]))
 
+;; DEP AVFORMAT 58
+(define-cstruct _avfrac
+  ([val _int64]
+   [num _int64]
+   [den _int64]))
+
 (define-cstruct _avstream
   ([index _int]
    [id _int]
-   [codec _avcodec-context-pointer] ;; Deprecated/will remove
+   [codec _avcodec-context-pointer] ;; DEP AVFORMAT 58
    [priv-data _pointer]
+   [pts _avfrac] ;; DEP AVFORMAT 58
    [time-base _avrational]
    [start-time _int64]
    [duration _int64]
@@ -1032,7 +1041,10 @@
    [side-data _pointer]
    [nb-side-data _int]
    [event-flags _int]
-   [codecpar _avcodec-parameters-pointer/null]
+   [codecpar _avcodec-parameters-pointer/null]))
+
+#|
+   ;; Private (left for ABI...)
    [info _pointer]
    [pts-wrap-bits _int]
    [first-dts _int64]
@@ -1070,8 +1082,11 @@
    [dts-ordered _uint8]
    [dts-misordered _uint8]
    [inject-global-side-data _int]
-   [recommended-encoder-configuration _bytes]
-   [display-aspect-ration _avrational]))
+   [recommended-encoder-configuration _string]
+   [display-aspect-ration _avrational]
+   [priv-pts _pointer]
+   [internal _pointer]))
+|#
 
 (define-cstruct _avcodec
   ([name _bytes]

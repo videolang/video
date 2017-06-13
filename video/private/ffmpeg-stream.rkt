@@ -94,9 +94,7 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
-  (displayln (avstream-event-flags (list-ref raw-strs 0)))
   (displayln (avstream-codecpar (list-ref raw-strs 0)))
-  (displayln (avstream-info (list-ref raw-strs 0)))
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat))
 
