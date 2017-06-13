@@ -25,22 +25,22 @@
          ; ffi/unsafe/define/conventions
          )
 
-(define avcodec-lib (ffi-lib "libavcodec"))
+(define avcodec-lib (ffi-lib "libavcodec" "57"))
 (define-ffi-definer define-avcodec avcodec-lib
   #:make-c-id convention:hyphen->underscore)
-(define avformat-lib (ffi-lib "libavformat"))
+(define avformat-lib (ffi-lib "libavformat" "57"))
 (define-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
-(define avutil-lib (ffi-lib "libavutil"))
+(define avutil-lib (ffi-lib "libavutil" "55"))
 (define-ffi-definer define-avutil avutil-lib
   #:make-c-id convention:hyphen->underscore)
-(define swscale-lib (ffi-lib "libswscale"))
+(define swscale-lib (ffi-lib "libswscale" "4"))
 (define-ffi-definer define-swscale swscale-lib
   #:make-c-id convention:hyphen->underscore)
-(define swresample-lib (ffi-lib "libswresample"))
+(define swresample-lib (ffi-lib "libswresample" "2"))
 (define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
-(define avfilter-lib (ffi-lib "libavfilter"))
+(define avfilter-lib (ffi-lib "libavfilter" "6"))
 (define-ffi-definer define-avfilter avfilter-lib
   #:make-c-id convention:hyphen->underscore)
 
@@ -1032,7 +1032,7 @@
    [side-data _pointer]
    [nb-side-data _int]
    [event-flags _int]
-   [codecpar _avcodec-parameters-pointer]
+   [codecpar _avcodec-parameters-pointer/null]
    [info _pointer]
    [pts-wrap-bits _int]
    [first-dts _int64]
@@ -1218,14 +1218,15 @@
 (define-avformat avformat-network-init (_fun -> _int -> (void)))
 (define-avformat avformat-open-input (_fun (out : (_ptr io _avformat-context-pointer/null) = #f)
                                            _path
-                                           _pointer
+                                           _av-input-format-pointer/null
                                            _pointer
                                            -> [ret : _int]
                                            -> (cond
                                                 [(= ret 0) out]
                                                 [(< ret 0)
                                                  (error 'avformat (convert-err ret))])))
-(define-avformat avformat-find-stream-info (_fun _avformat-context-pointer _pointer
+(define-avformat avformat-find-stream-info (_fun _avformat-context-pointer
+                                                 _pointer
                                                  -> [r : _int]
                                                  -> (let ()
                                                       (when (< r 0) (error "NOO2"))
@@ -1316,15 +1317,15 @@
                                   -> (cond
                                        [(= ret 0) (void)]
                                        [else (error 'avio-close (convert-err ret))])))
-(define-avformat avformat-find-best-stream (_fun _avformat-context-pointer
-                                                 _avmedia-type
-                                                 _int
-                                                 _int
-                                                 (_ptr io _avcodec-pointer)
-                                                 _int
-                                                 -> [ret : _int]
-                                                 -> (cond [(>= ret 0) ret]
-                                                          [else (raise (convert-err ret))])))
+(define-avformat av-find-best-stream (_fun _avformat-context-pointer
+                                           _avmedia-type
+                                           _int
+                                           _int
+                                           (_ptr io _avcodec-pointer)
+                                           _int
+                                           -> [ret : _int]
+                                           -> (cond [(>= ret 0) ret]
+                                                    [else (raise (convert-err ret))])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
@@ -1345,7 +1346,7 @@
 (define-avcodec avcodec-parameters-free (_fun (_ptr i _avcodec-parameters-pointer) -> _void))
 (define (avcodec-parameters-from-context param/context [context #f])
   (define-avcodec avcodec-parameters-from-context
-    (_fun [out : _avcodec-parameters] _avcodec-context-pointer
+    (_fun [out : _avcodec-parameters-pointer] _avcodec-context-pointer
           -> [ret : _int]
           -> (cond
                [(>= ret 0) out]
@@ -1363,10 +1364,12 @@
         -> (cond
              [(>= ret 0) (void)]
              [else (error 'parameters-to-context (convert-err ret))])))
-(define-avcodec avcodec-open2 (_fun _avcodec-context-pointer _avcodec-pointer _pointer
-                                    -> [ret : _bool]
-                                    -> (when ret
-                                         (error "Sigh"))))
+(define-avcodec avcodec-open2
+  (_fun _avcodec-context-pointer _avcodec-pointer [dict : (_ptr io _av-dictionary-pointer/null)]
+        -> [ret : _int]
+        -> (cond [(= ret 0) dict]
+                 [(= (- ret) EINVAL) (error 'avcodec-open2 "Invalid Argument")]
+                 [else (error 'vcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
 (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
 (define-avcodec av-image-fill-arrays (_fun (_array _pointer 4)
                                            (_array _int 4)
@@ -1552,4 +1555,4 @@
   (define o (or out (av-frame-alloc)))
   (av-buffersink-get-frame ptr o))
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
-(define-avfilter av-buffersink-aparams-alloc (_fun -> _av-buffersink-aparams-pointer))
+(define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))

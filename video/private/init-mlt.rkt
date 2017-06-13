@@ -86,38 +86,25 @@
   #;(log-error "Dec: ~a" x))
 
 
-;; Because we currently can't rely on MLT being installed,
-;;   only run this module if it is.
-(when (ffi-lib? mlt-lib)
-  
-  ;; Init MLT factory (ONCE PER PROCESS)
-  ;(define tmp #f)
-  (sema-wait counter-mutex)
-  (when (= (ptr-ref counter counter-type) 0)
-    (void (mlt-factory-init #f))
-    ;; XXX BAD!!! Don't do this!!! (Needs to be replaced!!!)
-    (with-handlers ([exn? (λ (e) (void))])
-      (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-register-all))
-      (av-register-all)
-      (define avfilter-register-all (dynamic-require 'video/private/ffmpeg 'avfilter-register-all))
-      (avfilter-register-all)
-      (define avformat-network-init (dynamic-require 'video/private/ffmpeg 'avformat-network-init))
-      (avformat-network-init)))
-  (ptr-set! counter counter-type
-            (add1 (ptr-ref counter counter-type)))
-  ;(set! tmp (ptr-ref counter counter-type) 
-  (sema-post counter-mutex)
-  #;(log-error "Inc: ~a" tmp)
-
- 
-  ;; Close MLT factory on program exit
-  (void
-   #;
-   (scheme_add_managed_close_on_exit
-    #f
-    #f
-    free-proc
-    free-proc)))
+(void
+ ;; Init MLT factory (ONCE PER PROCESS)
+ ;(define tmp #f)
+ (sema-wait counter-mutex)
+ (when (= (ptr-ref counter counter-type) 0)
+   ;(void (mlt-factory-init #f))
+   ;; XXX BAD!!! Don't do this!!! (Needs to be replaced!!!)
+   (with-handlers ([exn? (λ (e) (displayln "failed to init"))])
+     (define av-register-all (dynamic-require 'video/private/ffmpeg 'av-register-all))
+     (av-register-all)
+     (define avfilter-register-all (dynamic-require 'video/private/ffmpeg 'avfilter-register-all))
+     (avfilter-register-all)
+     (define avformat-network-init (dynamic-require 'video/private/ffmpeg 'avformat-network-init))
+     (avformat-network-init)))
+ (ptr-set! counter counter-type
+           (add1 (ptr-ref counter counter-type)))
+ ;(set! tmp (ptr-ref counter counter-type) 
+ (sema-post counter-mutex)
+ #;(log-error "Inc: ~a" tmp))
 
 ;; Set up GC thread for MLT objects
 (define mlt-executor (make-will-executor))

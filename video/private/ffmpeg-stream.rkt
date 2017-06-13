@@ -94,6 +94,9 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
+  (displayln (avstream-event-flags (list-ref raw-strs 0)))
+  (displayln (avstream-codecpar (list-ref raw-strs 0)))
+  (displayln (avstream-info (list-ref raw-strs 0)))
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat))
 
@@ -337,22 +340,40 @@
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))
 
-(define (queue-stream mode obj packet)
-  (match obj
-    [(struct* codec-obj ([callback-data callback-data]))
-     (match mode
-       ['init (set-codec-obj-callback-data! obj (mk-packetqueue))]
-       ['loop (packetqueue-put callback-data packet)]
-       ['close (packetqueue-put callback-data eof)])]))
+(struct queue-callback-data (queue
+                             callback-data)
+  #:mutable)
 
-(define (dequeue-stream mode obj)
+(define ((queue-stream #:passthrough-proc [passthrough-proc #f]) mode obj packet)
   (match obj
     [(struct* codec-obj ([callback-data callback-data]))
      (match mode
-       ['init (void)]
-       ['open (void)]
-       ['write (packetqueue-get callback-data)]
-       ['close (void)])]))
+       ['init (when passthrough-proc
+                (passthrough-proc mode obj packet))
+              (set-codec-obj-callback-data!
+               obj (queue-callback-data (mk-packetqueue) (codec-obj-callback-data obj)))]
+       ['loop (define packet* (if passthrough-proc
+                                  (passthrough-proc mode obj packet)
+                                  packet))
+              (packetqueue-put (queue-callback-data-queue callback-data) packet*)]
+       ['close (when passthrough-proc
+                 (passthrough-proc mode obj packet))
+               (packetqueue-put (queue-callback-data-queue callback-data) eof)])]))
+
+(define ((dequeue-stream #:passthrough-proc [passthrough-proc #f]) mode obj)
+  (match obj
+    [(struct* codec-obj ([callback-data callback-data]))
+     (match mode
+       ['init (when passthrough-proc
+                (passthrough-proc mode obj #f))]
+       ['open (when passthrough-proc
+                (passthrough-proc mode obj #f))]
+       ['write (define data (packetqueue-get (queue-callback-data-queue callback-data)))
+               (if passthrough-proc
+                   (passthrough-proc mode obj data)
+                   data)]
+       ['close (when passthrough-proc
+                 (passthrough-proc mode obj #f))])]))
 
 (define (link infile
               outfile)

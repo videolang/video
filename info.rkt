@@ -33,7 +33,10 @@
                "bitsyntax"
                "opengl"
                "portaudio"
-               "ffi-definer-convention")) ; <-- Hope to remove this dep
+               "ffi-definer-convention" ; <-- Hope to remove this dep
+               ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
+               ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
+               ("ffmpeg-i386-win32" #:platform "win32\\i386")))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
