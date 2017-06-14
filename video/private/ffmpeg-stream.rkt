@@ -286,8 +286,8 @@
              ['attachment (attachment-callback 'open i)]))]))
   ;; Create file.
   ;(when (set-member? (av-output-format-flags format) 'nofile)
-  (set-avformat-context-pb!
-   output-context (avio-open (avformat-context-pb output-context) file 'write));)
+    (set-avformat-context-pb!
+     output-context (avio-open (avformat-context-pb output-context) file 'write));)
   ;; Write the stream
   (avformat-write-header output-context #f)
   (define remaining-streams (mutable-set))

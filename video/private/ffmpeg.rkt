@@ -217,7 +217,7 @@
                              ;; Video
                              mpeg1video
                              mpeg2video
-                             mpeg2video-xvmc ; Depricated and might be removed
+                             mpeg2video-xvmc ;; DEP AVCODEC 58
                              h261
                              h263
                              rv10
@@ -453,8 +453,7 @@
                                audio
                                data
                                subtitle
-                               attachment
-                               nb)))
+                               attachment)))
 
 (define _avcolor-primaries _fixint)
 
@@ -474,8 +473,8 @@
                                  yuvj420p
                                  yuvj422p
                                  yuvj444p
-                                 ;xvmc-mpeg2-mc
-                                 ;xvmc-mpeg2-idct
+                                 xvmc-mpeg2-mc ;; DEP AVUTIL 56
+                                 xvmc-mpeg2-idct
                                  uyvy422
                                  uyyvyy411
                                  bgr8
@@ -523,9 +522,13 @@
                                  ))) ;; XXX And more! :)
 (define-cpointer-type _avpixel-format-pointer)
 
+(define _avcolor-range
+  (_enum '(unspecified = 0
+           mpeg = 1
+           jpeg = 2)))
+
 (define _avcolor-transfer-characteristic _fixint)
 (define _avcolor-space _fixint)
-(define _avcolor-range _fixint)
 (define _avchroma-location _fixint)
 (define _avfield-order _fixint)
 
@@ -540,8 +543,7 @@
            s16p
            s32p
            fltp
-           dblp
-           nb)))
+           dblp)))
 (define-cpointer-type _avsample-format-pointer)
   
 (define _avaudio-service-type _fixint)
@@ -565,8 +567,7 @@
                                    audio-output
                                    audio-input
                                    device-output
-                                   device-input
-                                   nb)))
+                                   device-input)))
 
 ;; ===================================================================================================
 
@@ -794,15 +795,47 @@
    [trailing-padding _int]
    [seek-preroll _int]))
 
+(define-cstruct _avcodec
+  ([name _bytes]
+   [long-name _bytes]
+   [type _avmedia-type]
+   [id _avcodec-id]
+   [capabilities _int]
+   [supported-framerates _pointer]
+   [pix-fmts _pointer]
+   [supported-samplerates (_cpointer/null 'int)]
+   [sample-fmts _avsample-format-pointer/null]
+   [channel-layouts _av-channel-layout-pointer/null]
+   [max-lowres _uint8]
+   [priv-class _pointer]
+   [profiles _pointer]
+   [priv-data-size _int]
+   [next _pointer]
+   [defaults _pointer]
+   [init-static-data _fpointer]
+   [init _fpointer]
+   [encode-sub _fpointer]
+   [encode2 _fpointer]
+   [decode _fpointer]
+   [close* _fpointer]
+   [send-frame* _fpointer]
+   [send-packet* _fpointer]
+   [receive-frame* _fpointer]
+   [receive-packet* _fpointer]
+   [flush _fpointer]
+   [caps-internal _int]
+   [init-thread-copy _fpointer]
+   [update-thread-context _fpointer]))
+
 (define-cstruct _avcodec-context
   ([av-class _pointer]
    [log-level-offset _int]
    [codec-type* _avmedia-type]
-   [codec _pointer]
-   [codec-name (_array _byte 32)]
+   [codec _avcodec-pointer/null]
+   [codec-name (_array _byte 32)] ;; DEP AVCODEC 58
    [codec-id _avcodec-id]
    [codec-tag _uint]
-   [stream-codec-tag _uint]
+   [stream-codec-tag _uint] ;; DEP AVCODEC 59
    [priv-data _pointer]
    [internal _pointer]
    [opaque _pointer]
@@ -823,16 +856,16 @@
    [coded-height _int]
    [gop-size _int]
    [pix-fmt _avpixel-format]
-   [me-method _int]
+   [me-method _int] ;; DEP AVCODEC 59
    [draw-horiz-band _fpointer]
    [get-format _fpointer]
    [max-b-frames _int]
    [b-quant-factor _float]
-   [rc-strategy _int]
-   [b-frame-strategy _int]
+   [rc-strategy _int] ;; DEP AVCODEC 59
+   [b-frame-strategy _int] ;; DEP AVCODEC 59
    [b-quant-offset _float]
    [has-b-frames _int]
-   [mpeg-quant _int]
+   [mpeg-quant _int] ;; DEP AVCODEC 59
    [i-quant-factor _float]
    [i-quant-offset _float]
    [lumi-masking _float]
@@ -841,7 +874,7 @@
    [p-masking _float]
    [dark-masking _float]
    [slice-count _int]
-   [prediction-method _int]
+   [prediction-method _int] ;; DEP AVCODEC 59
    [slice-offset _pointer]
    [sample-aspect-ratio _avrational]
    [me-cmp _int]
@@ -850,38 +883,38 @@
    [ildct-cmp _int]
    [dia-size _int]
    [last-predictor-count _int]
-   [pre-me _int]
+   [pre-me _int] ;; DEP AVCODEC 59
    [me-pre-cmp _int]
    [pre-dia-size _int]
    [me-subpel-quality _int]
-   [dtg-active-format _int]
+   [dtg-active-format _int] ;; DEP AVCODEC 58
    [me-range _int]
-   [intra-quant-bias _int]
-   [inter-quant-bias _int]
+   [intra-quant-bias _int] ;; DEP AVCODEC 59
+   [inter-quant-bias _int] ;; DEP AVCODEC 59
    [slice-flags _int]
+   [xvmc-acceleration _int] ;; DEP AVCODEC 58
    [mb-decision _int]
    [intra-matrix _pointer]
    [inter-matrix _pointer]
-   [scenechange-threashold _int]
-   [noise-reduction _int]
-   [me-threashold _int]
-   [mb-threashold _int]
+   [scenechange-threashold _int] ;; DEP AVCODEC 59
+   [noise-reduction _int] ;; DEP AVCODEC 59
+   [me-threashold _int] ;; DEP AVCODEC 59
+   [mb-threashold _int] ;; DEP AVCODEC 59
    [intra-dc-precision _int]
-   [xvmc-acceleration _int] ;; Maybe kill?
    [skip-top _int]
    [skip-bottom _int]
-   [border-masking _float]
+   [border-masking _float] ;; DEP AVCODEC 59
    [mb-lmin _int]
    [mb-lmax _int]
-   [me-penalty-compensation _int]
+   [me-penalty-compensation _int] ;; DEP AVCODEC 59
    [bidir-refine _int]
-   [brd-scale _int]
+   [brd-scale _int] ;; DEP AVCODEC 59
    [keyint-min _int]
    [refs _int]
-   [chromaoffset _int]
-   [scenechange-factor _int]
+   [chromaoffset _int] ;; DEP AVCODEC 59
+   [scenechange-factor _int] ;; DEP AVCODEC 58
    [mv0-threashold _int]
-   [b-sensitivity _int]
+   [b-sensitivity _int] ;; DEP AVCODEC 59
    [color-primaries _avcolor-primaries]
    [color-trc _avcolor-transfer-characteristic]
    [colorspace _avcolor-space]
@@ -889,7 +922,7 @@
    [chroma-sample-location _avchroma-location]
    [slices _int]
    [field-order _avfield-order]
-   [padding _int] ;; XXX: ALMOST CERTAINLY MISSING SOMETHING
+   ;[padding _int] ;; XXX: ALMOST CERTAINLY MISSING SOMETHING
    [sample-rate _int]
    [channels _int]
    [sample-fmt _avsample-format]
@@ -1077,38 +1110,6 @@
    [priv-pts _pointer]
    [internal _pointer]
    [codecpar _avcodec-parameters-pointer/null]))
-
-(define-cstruct _avcodec
-  ([name _bytes]
-   [long-name _bytes]
-   [type _avmedia-type]
-   [id _avcodec-id]
-   [capabilities _int]
-   [supported-framerates _pointer]
-   [pix-fmts _pointer]
-   [supported-samplerates (_cpointer/null 'int)]
-   [sample-fmts _avsample-format-pointer/null]
-   [channel-layouts _av-channel-layout-pointer/null]
-   [max-lowres _uint8]
-   [priv-class _pointer]
-   [profiles _pointer]
-   [priv-data-size _int]
-   [next _pointer]
-   [defaults _pointer]
-   [init-static-data _fpointer]
-   [init _fpointer]
-   [encode-sub _fpointer]
-   [encode2 _fpointer]
-   [decode _fpointer]
-   [close* _fpointer]
-   [send-frame* _fpointer]
-   [send-packet* _fpointer]
-   [receive-frame* _fpointer]
-   [receive-packet* _fpointer]
-   [flush _fpointer]
-   [caps-internal _int]
-   [init-thread-copy _fpointer]
-   [update-thread-context _fpointer]))
 
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
@@ -1313,7 +1314,9 @@
                                                         (raise (exn:ffmpeg:flush
                                                                 "send-frame"
                                                                 (current-continuation-marks)))])))
-(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer/null)] _string _avio-flags
+(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer/null)]
+                                 _path
+                                 _avio-flags
                                  -> [ret : _int]
                                  -> (cond
                                       [(>= ret 0) out]
