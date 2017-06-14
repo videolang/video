@@ -55,7 +55,7 @@
   (set-stream-bundle-cooked-streams! bundle streams)
   (stream-bundle-post-streams-ready bundle))
 
-(struct codec-obj (orig-codec-context
+(struct codec-obj (codec-parameters
                    type
                    index
                    id
@@ -65,14 +65,14 @@
                    next-pts
                    callback-data)
   #:mutable)
-(define (mk-codec-obj #:orig-codec-context [occ #f]
+(define (mk-codec-obj #:codec-parameters [occ #f]
                       #:type [t #f]
                       #:index [i #f]
                       #:id [id #f]
                       #:codec [codec #f]
                       #:codec-context [codec-context #f]
                       #:stream [s #f]
-                      #:next-pts [n #f]
+                      #:next-pts [n 0]
                       #:callback-data [cd #f])
   (codec-obj occ t i id codec codec-context s n cd))
 
@@ -94,7 +94,6 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
-  (displayln (avstream-codecpar (list-ref raw-strs 0)))
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat))
 
@@ -118,13 +117,19 @@
   (define streams
     (for/vector ([i raw-strs]
                  [i* (in-naturals)])
-      (define old-codec-ctx (avstream-codec i))
-      (define codec-name (avcodec-context-codec-type* old-codec-ctx))
-      (define codec-id (avcodec-context-codec-id old-codec-ctx))
+      (define codec-parameters (avstream-codecpar i))
+      (define codec-name (avcodec-parameters-codec-type codec-parameters))
+      (define codec-id (avcodec-parameters-codec-id codec-parameters))
       (define codec (avcodec-find-decoder codec-id))
-      (define codec-ctx (avcodec-copy-context codec old-codec-ctx))
+      (define codec-ctx (avcodec-parameters-to-context codec codec-parameters))
       (avcodec-open2 codec-ctx codec #f)
-      (define obj (codec-obj old-codec-ctx codec-name i* codec-id codec codec-ctx #f 0 #f))
+      (define obj (mk-codec-obj #:codec-parameters codec-parameters
+                                #:type codec-name
+                                #:index i*
+                                #:stream i
+                                #:id codec-id
+                                #:codec codec
+                                #:codec-context codec-ctx))
       (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
         (error 'decoder-stream "Stream type ~a already present" codec-name))
       (hash-set! stream-table codec-name obj)
@@ -171,12 +176,11 @@
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj
-                ([orig-codec-context orig-codec-context]
+                ([codec-parameters codec-parameters]
                  [codec-context codec-context]
                  [index index]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (avcodec-close orig-codec-context) ;; XXX, should probably nix, deprecated
        (avcodec-close codec-context)]))
   (avformat-close-input avformat))
 
@@ -188,9 +192,11 @@
     (for/vector ([i (stream-bundle-streams bundle)])
       (match i
         [(struct* codec-obj ([type t]
-                             [id i]))
+                             [id i]
+                             [callback-data callback-data]))
          (mk-codec-obj #:type t
-                       #:id i)]
+                       #:id i
+                       #:callback-data callback-data)]
         [x (mk-codec-obj #:type x)])))
   (define output-context
     (avformat-alloc-output-context2 output-format format-name file))
@@ -279,8 +285,9 @@
              ['data (data-callback 'open i)]
              ['attachment (attachment-callback 'open i)]))]))
   ;; Create file.
-  (when (set-member? (av-output-format-flags format) 'nofile)
-    (avio-open (avformat-context-pb output-context) file 'write))
+  ;(when (set-member? (av-output-format-flags format) 'nofile)
+  (set-avformat-context-pb!
+   output-context (avio-open (avformat-context-pb output-context) file 'write));)
   ;; Write the stream
   (avformat-write-header output-context #f)
   (define remaining-streams (mutable-set))
@@ -298,7 +305,7 @@
                                     (avstream-time-base (codec-obj-stream i)))
                 [(or -1 0) min-stream]
                 [1 i])
-              min-stream)))
+              i)))
       (define next-packet
         (if by-index-callback
             (by-index-callback 'write min-stream)
@@ -317,7 +324,7 @@
                 (av-packet-rescale-ts next-packet
                                       (avcodec-context-time-base codec-context)
                                       (avstream-time-base stream))
-                (set-avpacket-stream-index! next-packet (avstream-index min-stream))
+                (set-avpacket-stream-index! next-packet (avstream-index (codec-obj-stream min-stream)))
                 (av-interleaved-write-frame output-context next-packet)])])
       (loop)))
   (av-write-trailer output-context)

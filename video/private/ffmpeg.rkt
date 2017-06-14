@@ -121,7 +121,7 @@
               surround-direct-right = #x400000000
               low-frequency-2 = #x800000000
               layout-native = #x8000000000000000
-              sterio = 3
+              stereo = 3
               mono = 4
               2-point-1 = 11)
             _uint64))
@@ -648,26 +648,19 @@
    [long-name _string]
    [mime-type _string]
    [extensions _string]
-   [priv-data-size _int]
    [audio-codec _avcodec-id]
    [video-codec _avcodec-id]
-   [write-header _fpointer]
-   [video-packet _fpointer]
-   [write-trailer _fpointer]
-   [flags _avformat-flags]
-   [set-parameters _fpointer]
-   [interleave-packet _fpointer]
-   [codec-tag _pointer]
    [subtitle-codec _avcodec-id]
-   [metadata-conv _pointer]
-   [next _pointer]))
+   [flags _avformat-flags]
+   [codec-tag _pointer]
+   [priv-class _pointer]))
 
 (define-cstruct _avformat-context
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
    [priv_data _pointer]
-   [pb _avio-context-pointer]
+   [pb _avio-context-pointer/null]
    [ctx-flags _int] ; _avformat-context-flags
    [nb-streams _uint]
    [streams-data _pointer]
@@ -761,11 +754,10 @@
    [flags _int]
    [side-data _pointer]
    [side-data-elems _int]
-   [durration _int]
-   [destruct _fpointer]
-   [priv _pointer]
+   [durration _int64]
    [pos _int64]
-   [convergence-duration _int64]))
+   [convergence-duration _int64] ;; DEP AVCODEC 59
+   ))
 
 (define-cstruct _avpacket-list
   ([pkt _avpacket]
@@ -1025,7 +1017,7 @@
 (define-cstruct _avstream
   ([index _int]
    [id _int]
-   [codec _avcodec-context-pointer] ;; DEP AVFORMAT 58
+   [codec _pointer] ;_avcodec-context-pointer] ;; DEP AVFORMAT 58
    [priv-data _pointer]
    [pts _avfrac] ;; DEP AVFORMAT 58
    [time-base _avrational]
@@ -1041,10 +1033,7 @@
    [side-data _pointer]
    [nb-side-data _int]
    [event-flags _int]
-   [codecpar _avcodec-parameters-pointer/null]))
-
-#|
-   ;; Private (left for ABI...)
+   ;; Private
    [info _pointer]
    [pts-wrap-bits _int]
    [first-dts _int64]
@@ -1082,11 +1071,12 @@
    [dts-ordered _uint8]
    [dts-misordered _uint8]
    [inject-global-side-data _int]
+   ;; Public Again
    [recommended-encoder-configuration _string]
    [display-aspect-ration _avrational]
    [priv-pts _pointer]
-   [internal _pointer]))
-|#
+   [internal _pointer]
+   [codecpar _avcodec-parameters-pointer/null]))
 
 (define-cstruct _avcodec
   ([name _bytes]
@@ -1295,7 +1285,7 @@
 (define-avformat avformat-new-stream (_fun _avformat-context-pointer _avcodec-pointer/null
                                            -> _avstream-pointer))
 (define-avformat avformat-write-header
-  (_fun _avformat-context-pointer (_ptr io _av-dictionary-pointer)
+  (_fun _avformat-context-pointer _pointer ;(_ptr io _av-dictionary-pointer/null)
         -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
@@ -1323,7 +1313,7 @@
                                                         (raise (exn:ffmpeg:flush
                                                                 "send-frame"
                                                                 (current-continuation-marks)))])))
-(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer)] _string _avio-flags
+(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer/null)] _string _avio-flags
                                  -> [ret : _int]
                                  -> (cond
                                       [(>= ret 0) out]
@@ -1348,15 +1338,6 @@
                                            -> _avcodec-pointer))
 (define-avcodec avcodec-alloc-context3 (_fun _avcodec-pointer/null
                                              -> _avcodec-context-pointer))
-(define-avcodec avcodec-copy-context (_fun [codec : _?]
-                                           [out : _avcodec-context-pointer
-                                                = (avcodec-alloc-context3 codec)]
-                                           _avcodec-context-pointer
-                                           -> [ret : _bool]
-                                           -> (let ()
-                                                (when ret
-                                                  (error "NO3"))
-                                                out)))
 (define-avcodec avcodec-parameters-alloc (_fun -> _avcodec-parameters-pointer))
 (define-avcodec avcodec-parameters-free (_fun (_ptr i _avcodec-parameters-pointer) -> _void))
 (define (avcodec-parameters-from-context param/context [context #f])
@@ -1373,18 +1354,25 @@
   (define context*
     (or context param/context))
   (avcodec-parameters-from-context param context*))
-(define-avcodec avcodec-parameters-to-context
-  (_fun _avcodec-context-pointer _avcodec-parameters-pointer
-        -> [ret : _int]
-        -> (cond
-             [(>= ret 0) (void)]
-             [else (error 'parameters-to-context (convert-err ret))])))
-(define-avcodec avcodec-open2
-  (_fun _avcodec-context-pointer _avcodec-pointer [dict : (_ptr io _av-dictionary-pointer/null)]
-        -> [ret : _int]
-        -> (cond [(= ret 0) dict]
-                 [(= (- ret) EINVAL) (error 'avcodec-open2 "Invalid Argument")]
-                 [else (error 'vcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
+(define (avcodec-parameters-to-context codec/ctx param)
+  (define ctx
+    (cond [(avcodec-context? codec/ctx) codec/ctx]
+          [else (avcodec-alloc-context3 codec/ctx)]))
+  (define-avcodec avcodec-parameters-to-context
+    (_fun [out : _avcodec-context-pointer] _avcodec-parameters-pointer
+          -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [else (error 'parameters-to-context (convert-err ret))])))
+  (avcodec-parameters-to-context ctx param))
+(define (avcodec-open2 ctx codec [dict #f])
+  (define-avcodec avcodec-open2
+    (_fun _avcodec-context-pointer _avcodec-pointer [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
+          -> [ret : _int]
+          -> (cond [(= ret 0) dict]
+                   [(= (- ret) EINVAL) (error 'avcodec-open2 "Invalid Argument")]
+                   [else (error 'vcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
+  (avcodec-open2 ctx codec dict))
 (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
 (define-avcodec av-image-fill-arrays (_fun (_array _pointer 4)
                                            (_array _int 4)
