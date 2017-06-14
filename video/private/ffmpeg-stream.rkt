@@ -107,7 +107,8 @@
                       #:subtitle-callback [subtitle-callback empty-proc]
                       #:data-callback [data-callback empty-proc]
                       #:attachment-callback [attachment-callback empty-proc]
-                      #:by-index-callback [by-index-callback #f])
+                      #:by-index-callback [by-index-callback #f]
+                      #:close-context? [close-context? #t])
   ;; Open file
   (define avformat (stream-bundle-avformat-context bundle))
   (define raw-strs (stream-bundle-raw-streams bundle))
@@ -181,7 +182,8 @@
                  [index index]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (avcodec-close codec-context)]))
+       (when close-context?
+         (avcodec-close codec-context))]))
   (avformat-close-input avformat))
 
 (define (bundle-for-file file bundle
@@ -217,7 +219,8 @@
                     #:subtitle-callback [subtitle-callback empty-proc]
                     #:data-callback [data-callback empty-proc]
                     #:attachment-callback [attachment-callback empty-proc]
-                    #:by-index-callback [by-index-callback #f])
+                    #:by-index-callback [by-index-callback #f]
+                    #:close-context? [close-context? #t])
   ;; Initial Setup
   (define output-context
     (stream-bundle-avformat-context bundle))
@@ -343,20 +346,29 @@
              ['attachment (attachment-callback 'close i)]))]))
   (when (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
-  (avformat-free-context output-context))
+  (when close-context?
+    (avformat-free-context output-context)))
 
 (struct queue-callback-data (queue
+                             codec-obj
                              callback-data)
   #:mutable)
+(define (mk-queue-callback-data #:queue q
+                                #:codec-obj co
+                                #:callback-data cd)
+        (queue-callback-data q co cd))
 
 (define ((queue-stream #:passthrough-proc [passthrough-proc #f]) mode obj packet)
   (match obj
-    [(struct* codec-obj ([callback-data callback-data]))
+    [(struct* codec-obj ([callback-data callback-data]
+                         [codec-parameters codec-parameters]))
      (match mode
        ['init (when passthrough-proc
                 (passthrough-proc mode obj packet))
               (set-codec-obj-callback-data!
-               obj (queue-callback-data (mk-packetqueue) (codec-obj-callback-data obj)))]
+               obj (mk-queue-callback-data #:queue (mk-packetqueue)
+                                           #:codec-obj obj
+                                           #:callback-data (codec-obj-callback-data obj)))]
        ['loop (define packet* (if passthrough-proc
                                   (passthrough-proc mode obj packet)
                                   packet))

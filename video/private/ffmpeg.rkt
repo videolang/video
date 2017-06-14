@@ -1357,10 +1357,12 @@
   (define context*
     (or context param/context))
   (avcodec-parameters-from-context param context*))
-(define (avcodec-parameters-to-context codec/ctx param)
+(define (avcodec-parameters-to-context codec/ctx/param [maybe-param #f])
+  (define param (or maybe-param codec/ctx/param))
   (define ctx
-    (cond [(avcodec-context? codec/ctx) codec/ctx]
-          [else (avcodec-alloc-context3 codec/ctx)]))
+    (cond [(avcodec-context? codec/ctx/param) codec/ctx/param]
+          [(avcodec? codec/ctx/param) (avcodec-alloc-context3 codec/ctx/param)]
+          [else (avcodec-alloc-context3 (avcodec-find-decoder (avcodec-parameters-codec-id param)))]))
   (define-avcodec avcodec-parameters-to-context
     (_fun [out : _avcodec-context-pointer] _avcodec-parameters-pointer
           -> [ret : _int]
@@ -1389,18 +1391,17 @@
                                                 (when (< ret 0)
                                                   (error "av-image"))
                                                 ret)))
-(define-avcodec avcodec-send-packet (_fun _avcodec-context-pointer
-                                          (_ptr i _avpacket)
-                                          -> [ret : _int]
-                                          -> (cond
-                                               [(= ret 0) (void)]
-                                               [(= (- ret) EAGAIN)
-                                                (raise (exn:ffmpeg:again
-                                                        "send-packet"
-                                                        (current-continuation-marks)))]
-                                               [(= ret AVERROR-EOF) eof]
-                                               [else
-                                                (error 'send-packet "ERROR: ~a" (convert-err ret))])))
+(define-avcodec avcodec-send-packet
+  (_fun _avcodec-context-pointer (_ptr i _avpacket)
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [(= (- ret) EAGAIN)
+              (raise (exn:ffmpeg:again
+                      "send-packet"
+                      (current-continuation-marks)))]
+             [(= ret AVERROR-EOF) eof]
+             [else (error 'send-packet "ERROR (~a): ~a" ret (convert-err ret))])))
 (define-avcodec avcodec-receive-packet (_fun _avcodec-context-pointer
                                              _avpacket-pointer
                                              -> [ret : _int]
