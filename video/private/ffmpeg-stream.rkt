@@ -184,7 +184,7 @@
                  [flags flags]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (when (set-member? flags 'no-close-context)
+       (unless (set-member? flags 'no-close-context)
          (avcodec-close codec-context))]))
   (avformat-close-input avformat))
 
@@ -383,7 +383,7 @@
                  (passthrough-proc mode obj packet))
                (packetqueue-put (queue-callback-data-queue callback-data) eof)
                (set-codec-obj-flags!
-                obj (set-add flags 'no-close-contest))])]))
+                obj (set-add flags 'no-close-context))])]))
 
 (define ((dequeue-stream #:passthrough-proc [passthrough-proc #f]) mode obj)
   (match obj
