@@ -78,6 +78,19 @@
 (define AVSTREAM-INIT-IN-WRITE-HEADER 0)
 (define AVSTREAM-INIT-IN-INIT-OUTPUT 1)
 
+(define _sws-flags
+  (_bitmask `(fast-bilinear
+              bilinear
+              bicubic
+              x
+              point
+              area
+              bicublin
+              guass
+              sinc
+              lanczos
+              spline)))
+              
 (define SWS-BILINEAR 2)
 
 (define SWR-CH-MAX 16)
@@ -145,7 +158,8 @@
               allow-flush = #x10000
               ts-nonstrict = #x8020000
               ts-negative = #x40000
-              seek-to-pts = #x4000000)))
+              seek-to-pts = #x4000000)
+            _int))
 
 (define _avcodec-flags
   (_bitmask `(unaligned
@@ -211,6 +225,9 @@
               no-request)))
 
 ;; ===================================================================================================
+
+(define _is-output (_enum '(input = 0
+                            output = 1)))
 
 (define _avcodec-id (_enum '(none
                              
@@ -527,8 +544,21 @@
            mpeg = 1
            jpeg = 2)))
 
+(define _avcolor-space
+  (_enum '(rbp = 0
+           bt709
+           unspecified
+           reserved
+           fcc
+           bt470bg
+           smpte170m
+           smpte240m
+           ycgco
+           bt2020-ncl
+           bt2020-cl
+           smpte2085)))
+
 (define _avcolor-transfer-characteristic _fixint)
-(define _avcolor-space _fixint)
 (define _avchroma-location _fixint)
 (define _avfield-order _fixint)
 
@@ -1122,7 +1152,17 @@
    [nb-samples _int]
    [format _int]
    [key-frame _bool]
-   [pict-type _avpicture-type]))
+   [pict-type _avpicture-type]
+   [sample-aspect-ration _avrational]
+   [pts _int64]))
+(define (av-frame-format/video frame)
+  (cast (av-frame-format frame) _int _avpixel-format))
+(define (set-av-frame-format/video! frame format)
+  (set-av-frame-format! frame (cast format _avpixel-format _int)))
+(define (av-frame-format/audio frame)
+  (cast (av-frame-format frame) _int _avsample-format))
+(define (set-av-frame-format/audio! frame format)
+  (set-av-frame-format! frame (cast format _avsample-format _int)))
 
 (define-cpointer-type _sws-context-pointer)
 (define-cpointer-type _swr-context-pointer)
@@ -1240,7 +1280,7 @@
 (define-avformat avformat-close-input (_fun (_ptr i _avformat-context-pointer)
                                             -> _void))
 (define-avformat avformat-free-context (_fun _avformat-context-pointer -> _void))
-(define-avformat av-dump-format (_fun _avformat-context-pointer _int _path _int
+(define-avformat av-dump-format (_fun _avformat-context-pointer _int _path _is-output
                                       -> _void))
 (define (av-read-frame ctx [frame #f])
   (define-avformat av-read-frame (_fun _avformat-context-pointer
@@ -1253,7 +1293,7 @@
                                              #f]
                                             [else out])))
   (define frame* (or frame
-                     (ptr-ref (malloc _avpacket) _avpacket)))
+                     (ptr-ref (av-malloc _avpacket) _avpacket)))
   (av-read-frame ctx frame*))
 (define (av-packet-ref dst/src [src #f])
   (define-avformat av-packet-ref (_fun [out : _avpacket-pointer]
@@ -1267,7 +1307,7 @@
                                             [else out])))
   (if src
       (av-packet-ref dst/src src)
-      (av-packet-ref (ptr-ref (malloc _avpacket) _avpacket) dst/src)))
+      (av-packet-ref (ptr-ref (av-malloc _avpacket) _avpacket) dst/src)))
 (define-avformat av-packet-unref (_fun _avpacket-pointer
                                            -> _void))
 (define-avformat av-dup-packet (_fun _avpacket-pointer
@@ -1402,18 +1442,24 @@
                       (current-continuation-marks)))]
              [(= ret AVERROR-EOF) eof]
              [else (error 'send-packet "ERROR (~a): ~a" ret (convert-err ret))])))
-(define-avcodec avcodec-receive-packet (_fun _avcodec-context-pointer
-                                             _avpacket-pointer
-                                             -> [ret : _int]
-                                             -> (cond
-                                                  [(= ret 0) (void)]
-                                                  [(= (- ret) EAGAIN)
-                                                   (raise (exn:ffmpeg:again
-                                                           "receive-packet"
-                                                           (current-continuation-marks)))]
-                                                  [(= ret AVERROR-EOF) eof]
-                                                  [else
-                                                   (error 'recev-packet (convert-err ret))])))
+(define (avcodec-receive-packet ctx [maybe-packet #f])
+  (define-avcodec avcodec-receive-packet
+    (_fun _avcodec-context-pointer
+          [out : _avpacket-pointer]
+          -> [ret : _int]
+          -> (cond
+               [(= ret 0) out]
+               [(= (- ret) EAGAIN)
+                (raise (exn:ffmpeg:again
+                        "receive-packet"
+                        (current-continuation-marks)))]
+               [(= ret AVERROR-EOF) eof]
+               [else
+                (error 'recev-packet (convert-err ret))])))
+  (define packet (or packet
+                     (let ([p (av-malloc _avpacket)])
+                       (av-init-packet p))))
+  (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame (_fun _avcodec-context-pointer
                                          (_ptr i _av-frame)
                                          -> [ret : _int]
@@ -1439,10 +1485,16 @@
              [(= ret AVERROR-EOF) eof]
              [else
               (error 'recev-frame "Error: ~a" (convert-err ret))])))
+(define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
                                    -> _void))
+(define-avutil av-frame-make-writable
+  (_fun _av-frame-pointer -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (error 'frame-make-writable "~a : ~a" ret (convert-err ret))])))
 (define-avutil av-frame-get-channels (_fun _av-frame-pointer -> _int))
 (define-avutil av-frame-set-channels (_fun _av-frame-pointer _int -> _void))
 (define-avutil av-frame-get-channel-layout (_fun _av-frame-pointer -> _int64))
@@ -1455,7 +1507,11 @@
   (_fun _av-frame-pointer _int -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
-             [else (error 'av-frame-get-buffer (convert-err ret))])))
+             [else (error 'av-frame-get-buffer "~a - ~a" ret (convert-err ret))])))
+(define-avutil av-frame-get-colorspace (_fun _av-frame-pointer -> _avcolor-space))
+(define-avutil av-frame-set-colorspace (_fun _av-frame-pointer _avcolor-space -> _void))
+(define-avutil av-frame-get-color-range (_fun _av-frame-pointer -> _avcolor-range))
+(define-avutil av-frame-set-color-range (_fun _av-frame-pointer _avcolor-range -> _void))
 (define (av-malloc [a #f] [b #f])
   (define type (cond
                  [(ctype? a) a]
@@ -1465,7 +1521,7 @@
                  [(integer? a) a]
                  [(integer? b) b]
                  [else 1]))
-  (define-avutil av-malloc (_fun _size -> (_array type size)))
+  (define-avutil av-malloc (_fun _size -> _pointer));(_array type size)))
   (av-malloc (* size (ctype-sizeof type))))
 (define-avutil av-samples-get-buffer-size (_fun _pointer _int _int _avsample-format _int
                                                 -> [ret : _int]
@@ -1511,7 +1567,7 @@
                                      _int
                                      _int
                                      _avpixel-format
-                                     _int
+                                     _sws-flags
                                      _pointer
                                      _pointer
                                      _pointer

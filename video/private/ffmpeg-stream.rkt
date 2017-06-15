@@ -63,7 +63,8 @@
                    codec-context
                    stream
                    next-pts
-                   callback-data)
+                   callback-data
+                   flags)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
                       #:type [t #f]
@@ -73,8 +74,9 @@
                       #:codec-context [codec-context #f]
                       #:stream [s #f]
                       #:next-pts [n 0]
-                      #:callback-data [cd #f])
-  (codec-obj occ t i id codec codec-context s n cd))
+                      #:callback-data [cd #f]
+                      #:flags [f '()])
+  (codec-obj occ t i id codec codec-context s n cd f))
 
 (define (empty-proc mode obj packet)
   (when packet
@@ -107,8 +109,7 @@
                       #:subtitle-callback [subtitle-callback empty-proc]
                       #:data-callback [data-callback empty-proc]
                       #:attachment-callback [attachment-callback empty-proc]
-                      #:by-index-callback [by-index-callback #f]
-                      #:close-context? [close-context? #t])
+                      #:by-index-callback [by-index-callback #f])
   ;; Open file
   (define avformat (stream-bundle-avformat-context bundle))
   (define raw-strs (stream-bundle-raw-streams bundle))
@@ -179,10 +180,11 @@
       [(struct* codec-obj
                 ([codec-parameters codec-parameters]
                  [codec-context codec-context]
-                 [index index]))
+                 [index index]
+                 [flags flags]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (when close-context?
+       (when (set-member? flags 'no-close-context)
          (avcodec-close codec-context))]))
   (avformat-close-input avformat))
 
@@ -219,8 +221,7 @@
                     #:subtitle-callback [subtitle-callback empty-proc]
                     #:data-callback [data-callback empty-proc]
                     #:attachment-callback [attachment-callback empty-proc]
-                    #:by-index-callback [by-index-callback #f]
-                    #:close-context? [close-context? #t])
+                    #:by-index-callback [by-index-callback #f])
   ;; Initial Setup
   (define output-context
     (stream-bundle-avformat-context bundle))
@@ -288,9 +289,10 @@
              ['data (data-callback 'open i)]
              ['attachment (attachment-callback 'open i)]))]))
   ;; Create file.
-  ;(when (set-member? (av-output-format-flags format) 'nofile)
+  (av-dump-format output-context 0 file 'output)
+  (unless (set-member? (av-output-format-flags format) 'nofile)
     (set-avformat-context-pb!
-     output-context (avio-open (avformat-context-pb output-context) file 'write));)
+     output-context (avio-open (avformat-context-pb output-context) file 'write)))
   ;; Write the stream
   (avformat-write-header output-context #f)
   (define remaining-streams (mutable-set))
@@ -318,24 +320,28 @@
               ['subtitle (subtitle-callback 'write min-stream)]
               ['data (data-callback 'write min-stream)]
               ['attachment (attachment-callback 'write min-stream)])))
-      (cond [(eof-object? next-packet)
-             (set-remove! remaining-streams min-stream)]
-            [else
-             (match min-stream
-               [(struct* codec-obj ([codec-context codec-context]
-                                    [stream stream]))
-                (av-packet-rescale-ts next-packet
-                                      (avcodec-context-time-base codec-context)
-                                      (avstream-time-base stream))
-                (set-avpacket-stream-index! next-packet (avstream-index (codec-obj-stream min-stream)))
-                (av-interleaved-write-frame output-context next-packet)])])
+      (let loop ([next-packet next-packet])
+        (cond [(eof-object? next-packet)
+               (set-remove! remaining-streams min-stream)]
+              [(list? next-packet)
+               (map loop next-packet)]
+              [else
+               (match min-stream
+                 [(struct* codec-obj ([codec-context codec-context]
+                                      [stream stream]))
+                  (av-packet-rescale-ts next-packet
+                                        (avcodec-context-time-base codec-context)
+                                        (avstream-time-base stream))
+                  (set-avpacket-stream-index! next-packet (avstream-index (codec-obj-stream min-stream)))
+                  (av-interleaved-write-frame output-context next-packet)])]))
       (loop)))
   (av-write-trailer output-context)
   ;; Clean Up
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj
-                ([type type]))
+                ([type type]
+                 [flags flags]))
        (if by-index-callback
            (by-index-callback 'close i)
            (match type
@@ -344,10 +350,9 @@
              ['subtitle (subtitle-callback 'close i)]
              ['data (data-callback 'close i)]
              ['attachment (attachment-callback 'close i)]))]))
-  (when (set-member? (av-output-format-flags format) 'nofile)
+  (unless (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
-  (when close-context?
-    (avformat-free-context output-context)))
+  (avformat-free-context output-context))
 
 (struct queue-callback-data (queue
                              codec-obj
@@ -361,7 +366,8 @@
 (define ((queue-stream #:passthrough-proc [passthrough-proc #f]) mode obj packet)
   (match obj
     [(struct* codec-obj ([callback-data callback-data]
-                         [codec-parameters codec-parameters]))
+                         [codec-parameters codec-parameters]
+                         [flags flags]))
      (match mode
        ['init (when passthrough-proc
                 (passthrough-proc mode obj packet))
@@ -375,22 +381,33 @@
               (packetqueue-put (queue-callback-data-queue callback-data) packet*)]
        ['close (when passthrough-proc
                  (passthrough-proc mode obj packet))
-               (packetqueue-put (queue-callback-data-queue callback-data) eof)])]))
+               (packetqueue-put (queue-callback-data-queue callback-data) eof)
+               (set-codec-obj-flags!
+                obj (set-add flags 'no-close-contest))])]))
 
 (define ((dequeue-stream #:passthrough-proc [passthrough-proc #f]) mode obj)
   (match obj
     [(struct* codec-obj ([callback-data callback-data]))
-     (match mode
-       ['init (when passthrough-proc
-                (passthrough-proc mode obj #f))]
-       ['open (when passthrough-proc
-                (passthrough-proc mode obj #f))]
-       ['write (define data (packetqueue-get (queue-callback-data-queue callback-data)))
+     (match callback-data
+       [(struct* queue-callback-data ([codec-obj old-obj]
+                                      [queue queue]))
+        (define old-context (codec-obj-codec-context old-obj))
+        (match mode
+          ['init (when passthrough-proc
+                   (passthrough-proc mode obj #f old-context))]
+          ['open (when passthrough-proc
+                   (passthrough-proc mode obj #f old-context))]
+          ['write
+           (let loop ()
+             (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
+               (define data (packetqueue-get queue))
                (if passthrough-proc
-                   (passthrough-proc mode obj data)
-                   data)]
-       ['close (when passthrough-proc
-                 (passthrough-proc mode obj #f))])]))
+                   (passthrough-proc mode obj data old-context)
+                   data)))]
+          ['close (when passthrough-proc
+                    (passthrough-proc mode obj #f old-context))
+                  (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
+                  (avcodec-close ctx)])])]))
 
 (define (link infile
               outfile)
