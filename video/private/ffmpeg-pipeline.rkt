@@ -92,6 +92,8 @@
      ret]
     [else dict]))
 
+;; ===================================================================================================
+
 (define (file->stream-bundle file)
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
@@ -350,6 +352,8 @@
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))
 
+;; ===================================================================================================
+
 (struct queue-callback-data (queue
                              codec-obj
                              callback-data)
@@ -403,6 +407,13 @@
                     (passthrough-proc mode obj #f old-context))
                   (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
                   (avcodec-close ctx)])])]))
+
+;; ===================================================================================================
+
+(struct filter-graph (string
+                      in
+                      out)
+  #:mutable)
 
 (define (link in-bundle-maker
               out-bundle-maker

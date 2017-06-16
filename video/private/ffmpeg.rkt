@@ -23,8 +23,7 @@
          ffi-definer-convention
          ; Uncomment w/ Racket 6.10:
          ; ffi/unsafe/define/conventions
-         (for-syntax racket/base)
-         )
+         (for-syntax racket/base))
 
 (define avcodec-lib (ffi-lib "libavcodec" "57"))
 (define-ffi-definer define-avcodec avcodec-lib
@@ -223,6 +222,11 @@
 (define _av-buffer-sink-flags
   (_bitmask '(peek
               no-request)))
+
+(define _av-buffer-src-flags
+  (_bitmask '(no-check-format = 1
+              push = 4
+              keep-ref = 8)))
 
 ;; ===================================================================================================
 
@@ -424,6 +428,37 @@
                              dxv
                              screenpresso
                              rscc
+
+                             y14p = #x8000
+                             avrp
+                             012v
+                             avui
+                             ayuv
+                             targa-y216
+                             v308
+                             v408
+                             yuv4
+                             avrn
+                             cpia
+                             xface
+                             snow
+                             smvjpeg
+                             apng
+                             daala
+                             cfhd
+                             truemotion2rt
+                             m101
+                             magicyuv
+                             sheervideo
+                             ylc
+                             psd
+                             pixlet
+                             speedhq
+                             fmvc
+                             scpr
+                             clearvideo
+                             xpm
+                             av1
 
                              ;; XXX MORE
 
@@ -1263,6 +1298,17 @@
    [all-channel-counts _int]
    [sample-rates _int]))
 
+(define-cstruct _av-buffersrc-parameters
+  ([format _int]
+   [time-base _avrational]
+   [width _int]
+   [height _int]
+   [sample-aspect-ratio _avrational]
+   [frame-rate _avrational]
+   [hw-frames-ctx _pointer]
+   [sample-rate _int]
+   [channel-layout _av-channel-layout]))
+
 ;; ===================================================================================================
 
 (define-avformat av-register-all (_fun -> _void))
@@ -1518,6 +1564,8 @@
 (define-avutil av-frame-set-colorspace (_fun _av-frame-pointer _avcolor-space -> _void))
 (define-avutil av-frame-get-color-range (_fun _av-frame-pointer -> _avcolor-range))
 (define-avutil av-frame-set-color-range (_fun _av-frame-pointer _avcolor-range -> _void))
+(define-avutil av-frame-get-best-effort-timestamp (_fun _av-frame-pointer -> _int64))
+(define-avutil av-frame-set-best-effort-timestamp (_fun _av-frame-pointer _int -> _void))
 (define (av-malloc [a #f] [b #f])
   (define type (cond
                  [(ctype? a) a]
@@ -1652,9 +1700,19 @@
         -> (cond
              [(= ret 0) (values in out)]
              [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-graph-parse2
+  (_fun _avfilter-graph-pointer
+        _string
+        [in : (_ptr io _avfilter-in-out-pointer/null)]
+        [out : (_ptr io _avfilter-in-out-pointer/null)]
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (values in out)]
+             [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
 (define-avfilter avfilter-inout-alloc (_fun -> _avfilter-in-out-pointer))
+(define-avfilter av-nb-failed-requests (_fun _avfilter-context-pointer -> _uint))
 (define (av-buffersink-get-frame ptr [out #f])
   (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
                                                  -> [ret : _int]
@@ -1666,3 +1724,19 @@
   (av-buffersink-get-frame ptr o))
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
+(define-avutil av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
+(define-avfilter av-buffersrc-add-frame-flags
+  (_fun _avfilter-context-pointer _av-frame _av-buffer-src-flags -> [ret : _int]
+        -> (cond
+             [(>= ret 0) (void)]
+             [else (error 'buffersrc-add-frame-flags "~a : ~a" ret (convert-err ret))])))
+(define-avfilter av-buffersrc-add-frame
+  (_fun _avfilter-context-pointer _av-frame-pointer -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
+(define-avfilter av-buffersrc-write-frame
+  (_fun _avfilter-context-pointer _av-frame-pointer -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
