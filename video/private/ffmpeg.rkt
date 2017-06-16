@@ -1461,7 +1461,7 @@
                        (av-init-packet p))))
   (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame (_fun _avcodec-context-pointer
-                                         (_ptr i _av-frame)
+                                         _av-frame-pointer
                                          -> [ret : _int]
                                          -> (cond
                                               [(= ret 0) (void)]

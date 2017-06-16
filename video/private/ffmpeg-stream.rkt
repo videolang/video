@@ -177,14 +177,12 @@
         ['attachment (attachment-callback 'close v #f)])))
   (for ([i (in-vector streams)])
     (match i
-      [(struct* codec-obj
-                ([codec-parameters codec-parameters]
-                 [codec-context codec-context]
-                 [index index]
-                 [flags flags]))
+      [(struct* codec-obj ([codec-parameters codec-parameters]
+                           [codec-context codec-context]
+                           [index index]))
        (when by-index-callback
          (by-index-callback 'close i #f))
-       (unless (set-member? flags 'no-close-context)
+       (unless (set-member? (codec-obj-flags i) 'no-close-context)
          (avcodec-close codec-context))]))
   (avformat-close-input avformat))
 
@@ -238,9 +236,8 @@
   (for ([i (in-vector streams)]
         [index (in-naturals)])
     (match i
-      [(struct* codec-obj
-                ([id id]
-                 [type type]))
+      [(struct* codec-obj ([id id]
+                           [type type]))
        (define type-codec-id
          (match type
            ['video video-codec]
@@ -271,15 +268,14 @@
   ;; Open Streams
   (for ([i (in-vector streams)])
     (match i
-      [(struct* codec-obj
-                ([type type]
-                 [codec codec]
-                 [codec-context ctx]
-                 [stream stream]))
+      [(struct* codec-obj ([type type]
+                           [codec codec]
+                           [codec-context ctx]
+                           [stream stream]))
        (define str-opt (av-dict-copy options '()))
        (avcodec-open2 ctx codec str-opt)
        (av-dict-free str-opt)
-       (avcodec-parameters-from-context (avstream-codecpar stream) ctx)
+       ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
        (if by-index-callback
            (by-index-callback 'open i)
            (match type
@@ -287,9 +283,10 @@
              ['audio (audio-callback 'open i)]
              ['subtitle (subtitle-callback 'open i)]
              ['data (data-callback 'open i)]
-             ['attachment (attachment-callback 'open i)]))]))
+             ['attachment (attachment-callback 'open i)]))
+       (avcodec-parameters-from-context (avstream-codecpar stream) ctx)]))
   ;; Create file.
-  (av-dump-format output-context 0 file 'output)
+  ;(av-dump-format output-context 0 file 'output)
   (unless (set-member? (av-output-format-flags format) 'nofile)
     (set-avformat-context-pb!
      output-context (avio-open (avformat-context-pb output-context) file 'write)))
@@ -339,9 +336,8 @@
   ;; Clean Up
   (for ([i (in-vector streams)])
     (match i
-      [(struct* codec-obj
-                ([type type]
-                 [flags flags]))
+      [(struct* codec-obj ([type type]
+                           [flags flags]))
        (if by-index-callback
            (by-index-callback 'close i)
            (match type
@@ -398,12 +394,11 @@
           ['open (when passthrough-proc
                    (passthrough-proc mode obj #f old-context))]
           ['write
-           (let loop ()
-             (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
-               (define data (packetqueue-get queue))
-               (if passthrough-proc
-                   (passthrough-proc mode obj data old-context)
-                   data)))]
+           (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
+             (define data (packetqueue-get queue))
+             (if passthrough-proc
+                 (passthrough-proc mode obj data old-context)
+                 data))]
           ['close (when passthrough-proc
                     (passthrough-proc mode obj #f old-context))
                   (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
