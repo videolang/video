@@ -416,5 +416,6 @@
   (define out-thread
     ;(thread (λ ()
     (mux-stream out-bundle #:by-index-callback (dequeue-stream #:passthrough-proc out-callback)));))
-  (thread-wait in-thread)
-  (thread-wait out-thread))
+  (void)
+  ;(thread-wait in-thread)
+  #;(thread-wait out-thread))

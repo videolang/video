@@ -312,6 +312,7 @@
                              truemotion2
                              bmp
                              cscd
+                             mmvideo
                              zmbv
                              avs
                              smackvideo
@@ -320,6 +321,7 @@
                              flashsv
                              cavs
                              jpeg2000
+                             vmnc
                              vp5
                              vp6
                              vp6f
@@ -383,6 +385,8 @@
                              wmv3image
                              vc1image
                              utvideo
+                             bmv-video
+                             vble
                              dxtory
                              v410
                              xwd
@@ -400,6 +404,7 @@
                              escape130
                              g2m
                              webp
+                             hnm4-video
                              hevc
                              fic
                              alias-pix
@@ -1534,10 +1539,30 @@
                                     -> [ret : _int]
                                     -> (when (< ret 0)
                                          (error "AV_OPT"))))
+(define-avutil av-opt-set-bin (_fun _pointer _string _pointer _int _int
+                                    -> [ret : _int]
+                                    -> (when (< ret 0)
+                                         (error "AV_OPT"))))
+(define-avutil av-opt-set-image-size (_fun _pointer _string _int _int _int
+                                           -> [ret : _int]
+                                           -> (when (< ret 0)
+                                                (error "AV_OPT"))))
+(define-avutil av-opt-set-pixel-fmt (_fun _pointer _string _avpixel-format _int
+                                          -> [ret : _int]
+                                          -> (when (< ret 0)
+                                               (error "AV_OPT"))))
 (define-avutil av-opt-set-sample-fmt (_fun _pointer _string _avsample-format _int
                                            -> [ret : _int]
                                            -> (when (< ret 0)
                                                 (error "AV_OPT"))))
+(define-avutil av-opt-set-video-rate (_fun _pointer _string _avrational _int
+                                           -> [ret : _int]
+                                           -> (when (< ret 0)
+                                                (error "AV_OPT"))))
+(define-avutil av-opt-set-channel-layout (_fun _pointer _string _av-channel-layout _int
+                                               -> [ret : _int]
+                                               -> (when (< ret 0)
+                                                    (error "AV_OPT"))))
 (define-avutil av-dict-set (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _int
                                  -> [ret : _int]
                                  -> (cond
@@ -1609,6 +1634,7 @@
              [else (error 'graph-create-filter (convert-err ret))])))
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
+(define-avfilter avfilter-inout-alloc (_fun _void -> _avfilter-in-out-pointer))
 (define (av-buffersink-get-frame ptr [out #f])
   (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
                                                  -> [ret : _int]
