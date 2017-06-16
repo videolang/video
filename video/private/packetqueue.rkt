@@ -19,7 +19,7 @@
 (provide (all-defined-out))
 
 (require "threading.rkt"
-         "init-mlt.rkt"
+         "init.rkt"
          "ffmpeg.rkt")
 
 (struct exn:packetqueue-empty ())
@@ -39,8 +39,8 @@
 (define (mk-packetqueue)
   (define mutex (mutex-create))
   (define cond-var (cond-create))
-  (register-mlt-close mutex-destroy mutex)
-  (register-mlt-close cond-destroy cond-var)
+  (register-video-close mutex-destroy mutex)
+  (register-video-close cond-destroy cond-var)
   (packetqueue #f #f 0 0 mutex cond-var))
 (define (packetqueue-put q p)
   ;(define p (av-packet-ref packet))

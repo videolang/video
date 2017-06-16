@@ -20,7 +20,7 @@
 (require racket/match
          ffi/unsafe
          racket/set
-         "init-mlt.rkt"
+         "init.rkt"
          "packetqueue.rkt"
          "ffmpeg.rkt"
          "threading.rkt")
@@ -39,7 +39,7 @@
                           #:options-dict [o #f]
                           #:file [f #f])
   (define streams-ready (mutex-create))
-  (register-mlt-close mutex-destroy streams-ready)
+  (register-video-close mutex-destroy streams-ready)
   (when locked?
     (mutex-lock streams-ready))
   (stream-bundle rs s streams-ready ctx o f))
