@@ -460,6 +460,44 @@
                              xpm
                              av1
 
+                             ;; PCM
+                             pcm-s16le = #x10000
+                             pcm-s16be
+                             pcm-u16le
+                             pcm-u16be
+                             pcm-s8
+                             pcm-u8
+                             pcm-mulaw
+                             pcm-alaw
+                             pcm-s32le
+                             pcm-s32be
+                             pcm-u32le
+                             pcm-u32be
+                             pcm-s24le
+                             pcm-s24be
+                             pcm-u24le
+                             pcm-u24be
+                             pcm-s24daud
+                             pcm-zork
+                             pcm-s16-planar
+                             pcm-dvd
+                             pcm-f32be
+                             pcm-f32le
+                             pcm-f64be
+                             pcm-f64le
+                             pcm-bluray
+                             pcm-lfx
+                             s302m
+                             pcm-s8-planar
+                             pcm-s24le-planar
+                             pcm-s32le-planar
+                             pcm-s16be-planar
+
+                             pcm-s64le = #x10800
+                             pcm-s64be
+                             pcm-f16le
+                             pcm-f24le
+
                              ;; XXX MORE
 
                              ;; Audio
@@ -485,7 +523,21 @@
                              qdm2
                              cook
                              truespeech
-                             tta ;; XXX MORE
+                             tta
+                             smackaudio
+                             qcelp
+                             wavpack
+                             dsicinaudio
+                             imc
+                             musepack7
+                             mlp
+                             gsm-ms
+                             atrac3
+                             voxware ;; DEP AVCODEC 57
+                             ape
+                             nellymoser
+                             musepack8
+                             speex ;; XXX MORE
 
                              ;; Subtitle
                              dvd-subtitle = #x17000

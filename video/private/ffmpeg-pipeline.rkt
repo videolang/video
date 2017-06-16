@@ -410,10 +410,8 @@
 
 ;; ===================================================================================================
 
-(struct filter-graph (string
-                      in
-                      out)
-  #:mutable)
+(struct source-node (path))
+(struct filter-node (filter))
 
 (define (link in-bundle-maker
               out-bundle-maker
