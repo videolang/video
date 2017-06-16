@@ -1251,7 +1251,7 @@
   ([name _string]
    [filter-ctx _avfilter-context-pointer]
    [pad-idx _int]
-   [next _avfilter-in-out-pointer]))
+   [next _avfilter-in-out-pointer/null]))
 
 (define-cstruct _av-buffersink-params
   ([pixel-fmts _avpixel-format-pointer/null]))
@@ -1632,6 +1632,26 @@
         -> (cond
              [(>= ret 0) out]
              [else (error 'graph-create-filter (convert-err ret))])))
+(define-avfilter avfilter-graph-parse
+  (_fun _avfilter-graph-pointer
+        _string
+        _avfilter-in-out-pointer/null
+        _avfilter-in-out-pointer/null
+        _pointer
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else (error 'graph-parse "~a : ~a" ret (convert-err ret))])))
+(define-avutil avfilter-graph-parse-ptr
+  (_fun _avfilter-graph-pointer
+        _string
+        [in : (_ptr io _avfilter-in-out-pointer/null)]
+        [out : (_ptr io _avfilter-in-out-pointer/null)]
+        _pointer
+        -> [ret : _int]
+        -> (cond
+             [(= ret 0) (values in out)]
+             [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
 (define-avfilter avfilter-inout-alloc (_fun _void -> _avfilter-in-out-pointer))
