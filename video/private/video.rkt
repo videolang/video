@@ -26,8 +26,9 @@
          file/convertible
          (prefix-in file: file/convertible)
          "utils.rkt"
-         "mlt.rkt"
-         "init-mlt.rkt"
+         "ffmpeg.rkt"
+         "ffmpeg-pipeline.rkt"
+         "init.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
@@ -65,71 +66,18 @@
 ;;  table to a file.
 ;; Properties Path -> Void
 (define (debug/save-prop prop filepath)
-  (mlt-properties-save (convert prop) (if (absolute-path? filepath)
-                                          filepath
-                                          (build-path (current-directory) filepath))))
+  (error "TODO"))
 
-;; Calls mlt-*-service on the correct data type
-;;    (getting the service type)
-;; Service -> _mlt-service
-(define (mlt-*-service video-object)
-  (cond
-    [(link? video-object)
-     (mlt-*-service (link-target video-object))]
-    [else
-     (define video-object* (convert video-object))
-     (cond
-       [(mlt-filter? video-object*)
-        (mlt-filter-service video-object*)]
-       [(mlt-playlist? video-object*)
-        (mlt-playlist-service video-object*)]
-       [(mlt-producer? video-object*)
-        (mlt-producer-service video-object*)]
-       [else (error 'video "Unsupported video: ~a" video-object)])]))
-
-;; Connect target to source
-;; Video-Object _mlt-service Integer -> _mlt-consumer
-(define (mlt-*-connect target source-service [index #f])
-  (define target* (convert target))
-  (cond
-    [(consumer? target)
-     (mlt-consumer-connect target*
-                           source-service)]
-    [(filter? target)
-     (mlt-filter-connect target*
-                         source-service
-                         index)]
-    [else (error 'video "Unsupported target ~a" target)])
-  target*)
-
-(define (finish-mlt-object-init! mlt-object video)
+(define (finish-video-object-init! video-object video)
   ;; Set properties
   (when (properties? video)
     (for ([(k* v*) (in-dict (properties-prop video))])
       (define-values (k v) ((properties-mlt-default-proc video) k* v*))
-      (cond
-        [(integer? v) (mlt-properties-set-int64 mlt-object k v)]
-        [(real? v) (mlt-properties-set-double mlt-object k v)]
-        [(string? v) (mlt-properties-set mlt-object k v)]
-        [(boolean? v) (mlt-properties-set/bool mlt-object k v)]
-        [(anim-property? v)
-         (match v
-           [(struct* anim-property ([value value]
-                                    [position position]
-                                    [length length]))
-            (cond
-              [(string? value)
-               (mlt-properties-anim-set mlt-object value position length)]
-              [else (error 'video "Anim Property type ~a not currently supported" value)])])]
-        [else (error 'video "Property type ~a not currently supported" v)])))
+      (error "TODO")))
   ;; Attach filters
   (when (service? video)
     (for ([f (in-list (service-filters video))])
-      (mlt-service-attach mlt-object (convert f))))
-  ;; Optimise if possible
-  #;
-  (when (producer? video)
-    (mlt-producer-optimise (video-mlt-object video))))
+      (error "TODO"))))
 
 ;; Dynamic Dispatch for Video Objects
 (define-generics video-ops
@@ -189,7 +137,7 @@
                                     (#,(format-id stx "~a-~a" i j) v)])
                           #f body ...)))
                     (when ret
-                      (finish-mlt-object-init! ret v))
+                      (finish-video-object-init! ret v))
                     ret)
                   (if (current-skip-memoize?)
                       (conv)
@@ -207,11 +155,12 @@
 (define-constructor video #f ())
 
 (define-constructor link video ([source #f] [target #f] [index 0])
-  (mlt-*-connect target (mlt-*-service source) index))
+  (error "TODO"))
 
 (define-constructor properties video ([prop (hash)]
                                       [prop-default-proc mlt-prop-default-proc]
-                                      [mlt-default-proc mlt-mlt-default-proc]))
+                                      [mlt-default-proc mlt-mlt-default-proc])
+  (error "TODO"))
 
 (define (get-property dict key
                       [extra-info #f])
@@ -222,13 +171,7 @@
   (define v (convert dict))
   (unless v
     (error 'properties "MLT object for ~a not created, cannot get default property" dict))
-  (match default-type
-    [(or 'string #f) (mlt-properties-get v key)]
-    ['int (mlt-properties-get-int v key)]
-    ['int64 (mlt-properties-get-int64 v key)]
-    ['mlt-position (mlt-properties-get-position v key)]
-    ['double (mlt-properties-get-double v key)]
-    [else (error 'properties "Not a valid default-type ~a" default-type)]))
+  (error "TODO"))
 
 (define (mlt-mlt-default-proc key val)
   (match key
@@ -243,16 +186,13 @@
 (define-constructor service properties ([filters '()]))
 
 (define-constructor filter service ([type #f] [source #f])
-  (define f (mlt-factory-filter (current-profile) type source))
-  (register-mlt-close mlt-filter-close f))
+  (error "TODO"))
 
 (define-constructor transition service ([type #f] [source #f] [length #f])
-  (define t (mlt-factory-transition (current-profile) type source))
-  (register-mlt-close mlt-transition-close t))
+  (error "TODO"))
 
 (define-constructor consumer service ([type #f] [target #f])
-  (define c (mlt-factory-consumer (current-profile) type target))
-  (register-mlt-close mlt-consumer-close c))
+  (error "TODO"))
 
 (define-constructor producer service ([type #f]
                                       [source #f]
@@ -261,114 +201,23 @@
                                       [speed #f]
                                       [seek #f]
                                       [unbounded? #f])
-  (define producer* (mlt-factory-producer (current-profile) type source))
-  (define start* (or start (current-video-start) 0))
-  (define end* (or end (current-video-end) 0))
-  (mlt-producer-set-in-and-out producer* start* (- end* 1))
-  (when speed
-    (mlt-producer-set-speed producer* speed))
-  (when seek
-    (mlt-producer-seek producer* seek))
-  (register-mlt-close mlt-producer-close producer*))
+  (error "TODO"))
+
+(define-constructor file producer ([file #f])
+  (error "TODO"))
 
 (define-constructor blank producer ([length 0])
   (convert (make-playlist #:elements (list this))))
 
 (define-constructor playlist producer ([elements '()])
-  (define playlist* (mlt-playlist-init))
-  (for ([i (in-list elements)])
-    (match i
-      [(struct* blank ([length length]))
-       (mlt-playlist-blank playlist* length)]
-      [(struct* playlist-producer ([start start]
-                                   [end end]))
-       #:when (and start end)
-       (define i* (convert i))
-       (mlt-playlist-append-io playlist* i* start end)]
-      [(struct* transition ()) (void)] ;; Must be handled after clips are added
-      [_ ; (struct* producer ()) (But can be converted first
-       (define i* (convert i))
-       (mlt-playlist-append playlist* i*)]
-      #;[_ (error 'playlist "Not a playlist element: ~a" i)]))
-  (for ([e (in-list elements)]
-        [i (in-naturals)])
-    (when (transition? e)
-      (mlt-playlist-mix playlist*
-                        (sub1 i)
-                        (or (transition-length e) 0)
-                        (convert e))))
-  (register-mlt-close mlt-playlist-close playlist*))
-
-(define-constructor playlist-producer video ([producer #f] [start #f] [end #f])
-  (convert producer))
+  (error "TODO"))
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
-  (define tractor* (mlt-tractor-new))                    ; Tractor
-  (define multitrack* (mlt-tractor-multitrack tractor*)) ; Multitrack
-  (define-values (max-bounded-in max-bounded-out)
-    (parameterize ([current-skip-memoize? #t])
-      (for/fold ([i 0]    ;; MLT multitracks will become largest producer
-                 [o #f])  ;; which is a problem for unbounded data.
-                ([track (in-list tracks)])
-        (define unbounded? (unbounded-video? track))
-        (cond
-          [unbounded? (values i o)]
-          [else
-           (define in (get-property track "in" 'int))
-           (define out (get-property track "out" 'int))
-           (values
-            (if in
-                (min i in)
-                i)
-            (cond [(and o out)
-                   (max o out)]
-                  [out out]
-                  [else o]))]))))
-  (parameterize ([current-video-start max-bounded-in]
-                 [current-video-end max-bounded-out])
-    (for ([track (in-list tracks)]
-          [i (in-naturals)])
-      (define track* (convert track))
-      (mlt-multitrack-connect multitrack* track* i)))
-  (for ([track (in-list tracks)])
-    (when (unbounded-video? track)
-      (mlt-producer-set-in-and-out (convert track) (or max-bounded-in -1) (or max-bounded-out -1))))
-  (mlt-producer-set-in-and-out tractor* (or max-bounded-in -1) (or max-bounded-out -1))
-  (register-mlt-close mlt-multitrack-close multitrack*)
-  (define field* (mlt-tractor-field tractor*))           ; Field
-  (for ([element (in-list field)])
-    (match element
-      [(struct* field-element ([element element]
-                               [track track]
-                               [track-2 track-2]))
-       (define element* (convert element))
-       (cond
-         [(transition? element)
-          (define-values (track* track2*)
-            (for/fold ([track* #f]
-                       [track2* #f])
-                     ([t (in-list tracks)]
-                      [i (in-naturals)])
-              (values
-               (or track* (if (eq? t track) i #f))
-               (or track2* (if (eq? t track-2) i #f)))))
-          (unless (and track* track2*)
-            (error 'multitrack
-                   "Cannot find producers in multitrack ~a: ~a ~a"
-                   tracks
-                   track
-                   track-2))
-          (mlt-field-plant-transition field* element* track* track2*)]
-         [(filter? element)
-          (mlt-field-plant-filter field* element* track)])]))
-  (register-mlt-close mlt-field-close field*)
-  tractor*)
+  (error "TODO"))
 
 (define-constructor field-element video ([element #f] [track #f] [track-2 #f]))
 
-;; Hack because we can't currently guarentee that mlt is installed
-(when mlt-lib
-  ;; The render module sets a parameter we rely on
-  ;;  (Yes, we 'could' do it with units, but requires a large
-  ;;   amount of boilerplate.)
-  (void (dynamic-require (build-path video-dir "render.rkt") #f)))
+;; The render module sets a parameter we rely on
+;;  (Yes, we 'could' do it with units, but requires a large
+;;   amount of boilerplate.)
+(void (dynamic-require (build-path video-dir "render.rkt") #f))

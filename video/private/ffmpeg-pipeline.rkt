@@ -410,8 +410,18 @@
 
 ;; ===================================================================================================
 
-(struct source-node (path))
-(struct filter-node (filter))
+(struct source-node (bundle))
+(struct filter-node (video
+                     audio
+                     subtitle
+                     data
+                     attachment))
+(define (mk-filter-node #:video [v ""]
+                        #:audio [a ""]
+                        #:subtitle [s ""]
+                        #:data [d ""]
+                        #:attachment [att ""])
+  (filter-node v a s d att))
 
 (define (link in-bundle-maker
               out-bundle-maker
