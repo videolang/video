@@ -1361,7 +1361,7 @@
                                  -> (cond
                                       [(>= ret 0) out]
                                       [else (error 'avio-open (convert-err ret))])))
-(define-avformat avio-close (_fun _avio-context -> [ret : _int]
+(define-avformat avio-close (_fun _avio-context-pointer -> [ret : _int]
                                   -> (cond
                                        [(= ret 0) (void)]
                                        [else (error 'avio-close (convert-err ret))])))
@@ -1456,9 +1456,10 @@
                [(= ret AVERROR-EOF) eof]
                [else
                 (error 'recev-packet (convert-err ret))])))
-  (define packet (or packet
-                     (let ([p (av-malloc _avpacket)])
-                       (av-init-packet p))))
+  (define packet (or maybe-packet
+                     (let ([p (ptr-ref (av-malloc _avpacket) _avpacket)])
+                       (av-init-packet p)
+                       p)))
   (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame (_fun _avcodec-context-pointer
                                          _av-frame-pointer
