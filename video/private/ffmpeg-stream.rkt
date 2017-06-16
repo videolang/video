@@ -404,16 +404,17 @@
                   (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
                   (avcodec-close ctx)])])]))
 
-(define (link infile
-              outfile)
-  (define in-bundle (file->stream-bundle infile))
+(define (link in-bundle-maker
+              out-bundle-maker
+              #:in-callback [in-callback #f]
+              #:out-callback [out-callback #f])
+  (define in-bundle (in-bundle-maker))
   (define in-thread
-    (thread
-     (λ () (demux-stream in-bundle #:by-index-callback queue-stream))))
-  (define out-bundle (bundle-for-file outfile
-                                      (map codec-obj-type in-bundle)))
+    ;(thread (λ ()
+    (demux-stream in-bundle #:by-index-callback (queue-stream #:passthrough-proc in-callback)));))
+  (define out-bundle (out-bundle-maker in-bundle))
   (define out-thread
-    (thread
-     (λ () (mux-stream out-bundle (error "TODO")))))
+    ;(thread (λ ()
+    (mux-stream out-bundle #:by-index-callback (dequeue-stream #:passthrough-proc out-callback)));))
   (thread-wait in-thread)
   (thread-wait out-thread))
