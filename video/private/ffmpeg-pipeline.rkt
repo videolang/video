@@ -27,6 +27,7 @@
 
 (struct stream-bundle (raw-streams
                        cooked-streams
+                       stream-table
                        streams-ready-lock
                        avformat-context
                        options-dict
@@ -34,6 +35,7 @@
   #:mutable)
 (define (mk-stream-bundle #:raw-streams [rs #'()]
                           #:streams [s #'()]
+                          #:stream-table [st (make-hash)]
                           #:locked? [locked? #t]
                           #:avformat-context [ctx #f]
                           #:options-dict [o #f]
@@ -42,7 +44,7 @@
   (register-video-close mutex-destroy streams-ready)
   (when locked?
     (mutex-lock streams-ready))
-  (stream-bundle rs s streams-ready ctx o f))
+  (stream-bundle rs s st streams-ready ctx o f))
 (define (stream-bundle-post-streams-ready bundle)
   (mutex-unlock (stream-bundle-streams-ready-lock bundle)))
 (define (stream-bundle-streams-ready? bundle)
@@ -101,23 +103,19 @@
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat))
 
-;; Callback ops:
-;;   'init
-;;   'loop
-;;   'close
-(define (demux-stream bundle
-                      #:video-callback [video-callback empty-proc]
-                      #:audio-callback [audio-callback empty-proc]
-                      #:subtitle-callback [subtitle-callback empty-proc]
-                      #:data-callback [data-callback empty-proc]
-                      #:attachment-callback [attachment-callback empty-proc]
-                      #:by-index-callback [by-index-callback #f])
+(define (demux-stream/fill-bundle bundle
+                                  #:video-callback [video-callback empty-proc]
+                                  #:audio-callback [audio-callback empty-proc]
+                                  #:subtitle-callback [subtitle-callback empty-proc]
+                                  #:data-callback [data-callback empty-proc]
+                                  #:attachment-callback [attachment-callback empty-proc]
+                                  #:by-index-callback [by-index-callback #f])
   ;; Open file
   (define avformat (stream-bundle-avformat-context bundle))
   (define raw-strs (stream-bundle-raw-streams bundle))
   ;(av-dump-format avformat 0 testfile 0)
   ;; Init Streams
-  (define stream-table (make-hash))
+  (define stream-table (stream-bundle-stream-table))
   (define streams
     (for/vector ([i raw-strs]
                  [i* (in-naturals)])
@@ -148,7 +146,59 @@
         ['subtitle (subtitle-callback 'init v #f)]
         ['data (data-callback 'init v #f)]
         ['attachment (attachment-callback 'init v #f)])))
-  (set-stream-bundle-streams! bundle streams)
+  (set-stream-bundle-streams! bundle streams))
+
+(define (demux-stream/close-bundle bundle
+                                   #:video-callback [video-callback empty-proc]
+                                   #:audio-callback [audio-callback empty-proc]
+                                   #:subtitle-callback [subtitle-callback empty-proc]
+                                   #:data-callback [data-callback empty-proc]
+                                   #:attachment-callback [attachment-callback empty-proc]
+                                   #:by-index-callback [by-index-callback #f])
+  (define avformat (stream-bundle-avformat-context bundle))
+  (define streams (stream-bundle-streams bundle))
+  (define stream-table (stream-bundle-stream-table))
+  (unless by-index-callback
+    (for ([(k v) (in-hash stream-table)])
+      (match k
+        ['video (video-callback 'close v #f)]
+        ['audio (audio-callback 'close v #f)]
+        ['subtitle (subtitle-callback 'close v #f)]
+        ['data (data-callback 'close v #f)]
+        ['attachment (attachment-callback 'close v #f)])))
+  (for ([i (in-vector streams)])
+    (match i
+      [(struct* codec-obj ([codec-parameters codec-parameters]
+                           [codec-context codec-context]
+                           [index index]))
+       (when by-index-callback
+         (by-index-callback 'close i #f))
+       (unless (set-member? (codec-obj-flags i) 'no-close-context)
+         (avcodec-close codec-context))]))
+  (avformat-close-input avformat))
+
+;; Callback ops:
+;;   'init
+;;   'loop
+;;   'close
+(define (demux-stream bundle
+                      #:video-callback [video-callback empty-proc]
+                      #:audio-callback [audio-callback empty-proc]
+                      #:subtitle-callback [subtitle-callback empty-proc]
+                      #:data-callback [data-callback empty-proc]
+                      #:attachment-callback [attachment-callback empty-proc]
+                      #:by-index-callback [by-index-callback #f])
+  ;; Init Streams
+  (define avformat (stream-bundle-avformat-context bundle))
+  (define streams (stream-bundle-streams bundle))
+  (define stream-table (stream-bundle-stream-table))
+  (demux-stream/fill-bundle bundle
+                            #:video-callback video-callback
+                            #:audio-callback audio-callback
+                            #:subtitle-callback subtitle-callback
+                            #:data-callback data-callback
+                            #:attachment-callback attachment-callback
+                            #:by-index-callback by-index-callback)
   ;; Main Loop
   (let loop ()
     (define packet (av-read-frame avformat))
@@ -169,24 +219,13 @@
                    [else (av-packet-unref packet)])])
       (loop)))
   ;; Close Down
-  (unless by-index-callback
-    (for ([(k v) (in-hash stream-table)])
-      (match k
-        ['video (video-callback 'close v #f)]
-        ['audio (audio-callback 'close v #f)]
-        ['subtitle (subtitle-callback 'close v #f)]
-        ['data (data-callback 'close v #f)]
-        ['attachment (attachment-callback 'close v #f)])))
-  (for ([i (in-vector streams)])
-    (match i
-      [(struct* codec-obj ([codec-parameters codec-parameters]
-                           [codec-context codec-context]
-                           [index index]))
-       (when by-index-callback
-         (by-index-callback 'close i #f))
-       (unless (set-member? (codec-obj-flags i) 'no-close-context)
-         (avcodec-close codec-context))]))
-  (avformat-close-input avformat))
+  (demux-stream/close-bundle bundle
+                             #:video-callback video-callback
+                             #:audio-callback audio-callback
+                             #:subtitle-callback subtitle-callback
+                             #:data-callback data-callback
+                             #:attachment-callback attachment-callback
+                             #:by-index-callback by-index-callback))
 
 (define (bundle-for-file file bundle
                          #:output-format [output-format #f]

@@ -200,10 +200,13 @@
                                       [end #f]
                                       [speed #f]
                                       [seek #f]
+                                      [width #f]
+                                      [height #f]
                                       [unbounded? #f])
   (error "TODO"))
 
 (define-constructor file producer ([file #f])
+  (define bundle (file->stream-bundle file))
   (error "TODO"))
 
 (define-constructor blank producer ([length 0])
