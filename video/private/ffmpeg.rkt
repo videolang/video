@@ -103,6 +103,8 @@
 (struct exn:ffmpeg:again exn:ffmpeg ())
 (struct exn:ffmpeg:eof exn:ffmpeg ())
 (struct exn:ffmpeg:flush exn:ffmpeg ())
+(struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
+(struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
 
 ;; ===================================================================================================
 
@@ -1468,15 +1470,21 @@
                                   -> (cond
                                        [(= ret 0) (void)]
                                        [else (error 'avio-close (convert-err ret))])))
-(define-avformat av-find-best-stream (_fun _avformat-context-pointer
-                                           _avmedia-type
-                                           _int
-                                           _int
-                                           (_ptr io _avcodec-pointer)
-                                           _int
-                                           -> [ret : _int]
-                                           -> (cond [(>= ret 0) ret]
-                                                    [else (raise (convert-err ret))])))
+(define-avformat av-find-best-stream
+  (_fun _avformat-context-pointer _avmedia-type _int _int
+        _pointer ;(_ptr io _avcodec-pointer/null)
+        _int
+        -> [ret : _int]
+        -> (cond [(>= ret 0) ret]
+                 [(= (- ret) AVERROR-STREAM-NOT-FOUND (FFERRTAG #xf8 #\S #\T #\R))
+                  (raise (exn:ffmpeg:stream-not-found
+                          "find-best-frame"
+                          (current-continuation-marks)))]
+                 [(= (- ret) AVERROR-DECODER-NOT-FOUND (FFERRTAG #xf8 #\D #\E #\C))
+                  (raise (exn:ffmpeg:decoder-not-found
+                          "find-best-stream"
+                          (current-continuation-marks)))]
+                 [else (raise (convert-err ret))])))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
@@ -1764,7 +1772,6 @@
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
 (define-avfilter avfilter-inout-alloc (_fun -> _avfilter-in-out-pointer))
-(define-avfilter av-nb-failed-requests (_fun _avfilter-context-pointer -> _uint))
 (define (av-buffersink-get-frame ptr [out #f])
   (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
                                                  -> [ret : _int]
@@ -1776,7 +1783,7 @@
   (av-buffersink-get-frame ptr o))
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
-(define-avutil av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
+(define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
 (define-avfilter av-buffersrc-add-frame-flags
   (_fun _avfilter-context-pointer _av-frame _av-buffer-src-flags -> [ret : _int]
         -> (cond

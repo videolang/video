@@ -94,6 +94,10 @@
      ret]
     [else dict]))
 
+(define (maybe-av-find-best-stream avformat type)
+  (with-handlers ([exn:ffmpeg:stream-not-found? (λ (e) #f)])
+    (av-find-best-stream avformat type -1 -1 #f 0)))
+
 ;; ===================================================================================================
 
 (define (file->stream-bundle file)
@@ -449,12 +453,24 @@
 
 ;; ===================================================================================================
 
-(struct source-node (bundle))
+(struct subgraph (string
+                  in-list
+                  out-list))
+(define (mk-subgraph #:string [s ""]
+                     #:in-list [il '()]
+                     #:out-list [ol '()])
+  (subgraph s il ol))
+(struct source-node (bundle
+                     node-props))
+(define (mk-source-node #:bundle [b #f]
+                        #:node-props [np (hash)])
+  (source-node b np))
 (struct filter-node (video
                      audio
                      subtitle
                      data
-                     attachment))
+                     attachment
+                     node-props))
 (define (mk-filter-node #:video [v ""]
                         #:audio [a ""]
                         #:subtitle [s ""]
