@@ -36,7 +36,7 @@
                      racket/function
                      syntax/parse))
 
-(define current-render-graph (make-parameter #f))
+(define current-render-graph (make-parameter (weighted-graph/directed '())))
 
 ;; A helper function to convert videos to MLT object
 ;; Video (U Renderer% #f) -> _mlt-object
@@ -165,9 +165,11 @@
   ()
   (error "TODO"))
 
-(define-constructor transition service ([type #f] [source #f] [length #f])
-  ()
-  (error "TODO"))
+(define-constructor transition service ([source-track1 (hash)]
+                                        [source-track2 (hash)]
+                                        [length-track1 0]
+                                        [length-track2 0])
+  ())
 
 (define-constructor consumer service ([type #f] [target #f])
   ()
@@ -175,10 +177,12 @@
 
 (define-constructor producer service ([type #f]
                                       [source #f]
-                                      [start #f]
-                                      [end #f]
+                                      [start 0]
+                                      [end 0]
                                       [speed #f]
                                       [seek #f]
+                                      [x #f]
+                                      [y #f]
                                       [width #f]
                                       [height #f]
                                       [unbounded? #f])
@@ -195,13 +199,104 @@
   (error "TODO, add streams")
   (source-node bundle))
 
-(define-constructor blank producer ([length 0])
-  ()
-  (convert (make-playlist #:elements (list this))))
+(define-constructor blank producer () ()
+  (error "TODO"))
 
 (define-constructor playlist producer ([elements '()])
   ()
-  (error "TODO"))
+  (define pre-list
+    (cond
+      [(empty? elements) (list (blank #:start 0 #:end 1))]
+      [(transition? (first elements))
+       (list (blank #:start 0 #:end (transition-length-track1 (first elements))))]
+      [else (list)]))
+  (define post-list
+    (cond
+      [(empty? elements) (list)]
+      [(transition? (last elements))
+       (list (blank #:start 0 #:end (transition-length-track2 (last elements))))]
+      [else (list)]))
+  (define elements*
+    (append pre-list elements post-list))
+  ;; Generate nodes and handle transitions
+  (define-values (rev-vids rev-nodes start end fps width height)
+    (for/fold ([prev-vids '()]
+               [prev-nodes '()]
+               [start 0]
+               [end 0]
+               [fps 0]
+               [width 0]
+               [height 0])
+              ([i (in-list elements*)]
+               [index (in-naturals)])
+      (match i
+        [(struct* transition ([source-track1 source-track1]
+                              [source-track2 source-track2]
+                              [length-track1 length-track1]
+                              [length-track2 length-track2]))
+         (define track1-modifier (mk-filter-node #:video (dict-ref source-track1 'video)
+                                                 #:audio (dict-ref source-track1 'audio)
+                                                 #:subtitle (dict-ref source-track1 'subtitle)
+                                                 #:props (node-props (car prev-nodes))))
+         (add-vertex! (current-render-graph) track1-modifier)
+         (add-directed-edge! (current-render-graph)
+                             (car prev-nodes) track1-modifier 1)
+         (values (cons i prev-vids)
+                 (cons track1-modifier (car prev-nodes))
+                 start
+                 (- end (/ (+ (length-track1 i)
+                              (length-track2 i))
+                           2))
+                 fps
+                 width
+                 height)]
+        [else
+         (define pre-node (convert i))
+         (define node
+           (cond [(and (not (null? prev-vids))
+                       (transition? (car prev-vids)))
+                  (define source-track2 (transition-source-track2 (car prev-vids)))
+                  (define track2-modifier
+                    (mk-filter-node #:video (dict-ref source-track2 'video)
+                                    #:audio (dict-ref source-track2 'audio)
+                                    #:subtitle (dict-ref source-track2 'subtitle)
+                                    #:props (node-props pre-node)))
+                  (add-vertex! (current-render-graph) track2-modifier)
+                  (add-directed-edge! (current-render-graph)
+                                      pre-node track2-modifier)
+                  track2-modifier]
+                 [else pre-node]))
+         (define props (node-props node))
+         (values (cons i prev-vids)
+                 (cons node prev-nodes)
+                 start
+                 (+ end (- (dict-ref props "end") (dict-ref props "start")))
+                 (max fps (dict-ref props "fps" 0))
+                 (max width (dict-ref props "width" 0))
+                 (max height (dict-ref props "height" 0)))])))
+  (define nodes (reverse rev-nodes))
+  ;; Go through again and fix frame rates and aspect ratios
+  (log-warning "Need to fix FPS/Width/Height")
+  ;; Build backing structure and transition everything to it.
+  (define background (blank #:start start
+                            #:end end
+                            #:fps fps
+                            #:width width
+                            #:height height))
+  (for/fold ([curr-back background])
+            ([i nodes]
+             [index (in-naturals)])
+    (define new-background
+      (mk-filter-node #:video "overlay"
+                      #:props (hash "start" start
+                                    "end" end
+                                    "fps" fps
+                                    "width" width
+                                    "height" height)))
+    (add-vertex! (current-render-graph) new-background)
+    (add-directed-edge! (current-render-graph) curr-back new-background 1)
+    (add-directed-edge! (current-render-graph) i new-background 2)
+    new-background))
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()

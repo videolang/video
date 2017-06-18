@@ -460,23 +460,23 @@
                      #:in-list [il '()]
                      #:out-list [ol '()])
   (subgraph s il ol))
-(struct source-node (bundle
-                     node-props))
+(struct node (props))
+(struct source-node node (bundle))
 (define (mk-source-node #:bundle [b #f]
-                        #:node-props [np (hash)])
+                        #:props [np (hash)])
   (source-node b np))
-(struct filter-node (video
-                     audio
-                     subtitle
-                     data
-                     attachment
-                     node-props))
+(struct filter-node node (video
+                          audio
+                          subtitle
+                          data
+                          attachment))
 (define (mk-filter-node #:video [v ""]
                         #:audio [a ""]
                         #:subtitle [s ""]
                         #:data [d ""]
-                        #:attachment [att ""])
-  (filter-node v a s d att))
+                        #:attachment [att ""]
+                        #:props [props (hash)])
+  (filter-node v a s d att props))
 
 (define (link in-bundle-maker
               out-bundle-maker
