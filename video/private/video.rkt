@@ -219,7 +219,7 @@
   (define elements*
     (append pre-list elements post-list))
   ;; Generate nodes and handle transitions
-  (define-values (rev-vids rev-nodes start end fps width height)
+  (define-values (rev-trans-vids rev-trans-nodes start end fps width height)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
                [start 0]
@@ -237,12 +237,16 @@
          (define track1-modifier (mk-filter-node #:video (dict-ref source-track1 'video)
                                                  #:audio (dict-ref source-track1 'audio)
                                                  #:subtitle (dict-ref source-track1 'subtitle)
-                                                 #:props (node-props (car prev-nodes))))
+                                                 #:props (dict-update (node-props (car prev-nodes))
+                                                                      "end"
+                                                                      (λ (end)
+                                                                        (- end length-track1)))))
+         (define prev-vid (car prev-vids))
          (add-vertex! (current-render-graph) track1-modifier)
          (add-directed-edge! (current-render-graph)
                              (car prev-nodes) track1-modifier 1)
          (values (cons i prev-vids)
-                 (cons track1-modifier (car prev-nodes))
+                 (cons track1-modifier (cdr prev-nodes))
                  start
                  (- end (/ (+ (length-track1 i)
                               (length-track2 i))
@@ -256,11 +260,15 @@
            (cond [(and (not (null? prev-vids))
                        (transition? (car prev-vids)))
                   (define source-track2 (transition-source-track2 (car prev-vids)))
+                  (define length-track2 (transition-length-track2 (car prev-vids)))
                   (define track2-modifier
                     (mk-filter-node #:video (dict-ref source-track2 'video)
                                     #:audio (dict-ref source-track2 'audio)
                                     #:subtitle (dict-ref source-track2 'subtitle)
-                                    #:props (node-props pre-node)))
+                                    #:props (dict-update (node-props pre-node)
+                                                         "end"
+                                                         (λ (end)
+                                                           (- end length-track2)))))
                   (add-vertex! (current-render-graph) track2-modifier)
                   (add-directed-edge! (current-render-graph)
                                       pre-node track2-modifier)
@@ -274,9 +282,38 @@
                  (max fps (dict-ref props "fps" 0))
                  (max width (dict-ref props "width" 0))
                  (max height (dict-ref props "height" 0)))])))
-  (define nodes (reverse rev-nodes))
+  (define transition-nodes (reverse rev-trans-nodes))
+  (define transition-videos (reverse rev-trans-vids))
+  ;; Remove now unneded transitions
+  (define only-videos (filter (compose not transition?) transition-videos))
   ;; Go through again and fix frame rates and aspect ratios
+  (define-values (rev-cleaned-vids rev-cleaned-nodes)
+    (for/fold ([prev-nodes '()])
+              ([node (in-list transition-nodes)]
+               [vid (in-list only-videos)])
+      (cons node prev-nodes)))
+  (define cleaned-nodes (reverse rev-cleaned-nodes))
   (log-warning "Need to fix FPS/Width/Height")
+  ;; Offset each clip accordingly
+  (define-values (prev-nodes time-again)
+    (for/fold ([prev-nodes '()]
+               [time 0])
+              ([n (in-list cleaned-nodes)])
+      (define props (node-props n))
+      (define start (dict-ref props "start"))
+      (define end (dict-ref props "end"))
+      (define offset-str (format "setpts=PTS-STARTPTS+~a" time))
+      (define node
+        (mk-filter-node #:video offset-str
+                        #:audio offset-str
+                        #:subtitle offset-str
+                        #:props (dict-set* props
+                                           "start" (+ start time)
+                                           "end" (+ end time))))
+      (add-vertex! (current-render-graph) node)
+      (add-directed-edge! (current-render-graph) n node 1)
+      (values (cons node prev-nodes) (+ time (- end start)))))
+  (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
   (define background (blank #:start start
                             #:end end
