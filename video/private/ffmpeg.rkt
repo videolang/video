@@ -68,11 +68,12 @@
 (define AVERROR-STREAM-NOT-FOUND (FFERRTAG #xf8 #\S #\T #\R))
 (define AVERROR-DECODER-NOT-FOUND (FFERRTAG #xf8 #\D #\E #\C))
 
-(define AV-NUM-DATA-POINTERS 8)
-(define MAX-REORDER-DELAY 16)
 (define EAGAIN (lookup-errno 'EAGAIN))
 (define EINVAL (lookup-errno 'EINVAL))
+(define ENOMEM (lookup-errno 'ENOMEM))
 
+(define AV-NUM-DATA-POINTERS 8)
+(define MAX-REORDER-DELAY 16)
 
 (define AVSTREAM-INIT-IN-WRITE-HEADER 0)
 (define AVSTREAM-INIT-IN-INIT-OUTPUT 1)
@@ -500,6 +501,31 @@
                              pcm-f16le
                              pcm-f24le
 
+                             ;; ADPCM
+                             adpcm-ima-qt = #x11000
+                             adpcm-ima-wav
+                             adpcm-ima-dk3
+                             adpcm-ima-dk4
+                             adpcm-ima-ws
+                             adpcm-ima-smjpeg
+                             adpcm-ms
+                             adpcm-4xm
+                             adpcm-xa
+                             adpcm-adx
+                             adpcm-ea
+                             adpcm-g726
+                             adpcm-ct
+                             adpcm-swf
+                             adpcm-yamaha
+                             adpcm-sbpro-4
+                             adpcm-sbpro-3
+                             adpcm-sbpro-2
+                             adpcm-thp
+                             adpcm-ima-amv
+                             adpcm-ea-r1
+                             adpcm-ea-r3
+                             adpcm-ea-r2 ;; XXX MORE
+ 
                              ;; XXX MORE
 
                              ;; Audio
@@ -675,6 +701,11 @@
 (define _avstream-parse-type _fixint)
 (define _avpicture-type _fixint)
 
+(define _avsubtitle-type (_enum '(none
+                                  bitmap
+                                  text
+                                  ass)))
+
 (define _avclass-category (_enum '(na = 0
                                    input
                                    output
@@ -692,6 +723,10 @@
                                    audio-input
                                    device-output
                                    device-input)))
+
+(define _avfilter-auto-convert
+  (_enum '(all = 0
+           none = -1)))
 
 ;; ===================================================================================================
 
@@ -738,11 +773,6 @@
 (define-cstruct _avio-interrupt-cb
   ([callback _fpointer]
    [opaque _pointer]))
-
-(define (avformat-context-streams v)
-  (cblock->list (avformat-context-streams-data v)
-                _avstream-pointer
-                (avformat-context-nb-streams v)))
 
 (define-cstruct _av-input-format
   ([name _string]
@@ -850,6 +880,10 @@
    [dump-separator _uint8]
    [data-codec-id _avcodec-id]
    [open-cb _pointer]))
+(define (avformat-context-streams v)
+  (cblock->list (avformat-context-streams-data v)
+                _avstream-pointer
+                (avformat-context-nb-streams v)))
 
 (define _avrational
   (let ()
@@ -1235,6 +1269,11 @@
    [internal _pointer]
    [codecpar _avcodec-parameters-pointer/null]))
 
+;; DEP AVCODEC 59
+(define-cstruct _av-picture
+  ([data (_array _pointer AV-NUM-DATA-POINTERS)]
+   [linesize (_array _int AV-NUM-DATA-POINTERS)]))
+
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
 (define-cstruct _av-frame
@@ -1323,18 +1362,48 @@
    [flags _avfilter-command-flags]
    [next _avfilter-command-pointer]))
 
+(define-cstruct _avfilter-link
+  ([src _avfilter-context-pointer]
+   [srcpad _avfilter-pad-pointer]
+   [dst _avfilter-context-pointer]
+   [dstpad _avfilter-pad-pointer]
+   [type _avmedia-type]
+   [w _int]
+   [h _int]
+   [sample-aspect-ratio _avrational]
+   [channel-layout _uint64]
+   [sample-rate _int]
+   [format _int]
+   [time-base _avrational]))
+(define (avfilter-link-format/video link)
+  (cast (avfilter-link-format link) _int _avpixel-format))
+(define (set-avfilter-link-format/video! link format)
+  (set-avfilter-link-format! link (cast format _avpixel-format _int)))
+(define (avfilter-link-format/audio link)
+  (cast (avfilter-link-format link) _int _avsample-format))
+(define (set-avfilter-link-format/audio! link format)
+  (set-avfilter-link-format! link (cast format _avsample-format _int)))
+
 (define-cstruct _avfilter-context
   ([av-class _avclass-pointer]
    [filter _avfilter-pointer]
    [name _string]
-   [input-count _uint]
    [input-pads _avfilter-pad-pointer]
-   [inputs (_cpointer 'avfilter-link-pointer-pointer)]
-   [output-count _uint]
+   [inputs-data _pointer]
+   [nb-inputs _uint]
    [output-pads _avfilter-pad-pointer]
-   [outputs (_cpointer 'avfilter-link-pointer-pointerr)]
+   [outputs-data _pointer]
+   [nb-outputs _uint]
    [priv _pointer]
    [commandqueue _avfilter-command-pointer]))
+(define (avfilter-context-inputs v)
+  (cblock->list (avfilter-context-inputs-data v)
+                _avfilter-link-pointer
+                (avfilter-context-nb-inputs v)))
+(define (avfilter-context-outputs v)
+  (cblock->list (avfilter-context-outputs-data v)
+                _avfilter-link-pointer
+                (avfilter-context-nb-outputs v)))
 
 (define-cstruct _avfilter-in-out
   ([name _string]
@@ -1362,6 +1431,27 @@
    [hw-frames-ctx _pointer]
    [sample-rate _int]
    [channel-layout _av-channel-layout]))
+
+(define-cstruct _avsubtitle-rect
+  ([x _int]
+   [y _int]
+   [w _int]
+   [h _int]
+   [pict _av-picture] ;; DEP AVCODEC 59
+   [data (_array _uint8 4)]
+   [linesize (_array _int 4)]
+   [type _avsubtitle-type]
+   [text _pointer]
+   [ass _pointer]
+   [flags _int]))
+
+(define-cstruct _avsubtitle
+  ([format _uint16]
+   [start-display-time _uint32]
+   [end-display-time _uint32]
+   [num-rects _int]
+   [rects _pointer]
+   [pts _int64]))
 
 ;; ===================================================================================================
 
@@ -1769,6 +1859,13 @@
         -> (cond
              [(= ret 0) (values in out)]
              [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-graph-config
+  (_fun _avfilter-graph-pointer _pointer -> [ret : _int]
+        -> (cond
+             [(>= ret 0) (void)]
+             [else (error 'graph-config "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-graph-set-auto-convert
+  (_fun _avfilter-graph-pointer _avfilter-auto-convert -> _void))
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
 (define-avfilter avfilter-inout-alloc (_fun -> _avfilter-in-out-pointer))
@@ -1799,3 +1896,6 @@
         -> (cond
              [(= ret 0) (void)]
              [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-version (_fun -> _uint))
+(define-avfilter avfilter-configuration (_fun -> _string))
+(define-avfilter avfilter-license (_fun -> _string))

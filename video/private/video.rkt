@@ -234,9 +234,7 @@
                               [source-track2 source-track2]
                               [length-track1 length-track1]
                               [length-track2 length-track2]))
-         (define track1-modifier (mk-filter-node #:video (dict-ref source-track1 'video)
-                                                 #:audio (dict-ref source-track1 'audio)
-                                                 #:subtitle (dict-ref source-track1 'subtitle)
+         (define track1-modifier (mk-filter-node source-track1
                                                  #:props (dict-update (node-props (car prev-nodes))
                                                                       "end"
                                                                       (λ (end)
@@ -262,9 +260,7 @@
                   (define source-track2 (transition-source-track2 (car prev-vids)))
                   (define length-track2 (transition-length-track2 (car prev-vids)))
                   (define track2-modifier
-                    (mk-filter-node #:video (dict-ref source-track2 'video)
-                                    #:audio (dict-ref source-track2 'audio)
-                                    #:subtitle (dict-ref source-track2 'subtitle)
+                    (mk-filter-node source-track2
                                     #:props (dict-update (node-props pre-node)
                                                          "end"
                                                          (λ (end)
@@ -304,9 +300,9 @@
       (define end (dict-ref props "end"))
       (define offset-str (format "setpts=PTS-STARTPTS+~a" time))
       (define node
-        (mk-filter-node #:video offset-str
-                        #:audio offset-str
-                        #:subtitle offset-str
+        (mk-filter-node (hash 'video offset-str
+                              'audio offset-str
+                              'subtitle offset-str)
                         #:props (dict-set* props
                                            "start" (+ start time)
                                            "end" (+ end time))))

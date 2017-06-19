@@ -20,6 +20,9 @@
 (require racket/match
          ffi/unsafe
          racket/set
+         racket/string
+         racket/dict
+         graph
          "init.rkt"
          "packetqueue.rkt"
          "ffmpeg.rkt"
@@ -374,7 +377,8 @@
                   (av-packet-rescale-ts next-packet
                                         (avcodec-context-time-base codec-context)
                                         (avstream-time-base stream))
-                  (set-avpacket-stream-index! next-packet (avstream-index (codec-obj-stream min-stream)))
+                  (set-avpacket-stream-index!
+                   next-packet (avstream-index (codec-obj-stream min-stream)))
                   (av-interleaved-write-frame output-context next-packet)])]))
       (loop)))
   (av-write-trailer output-context)
@@ -451,37 +455,10 @@
                   (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
                   (avcodec-close ctx)])])]))
 
-;; ===================================================================================================
-
-(struct subgraph (string
-                  in-list
-                  out-list))
-(define (mk-subgraph #:string [s ""]
-                     #:in-list [il '()]
-                     #:out-list [ol '()])
-  (subgraph s il ol))
-(struct node (props))
-(struct source-node node (bundle))
-(define (mk-source-node #:bundle [b #f]
-                        #:props [np (hash)])
-  (source-node b np))
-(struct filter-node node (video
-                          audio
-                          subtitle
-                          data
-                          attachment))
-(define (mk-filter-node #:video [v ""]
-                        #:audio [a ""]
-                        #:subtitle [s ""]
-                        #:data [d ""]
-                        #:attachment [att ""]
-                        #:props [props (hash)])
-  (filter-node v a s d att props))
-
-(define (link in-bundle-maker
-              out-bundle-maker
-              #:in-callback [in-callback #f]
-              #:out-callback [out-callback #f])
+(define (queue-link in-bundle-maker
+                    out-bundle-maker
+                    #:in-callback [in-callback #f]
+                    #:out-callback [out-callback #f])
   (define in-bundle (in-bundle-maker))
   (define in-thread
     ;(thread (λ ()
@@ -493,3 +470,68 @@
   (void)
   ;(thread-wait in-thread)
   #;(thread-wait out-thread))
+
+;; ===================================================================================================
+
+(struct node (props))
+(struct source-node node (bundle))
+(define (mk-source-node #:bundle [b #f]
+                        #:props [np (hash)])
+  (source-node b np))
+(struct filter-node node (table))
+(define (mk-filter-node table
+                        #:props [props (hash)])
+  (filter-node table props))
+
+(define (convert-graph g bundle)
+  (define g* (transpose g))
+  (define (build-stream-subgraph type prefix)
+    (define edge-counter 0)
+    (define edge-mapping (make-hash))
+    (string-append*
+     (for/list ([vert (in-vertices g)])
+       (define out-str
+         (string-append*
+          (for/list ([n (in-neighbors g vert)])
+            (format "[~a]"
+                    (dict-ref! edge-mapping (cons vert n)
+                               (λ ()
+                                 (begin0 (format "~a~a" prefix edge-counter)
+                                         (set! edge-counter (add1 edge-counter)))))))))
+       (define in-str
+         (string-append*
+          (for/list ([n (in-neighbors g* vert)])
+            (format "[~a]"
+                    (dict-ref! edge-mapping (cons n vert)
+                               (λ ()
+                                 (begin0 (format "~a~a" prefix edge-counter)
+                                         (set! edge-counter (add1 edge-counter)))))))))
+       (format "~a~a~a;"
+               in-str
+               (dict-ref filter-node-table type
+                         (λ ()
+                           (match type
+                             ['video "copy"]
+                             ['audio "acopy"])))
+               out-str))))
+  (string-append*
+   (for/list ([str (stream-bundle-streams bundle)]
+              [index (in-naturals)])
+     (build-stream-subgraph (codec-obj-type str)
+                            (format "str~a~a" index (codec-obj-id str))))))
+
+(define (init-filters g bundle)
+  (define (make-inout name type)
+    (define inout (avfilter-inout-alloc))
+    ...)
+  (define buffersrc (avfilter-get-by-name "buffer"))
+  (define buffersink (avfilter-get-by-name "buffersink"))
+  (define abuffersrc (avfilter-get-by-name "abuffer"))
+  (define abuffersink (avfilter-get-by-name "abuffersink"))
+  (define outputs (avfilter-inout-alloc))
+  (define inputs (avfilter-inout-alloc))
+  (define graph (avfilter-graph-alloc))
+  (define g-str (convert-graph graph bundle))
+  (define buffersrc-ctx (avfilter-graph-create-filter buffersrc "IN-TODO!!!" #f #f graph))
+  (define buffersink-ctx (avfilter-graph-create-filter buffersink "OUT-TODO!!!" #f #f graph))
+  (void))
