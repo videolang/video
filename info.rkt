@@ -18,25 +18,25 @@
 
 (define collection 'multi)
 
-(define deps '(("base" "6.9")
-               "rackunit-lib"
-               "gui-lib"
-               "draw-lib"
-               "images-lib"
-               "drracket-plugin-lib"
-               "data-lib"
-               "pict-lib"
-               "wxme-lib"
-               "sandbox-lib"
-               "at-exp-lib"
-               "scribble-lib"
-               "bitsyntax"
-               "opengl"
-               "portaudio"
-               "ffi-definer-convention" ; <-- Hope to remove this dep
-               ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
-               ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
-               ("ffmpeg-i386-win32" #:platform "win32\\i386")))
+(define deps '(("base" "6.10.0.5")
+                "rackunit-lib"
+                "gui-lib"
+                "draw-lib"
+                "images-lib"
+                "drracket-plugin-lib"
+                "data-lib"
+                "pict-lib"
+                "wxme-lib"
+                "sandbox-lib"
+                "at-exp-lib"
+                "scribble-lib"
+                "bitsyntax"
+                "opengl"
+                "portaudio"
+                "graph"
+                ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
+                ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
+                ("ffmpeg-i386-win32" #:platform "win32\\i386")))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
