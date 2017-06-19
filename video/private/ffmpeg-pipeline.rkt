@@ -19,6 +19,7 @@
 (provide (all-defined-out))
 (require racket/match
          ffi/unsafe
+         racket/list
          racket/set
          racket/string
          racket/dict
@@ -68,6 +69,7 @@
                    codec-context
                    stream
                    next-pts
+                   buffer-context
                    callback-data
                    flags)
   #:mutable)
@@ -79,9 +81,10 @@
                       #:codec-context [codec-context #f]
                       #:stream [s #f]
                       #:next-pts [n 0]
+                      #:buffer-context [bc #f]
                       #:callback-data [cd #f]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s n cd f))
+  (codec-obj occ t i id codec codec-context s n bc cd f))
 
 (define (empty-proc mode obj packet)
   (when packet
@@ -478,13 +481,29 @@
 (define (mk-source-node #:bundle [b #f]
                         #:props [np (hash)])
   (source-node b np))
+(struct sink-node node (file
+                        bundle))
+(define (mk-sink-node #:file [f #f]
+                      #:bundle [b #f]
+                      #:props [np (hash)])
+  (sink-node f b np))
 (struct filter-node node (table))
 (define (mk-filter-node table
                         #:props [props (hash)])
   (filter-node table props))
+(struct filter (name
+                args))
+(define (mk-filter name #:args [args (hash)])
+  (filter name args))
 
-(define (convert-graph g bundle)
+(define (filter-graph->string g)
   (define g* (transpose g))
+  ;; Graph Source Nodes
+  (define src-nodes (filter source-node? (get-vertices g)))
+  (define bundle-lst (map file->stream-bundle src-nodes))
+  (define sink-node (findf sink-node? (get-vertices g)))
+  (define sink-bundle (bundle-for-file (sink-node-file sink-node) (sink-node-bundle sink-node)))
+  ;; Build Graph
   (define (build-stream-subgraph type prefix)
     (define edge-counter 0)
     (define edge-mapping (make-hash))
@@ -514,24 +533,47 @@
                              ['video "copy"]
                              ['audio "acopy"])))
                out-str))))
-  (string-append*
-   (for/list ([str (stream-bundle-streams bundle)]
-              [index (in-naturals)])
-     (build-stream-subgraph (codec-obj-type str)
-                            (format "str~a~a" index (codec-obj-id str))))))
+  (values
+   (string-append*
+    (append* (for/list ([bundle (in-list bundle-lst)])
+               (for/list ([str (stream-bundle-raw-streams bundle)]
+                          [index (in-naturals)])
+                 (build-stream-subgraph (codec-obj-type str)
+                                        (format "str~a~a" index (codec-obj-id str)))))))
+   bundle-lst
+   sink-bundle))
 
-(define (init-filters g bundle)
-  (define (make-inout name type)
+(define (init-filter-graph g)
+  (define (make-inout type name [next #f])
     (define inout (avfilter-inout-alloc))
-    ...)
+    (define inout-ctx (avfilter-graph-create-filter type name #f #f graph))
+    (set-avfilter-in-out-name! inout name)
+    (set-avfilter-in-out-filter-ctx! inout inout-ctx)
+    (set-avfilter-in-out-pad-idx! inout 0)
+    (set-avfilter-in-out-next! inout next)
+    inout)
   (define buffersrc (avfilter-get-by-name "buffer"))
   (define buffersink (avfilter-get-by-name "buffersink"))
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
-  (define outputs (avfilter-inout-alloc))
-  (define inputs (avfilter-inout-alloc))
+  (define-values (g-str bundles out-bundle) (filter-graph->string g))
   (define graph (avfilter-graph-alloc))
-  (define g-str (convert-graph graph bundle))
-  (define buffersrc-ctx (avfilter-graph-create-filter buffersrc "IN-TODO!!!" #f #f graph))
-  (define buffersink-ctx (avfilter-graph-create-filter buffersink "OUT-TODO!!!" #f #f graph))
+  (define outputs
+    (for/fold ([outs '()])
+              ([str (stream-bundle-streams out-bundle)])
+      (match str
+        [(struct* codec-obj ([type type]))
+         (define type* (match type
+                         ['video buffersrc]
+                         ['audio abuffersrc]))
+         (define n (make-inout type (error "NAME") (if (null? outs) #f (car outs))))
+         (cons n outs)])))
+  (define inputs
+    (for/fold ([ins '()])
+              ([bundle bundles])
+      (for/fold ([ins ins])
+                ([str (stream-bundle-streams bundle)])
+        (match str
+          [(struct* codec-obj ([type type]))
+           (define n (make-inout 
   (void))
