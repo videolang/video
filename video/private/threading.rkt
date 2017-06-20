@@ -25,7 +25,19 @@
 ;; If being place safe is not needed, then using the semaphores
 ;; provided by racket/base should work fine.
 
-(define enabled? (place-enabled?))
+;: WARNING!!!!!
+;: WARNING!!!!!
+;: WARNING!!!!!
+;; This library is NOT compatible with racket's threads. This is ONLY for FFI libraries that
+;; are multithreaded.
+;;
+;; User racket/base's semaphores for Racket threads
+;: WARNING!!!!!
+;: WARNING!!!!!
+;: WARNING!!!!!
+
+(define enabled? (and (place-enabled?)
+                      (not (eq? (system-type 'os) 'windows))))
 
 (define-cpointer-type _sema)
 (define-cpointer-type _mutex)

@@ -524,8 +524,27 @@
                              adpcm-ima-amv
                              adpcm-ea-r1
                              adpcm-ea-r3
-                             adpcm-ea-r2 ;; XXX MORE
- 
+                             adpcm-ea-r2
+                             adpcm-ima-ea-sead
+                             adpcm-ima-ea-eacs
+                             adpcm-ea-xas
+                             adpcm-ea-maxis-xa
+                             adpcm-ima-iss
+                             adpcm-g722
+                             adpcm-ima-apc
+                             adpcm-vima
+
+                             adpcm-afc = #x11800
+                             adpcm-ima-oki
+                             adpcm-dtk
+                             adpcm-ima-rad
+                             adpcm-g726le
+                             adpcm-thp-le
+                             adpcm-psx
+                             adpcm-aica
+                             adpcm-ima-dat4
+                             adpcm-mtaf
+                             
                              ;; XXX MORE
 
                              ;; Audio
@@ -1613,7 +1632,9 @@
   (avcodec-parameters-to-context ctx param))
 (define (avcodec-open2 ctx codec [dict #f])
   (define-avcodec avcodec-open2
-    (_fun _avcodec-context-pointer _avcodec-pointer [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
+    (_fun _avcodec-context-pointer
+          _avcodec-pointer
+          [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
           -> [ret : _int]
           -> (cond [(= ret 0) dict]
                    [(= (- ret) EINVAL) (error 'avcodec-open2 "Invalid Argument")]
@@ -1638,10 +1659,9 @@
         -> (cond
              [(= ret 0) (void)]
              [(= (- ret) EAGAIN)
-              (raise (exn:ffmpeg:again
-                      "send-packet"
-                      (current-continuation-marks)))]
-             [(= ret AVERROR-EOF) eof]
+              (raise (exn:ffmpeg:again "send-packet" (current-continuation-marks)))]
+             [(= ret AVERROR-EOF)
+              (raise (exn:ffmpeg:eof "send-packet" (current-continuation-marks)))]
              [else (error 'send-packet "ERROR (~a): ~a" ret (convert-err ret))])))
 (define (avcodec-receive-packet ctx [maybe-packet #f])
   (define-avcodec avcodec-receive-packet
@@ -1651,10 +1671,9 @@
           -> (cond
                [(= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again
-                        "receive-packet"
-                        (current-continuation-marks)))]
-               [(= ret AVERROR-EOF) eof]
+                (raise (exn:ffmpeg:again "receive-packet" (current-continuation-marks)))]
+               [(= ret AVERROR-EOF)
+                (raise (exn:ffmpeg:again "receive-packet" (current-continuation-marks)))]
                [else
                 (error 'recev-packet (convert-err ret))])))
   (define packet (or maybe-packet
@@ -1662,31 +1681,33 @@
                        (av-init-packet p)
                        p)))
   (avcodec-receive-packet ctx packet))
-(define-avcodec avcodec-send-frame (_fun _avcodec-context-pointer
-                                         _av-frame-pointer
-                                         -> [ret : _int]
-                                         -> (cond
-                                              [(= ret 0) (void)]
-                                              [(= (- ret) EAGAIN)
-                                               (raise (exn:ffmpeg:again
-                                                       "send-frame"
-                                                       (current-continuation-marks)))]
-                                              [(= ret AVERROR-EOF) eof]
-                                              [else
-                                               (error 'send-frame "ERROR: ~a" (convert-err ret))])))
-(define-avcodec avcodec-receive-frame
-  (_fun _avcodec-context-pointer
-        _av-frame-pointer
+(define-avcodec avcodec-send-frame
+  (_fun _avcodec-context-pointer _av-frame-pointer
         -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
              [(= (- ret) EAGAIN)
-              (raise (exn:ffmpeg:again
-                      "receive-frame"
-                      (current-continuation-marks)))]
-             [(= ret AVERROR-EOF) eof]
+              (raise (exn:ffmpeg:again "send-frame" (current-continuation-marks)))]
+             [(= ret AVERROR-EOF)
+              (raise (exn:ffmpeg:eof "send-frame" (current-continuation-marks)))]
              [else
-              (error 'recev-frame "Error: ~a" (convert-err ret))])))
+              (error 'send-frame "ERROR: ~a" (convert-err ret))])))
+(define (avcodec-receive-frame ctxt [maybe-frame #f])
+  (define-avcodec avcodec-receive-frame
+    (_fun _avcodec-context-pointer
+          [out : _av-frame-pointer]
+          -> [ret : _int]
+          -> (cond
+               [(= ret 0) out]
+               [(= (- ret) EAGAIN)
+                (raise (exn:ffmpeg:again "receive-frame" (current-continuation-marks)))]
+               [(= ret AVERROR-EOF)
+                (raise (exn:ffmpeg:eof "receive-frame" (current-continuation-marks)))]
+               [else
+                (error 'recev-frame "Error: ~a" (convert-err ret))])))
+  (define frame (or maybe-frame
+                    (av-frame-alloc)))
+  (avcodec-receive-frame ctxt frame))
 (define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
@@ -1871,14 +1892,50 @@
 (define-avfilter avfilter-inout-alloc (_fun -> _avfilter-in-out-pointer))
 (define-avfilter avfilter-inout-free (_fun _avfilter-in-out-pointer -> _void))
 (define (av-buffersink-get-frame ptr [out #f])
-  (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
-                                                 -> [ret : _int]
-                                                 -> (cond
-                                                      [(>= ret 0) out]
-                                                      [else (error 'buffersink-get-frame
-                                                                   (convert-err ret))])))
+  (define-avfilter av-buffersink-get-frame
+    (_fun _avfilter-context-pointer [out : _av-frame-pointer]
+          -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [(= (- ret) EAGAIN)
+                (raise exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks))]
+               [(= ret AVERROR-EOF)
+                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+               [else (error 'buffersink-get-frame (convert-err ret))])))
   (define o (or out (av-frame-alloc)))
   (av-buffersink-get-frame ptr o))
+(define (av-buffersink-get-frame-flags ptr flags/frame [maybe-flags #f])
+  (define-avfilter av-buffersink-get-frame-flags
+    (_fun _avfilter-context-pointer [out : _av-frame-pointer] _av-buffer-sink-flags -> [ret : _int]
+          -> (cond
+               [(= ret 0) out]
+               [(= (- ret) EAGAIN)
+                (raise exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks))]
+               [(= ret AVERROR-EOF)
+                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+               [else (error 'buffersink-get-frame-flags (convert-err ret))])))
+  (define flags (or maybe-flags flags/frame))
+  (define frame (if maybe-flags
+                    flags/frame
+                    (av-frame-alloc)))
+  (av-buffersink-get-frame-flags ptr flags frame))
+(define (av-buffersink-get-samples ptr frame/nb-samples [maybe-samples #f])
+  (define-avfilter av-buffersink-get-samples
+    (_fun _avfilter-context-pointer [out : _av-frame-pointer] _int
+          -> [ret : _int]
+          -> (cond
+               [(= ret 0) out]
+               [(= (- ret) EAGAIN)
+                (raise exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks))]
+               [(= ret AVERROR-EOF)
+                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+               [else (error 'buffersink-get-frame-flags (convert-err ret))])))
+  (define samples (or maybe-samples frame/nb-samples))
+  (define frame (if maybe-samples
+                    frame/nb-samples
+                    (av-frame-alloc)))
+  (av-buffersink-get-samples ptr frame samples))
+          
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
 (define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))

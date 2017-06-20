@@ -567,4 +567,39 @@
            (cons n ins)]))))
   (define-values (in-ret out-ret) (avfilter-graph-parse-ptr graph g-str inputs outputs #f))
   (avfilter-inout-free in-ret)
-  (avfilter-inout-free out-ret))
+  (avfilter-inout-free out-ret)
+  (values graph bundles out-bundle))
+
+(define (render g)
+  (define-values (graph in-bundles out-bundle) (init-filter-graph g))
+  (for ([bundle in-bundles])
+    (demux-stream
+     bundle
+     #:by-index-callback (λ (mode obj packet)
+                           (match obj
+                             [(struct* codec-obj ([codec-context ctx]
+                                                  [buffer-context buff-ctx]))
+                              (match mode
+                                ['loop
+                                 (avcodec-send-packet ctx packet)
+                                 (define frame (avcodec-receive-frame ctx))
+                                 (set-av-frame-pts!
+                                  frame (av-frame-get-best-effort-timestamp frame))
+                                 (av-buffersrc-add-frame buff-ctx frame)])]))
+  (mux-stream
+   out-bundle
+   #:by-index-callback (λ (mode obj)
+                         (match obj
+                           [(struct* codec-obj ([codec-context ctx]
+                                                [buffer-context buff-ctx]))
+                            (match mode
+                              ['write
+                               (let loop ()
+                                 (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))]
+                                                 [exn:ffmpeg:eof? (λ (e) eof)])
+                                   (define frame (av-buffersink-get-frame buff-ctx))
+                                   (let loop ()
+                                     (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))])
+                                       (avcodec-send-frame ctx frame)
+                                       (define pkt (avcodec-receive-packet ctx))
+                                       pkt))))])]))))))
