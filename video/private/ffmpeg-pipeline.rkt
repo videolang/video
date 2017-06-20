@@ -32,7 +32,6 @@
 (struct stream-bundle (raw-streams
                        streams
                        stream-table
-                       streams-ready-lock
                        avformat-context
                        options-dict
                        file)
@@ -101,6 +100,7 @@
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
+  (define stream-table (make-hash))
   (define streams
     (for/vector ([i raw-strs]
                  [index (in-naturals)])
@@ -110,13 +110,15 @@
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-parameters-to-context codec codec-parameters))
       (avcodec-open2 codec-ctx codec #f)
-      (mk-codec-obj #:codec-parameters codec-parameters
-                    #:type codec-name
-                    #:index index
-                    #:stream i
-                    #:id codec-id
-                    #:codec codec
-                    #:codec-context codec-ctx)))
+      (define obj (mk-codec-obj #:codec-parameters codec-parameters
+                                #:type codec-name
+                                #:index index
+                                #:stream i
+                                #:id codec-id
+                                #:codec codec
+                                #:codec-context codec-ctx))
+      (dict-set! stream-table codec-name obj)
+      obj))
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat
                     #:streams streams))
@@ -448,12 +450,11 @@
 (define (mk-source-node #:bundle [b #f]
                         #:props [np (hash)])
   (source-node b np))
-(struct sink-node node (file
-                        bundle))
-(define (mk-sink-node #:file [f #f]
-                      #:bundle [b #f]
+(struct sink-node node (bundle)
+  #:mutable)
+(define (mk-sink-node #:bundle [b #f]
                       #:props [np (hash)])
-  (sink-node f b np))
+  (sink-node b np))
 (struct filter-node node (table))
 (define (mk-filter-node table
                         #:props [props (hash)])
@@ -469,37 +470,55 @@
   (define src-nodes (filter source-node? (get-vertices g)))
   (define bundle-lst (map file->stream-bundle src-nodes))
   (define sink-node (findf sink-node? (get-vertices g)))
-  (define sink-bundle (bundle-for-file (sink-node-file sink-node) (sink-node-bundle sink-node)))
+  (define sink-bundle (sink-node-bundle sink-node))
   ;; Build Graph
+  (define (get-sorted-neighbors graph vert)
+    (define neighbors (get-neighbors graph vert))
+    (sort neighbors
+          <
+          #:key (λ (x) (edge-weight graph vert x))))
   (define (build-stream-subgraph type prefix)
     (define edge-counter 0)
     (define edge-mapping (make-hash))
     (string-append*
      (for/list ([vert (in-vertices g)])
-       (define out-str
-         (string-append*
-          (for/list ([n (in-neighbors g vert)])
-            (format "[~a]"
-                    (dict-ref! edge-mapping (cons vert n)
-                               (λ ()
-                                 (begin0 (format "~a~a" prefix edge-counter)
-                                         (set! edge-counter (add1 edge-counter)))))))))
-       (define in-str
-         (string-append*
-          (for/list ([n (in-neighbors g* vert)])
-            (format "[~a]"
-                    (dict-ref! edge-mapping (cons n vert)
-                               (λ ()
-                                 (begin0 (format "~a~a" prefix edge-counter)
-                                         (set! edge-counter (add1 edge-counter)))))))))
-       (format "~a~a~a;"
-               in-str
-               (dict-ref filter-node-table type
-                         (λ ()
-                           (match type
-                             ['video "copy"]
-                             ['audio "acopy"])))
-               out-str))))
+       (cond
+         [(filter-node? vert)
+          (define out-str
+            (string-append*
+             (for/list ([n (get-sorted-neighbors g vert)])
+               (format "[~a]"
+                       (dict-ref! edge-mapping (cons vert n)
+                                  (λ ()
+                                    (let ([name (format "~a~a" prefix edge-counter)])
+                                      (when (sink-node? n)
+                                        (define table
+                                          (stream-bundle-stream-table (sink-node-bundle n)))
+                                        (set-codec-obj-callback-data! (dict-ref table type) name))
+                                      (set! edge-counter (add1 edge-counter))
+                                      name)))))))
+          (define in-str
+            (string-append*
+             (for/list ([n (get-sorted-neighbors g* vert)])
+               (format "[~a]"
+                       (dict-ref! edge-mapping (cons n vert)
+                                  (λ ()
+                                    (let ([name (format "~a~a" prefix edge-counter)])
+                                      (when (source-node? n)
+                                        (define table
+                                          (stream-bundle-stream-table (source-node-bundle n)))
+                                        (set-codec-obj-callback-data! (dict-ref table type) name))
+                                      (set! edge-counter (add1 edge-counter))
+                                      name)))))))
+          (format "~a~a~a;"
+                  in-str
+                  (dict-ref filter-node-table type
+                            (λ ()
+                              (match type
+                                ['video "copy"]
+                                ['audio "acopy"])))
+                  out-str)]
+         [else ""]))))
   (values
    (string-append*
     (append* (for/list ([bundle (in-list bundle-lst)])
@@ -529,11 +548,12 @@
     (for/fold ([outs '()])
               ([str (stream-bundle-streams out-bundle)])
       (match str
-        [(struct* codec-obj ([type type]))
+        [(struct* codec-obj ([type type]
+                             [callback-data name]))
          (define type* (match type
                          ['video buffersrc]
                          ['audio abuffersrc]))
-         (define n (make-inout type (error "NAME") (if (null? outs) #f (car outs))))
+         (define n (make-inout type name (if (null? outs) #f (car outs))))
          (cons n outs)])))
   (define inputs
     (for/fold ([ins '()])
@@ -541,7 +561,10 @@
       (for/fold ([ins ins])
                 ([str (stream-bundle-streams bundle)])
         (match str
-          [(struct* codec-obj ([type type]))
-           (define n (make-inout type (error "NAME") (if (null? ins) #f (car ins))))
+          [(struct* codec-obj ([type type]
+                               [callback-data name]))
+           (define n (make-inout type name (if (null? ins) #f (car ins))))
            (cons n ins)]))))
-  (void))
+  (define-values (in-ret out-ret) (avfilter-graph-parse-ptr graph g-str inputs outputs #f))
+  (avfilter-inout-free in-ret)
+  (avfilter-inout-free out-ret))

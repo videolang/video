@@ -1869,6 +1869,7 @@
 (define-avfilter avfilter-get-by-name (_fun _string -> [ret : _avfilter-pointer/null]
                                             -> (or ret (error 'avfilter "Invalid Filter Name"))))
 (define-avfilter avfilter-inout-alloc (_fun -> _avfilter-in-out-pointer))
+(define-avfilter avfilter-inout-free (_fun _avfilter-in-out-pointer -> _void))
 (define (av-buffersink-get-frame ptr [out #f])
   (define-avfilter av-buffersink-get-frame (_fun _avfilter-context-pointer [out : _av-frame-pointer]
                                                  -> [ret : _int]
