@@ -78,7 +78,12 @@
                    #:instance-name [instance-name #f])
   (filter name args instance-name))
 (define (filter->string filter)
-  (error "TODO"))
+  (string-append (filter-name filter)
+                 (if (null? (filter-args filter)) "" "=")
+                 (string-join
+                  (for/list ([(k v) (in-dict filter-args filter)])
+                    (format "~a=~a" k v))
+                  ":")))
 (define (filter->avfilter f graph)
   (define filter (avfilter-get-by-name (filter-name f)))
   (define filter-ctx (avfilter-graph-alloc-filter graph filter (filter-instance-name f)))
@@ -542,11 +547,12 @@
                                       name)))))))
           (format "~a~a~a;"
                   in-str
-                  (dict-ref filter-node-table type
+                  (filter->string
+                   (dict-ref filter-node-table type
                             (λ ()
                               (match type
-                                ['video "copy"]
-                                ['audio "acopy"])))
+                                ['video (mk-filter "copy")]
+                                ['audio (mk-filter "acopy")]))))
                   out-str)]
          [else ""]))))
   (values
@@ -560,9 +566,9 @@
    sink-bundle))
 
 (define (init-filter-graph g)
-  (define (make-inout type name [next #f])
+  (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
-    (define inout-ctx (avfilter-graph-create-filter type name #f #f graph))
+    (define inout-ctx (avfilter-graph-create-filter type name args #f graph))
     (set-avfilter-in-out-name! inout name)
     (set-avfilter-in-out-filter-ctx! inout inout-ctx)
     (set-avfilter-in-out-pad-idx! inout 0)
@@ -592,11 +598,25 @@
                 ([str (stream-bundle-streams bundle)])
         (match str
           [(struct* codec-obj ([type type]
-                               [callback-data name]))
+                               [callback-data name]
+                               [codec-context ctx]))
            (define type* (match type
                            ['video buffersink]
                            ['audio abuffersink]))
-           (define n (make-inout type* name (if (null? ins) #f (car ins))))
+           (define args
+             (match type
+               ['video (format "video_size=~ax~a:pix_fmt=~a:time_base=~a:pixel_aspect=~a"
+                               (avcodec-context-width ctx)
+                               (avcodec-context-height ctx)
+                               (cast (avcodec-context-pix-fmt ctx) _avpixel-format _int)
+                               (avcodec-context-time-base ctx)
+                               (avcodec-context-sample-aspect-ratio ctx))]
+               ['audio (format "channel_layout=~a:sample_fmt=~a:time_base=~a:sample_rate=~a"
+                               (cast (avcodec-context-channel-layout ctx) _av-channel-layout _int)
+                               (cast (avcodec-context-sample-fmt ctx) _avsample-format _int)
+                               (avcodec-context-time-base ctx)
+                               (avcodec-context-sample-rate ctx))]))
+           (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (cons n ins)]))))
   (define-values (in-ret out-ret) (avfilter-graph-parse-ptr graph g-str inputs outputs #f))
   (avfilter-inout-free in-ret)
