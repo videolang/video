@@ -23,6 +23,7 @@
          racket/set
          racket/string
          racket/dict
+         (prefix-in base: racket/base)
          graph
          "init.rkt"
          "packetqueue.rkt"
@@ -68,6 +69,30 @@
                       #:callback-data [cd #f]
                       #:flags [f '()])
   (codec-obj occ t i id codec codec-context s n bc cd f))
+
+(struct filter (name
+                args
+                instance-name))
+(define (mk-filter name
+                   #:args [args (hash)]
+                   #:instance-name [instance-name #f])
+  (filter name args instance-name))
+(define (filter->string filter)
+  (error "TODO"))
+(define (filter->avfilter f graph)
+  (define filter (avfilter-get-by-name (filter-name f)))
+  (define filter-ctx (avfilter-graph-alloc-filter graph filter (filter-instance-name f)))
+  (for ([(k v) (in-dict (filter-args f))])
+    (define set-proc
+      (cond
+        [(exact-integer? v) av-opt-set-int]
+        [(and (exact? v) (rational? v)) av-opt-set-q]
+        [(string? v) av-opt-set]
+        [else (error 'filter->filter "unkown type for ~a" v)]))
+    (set-proc filter-ctx k v '(search-children)))
+  (avfilter-init-str filter-ctx #f))
+
+;; ===================================================================================================
 
 ;; A callback table is:
 ;; (Dictof (U 'video 'audio 'subtitle 'data 'attchment) -> Proc)
@@ -206,27 +231,36 @@
                              #:callback-table [callback-table (hash)]
                              #:by-index-callback by-index-callback))
 
-(define (bundle-for-file file bundle
+(define (bundle-for-file file bundle/spec
                          #:output-format [output-format #f]
                          #:format-name [format-name #f]
                          #:options-dict [options-dict #f])
   (define streams
-    (for/vector ([i (stream-bundle-streams bundle)])
-      (match i
-        [(struct* codec-obj ([type t]
-                             [id i]
-                             [callback-data callback-data]))
-         (mk-codec-obj #:type t
-                       #:id i
-                       #:callback-data callback-data)]
-        [x (mk-codec-obj #:type x)])))
+    (match bundle/spec
+      [(struct* stream-bundle ([streams streams]))
+       (for/vector ([i streams])
+         (match i
+           [(struct* codec-obj ([type t]
+                                [id i]
+                                [index index]
+                                [callback-data callback-data]))
+            (mk-codec-obj #:type t
+                          #:id i
+                          #:index index
+                          #:callback-data callback-data)]
+           [x (mk-codec-obj #:type x)]))]
+      [(or 'vid+aud 'video+audio 'movie)
+       (vector
+        (mk-codec-obj #:type 'video
+                      #:index 0)
+        (mk-codec-obj #:type 'audio
+                      #:index 1))]))
   (define output-context
     (avformat-alloc-output-context2 output-format format-name file))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
                     #:file file
-                    #:streams streams
-                    #:locked? #f))
+                    #:streams streams))
 
 ;; Callback ops:
 ;;   'init
@@ -447,28 +481,24 @@
 
 (struct node (props))
 (struct source-node node (bundle))
-(define (mk-source-node #:bundle [b #f]
+(define (mk-source-node b
                         #:props [np (hash)])
-  (source-node b np))
+  (source-node np b))
 (struct sink-node node (bundle)
   #:mutable)
-(define (mk-sink-node #:bundle [b #f]
+(define (mk-sink-node b
                       #:props [np (hash)])
-  (sink-node b np))
+  (sink-node np b))
 (struct filter-node node (table))
 (define (mk-filter-node table
                         #:props [props (hash)])
-  (filter-node table props))
-(struct filter (name
-                args))
-(define (mk-filter name #:args [args (hash)])
-  (filter name args))
+  (filter-node props table))
 
 (define (filter-graph->string g)
   (define g* (transpose g))
   ;; Graph Source Nodes
-  (define src-nodes (filter source-node? (get-vertices g)))
-  (define bundle-lst (map file->stream-bundle src-nodes))
+  (define src-nodes (base:filter source-node? (get-vertices g)))
+  (define bundle-lst (map source-node-bundle src-nodes))
   (define sink-node (findf sink-node? (get-vertices g)))
   (define sink-bundle (sink-node-bundle sink-node))
   ;; Build Graph
@@ -553,7 +583,7 @@
          (define type* (match type
                          ['video buffersrc]
                          ['audio abuffersrc]))
-         (define n (make-inout type name (if (null? outs) #f (car outs))))
+         (define n (make-inout type* name (if (null? outs) #f (car outs))))
          (cons n outs)])))
   (define inputs
     (for/fold ([ins '()])
@@ -563,7 +593,10 @@
         (match str
           [(struct* codec-obj ([type type]
                                [callback-data name]))
-           (define n (make-inout type name (if (null? ins) #f (car ins))))
+           (define type* (match type
+                           ['video buffersink]
+                           ['audio abuffersink]))
+           (define n (make-inout type* name (if (null? ins) #f (car ins))))
            (cons n ins)]))))
   (define-values (in-ret out-ret) (avfilter-graph-parse-ptr graph g-str inputs outputs #f))
   (avfilter-inout-free in-ret)
@@ -602,4 +635,5 @@
                                      (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))])
                                        (avcodec-send-frame ctx frame)
                                        (define pkt (avcodec-receive-packet ctx))
-                                       pkt))))])]))))))
+                                       pkt))))])])))))
+  (avfilter-graph-free graph))

@@ -39,10 +39,11 @@
 (define current-render-graph (make-parameter (weighted-graph/directed '())))
 
 ;; A helper function to convert videos to MLT object
-;; Video (U Renderer% #f) -> _mlt-object
+;; Video (U Graph #f) -> _node
 (define (convert source
                  #:renderer [renderer* #f])
-  (error "TODO"))
+  (parameterize ([current-render-graph (or renderer* (current-render-graph))])
+    (file:convert source 'video)))
 
 ;; Helper function to determine if a producer
 ;; can be potentially unbounded in length.
@@ -120,9 +121,9 @@
            (let ([memo-table (make-hasheq)])
              (λ (v request def)
                (match request
-                 ['mlt
-                  (if #f ;(current-skip-memoize?)
-                      (convert-name)
+                 ['video
+                  (if #t ;(current-skip-memoize?)
+                      (convert-name v)
                       (hash-ref! memo-table v convert-name))]
                  [_ def]))))
          (define (convert-name v [convert-args convert-defaults] ...)
@@ -189,15 +190,12 @@
   ()
   (error "TODO"))
 
-(define-constructor file producer ([file #f])
+(define-constructor file producer ([path #f])
   ()
-  (define bundle (file->stream-bundle file))
-  (define avformat (stream-bundle-avformat-context bundle))
-  (define video-stream (maybe-av-find-best-stream avformat 'video))
-  (define audio-stream (maybe-av-find-best-stream avformat 'audio))
-  (define subtitle-stream (maybe-av-find-best-stream avformat 'subtitle))
-  (error "TODO, add streams")
-  (source-node bundle))
+  (define bundle (file->stream-bundle path))
+  (define node (mk-source-node bundle))
+  (add-vertex! (current-render-graph) node)
+  node)
 
 (define-constructor blank producer () ()
   (error "TODO"))

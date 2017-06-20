@@ -78,22 +78,12 @@
 (define AVSTREAM-INIT-IN-WRITE-HEADER 0)
 (define AVSTREAM-INIT-IN-INIT-OUTPUT 1)
 
-(define _sws-flags
-  (_bitmask `(fast-bilinear
-              bilinear
-              bicubic
-              x
-              point
-              area
-              bicublin
-              guass
-              sinc
-              lanczos
-              spline)))
-              
 (define SWS-BILINEAR 2)
 
 (define SWR-CH-MAX 16)
+
+(define AV-INPUT-BUFFER-PADDING-SIZE 32)
+(define AV-INPUT-BUFFER-MIN-SIZE 16384)
 
 ;; Although deprecated, still seems useful
 (define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
@@ -108,6 +98,19 @@
 (struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
 
 ;; ===================================================================================================
+
+(define _sws-flags
+  (_bitmask `(fast-bilinear
+              bilinear
+              bicubic
+              x
+              point
+              area
+              bicublin
+              guass
+              sinc
+              lanczos
+              spline)))
 
 (define _av-channel-layout
   (_bitmask '(front-left = #x1
@@ -194,6 +197,14 @@
               export-mvs = ,(arithmetic-shift 1 28)
               skip-manual)))
 
+(define _avcodec-prop
+  (_bitmask `(intral-only
+              lossy
+              lossless
+              reorder
+              bitmap-sub = ,(arithmetic-shift 1 16)
+              text-sub)))
+
 (define _avio-flags
   (_bitmask `(read = 1
               write = 2
@@ -230,6 +241,25 @@
   (_bitmask '(no-check-format = 1
               push = 4
               keep-ref = 8)))
+
+(define _av-opt-flags
+  (_bitmask `(encoding-param
+              decoding-param
+              metadata
+              audio-param
+              video-param
+              subtitle-param
+              export
+              readonly
+              filtering-parma = ,(arithmetic-shift 1 16))
+            _int))
+
+(define _av-opt-search-flags
+  (_bitmask `(search-children
+              search-fake-obj
+              allow-null
+              multi-component-range = ,(arithmetic-shift 1 12))
+            _int))
 
 ;; ===================================================================================================
 
@@ -1347,7 +1377,7 @@
    [priv-class _pointer]
    [flags _avfilter-flags]
    [init _fpointer]
-   [init-dict _fpointer]
+   [init-dict* _fpointer]
    [uninit _fpointer]
    [query-formats _fpointer]
    [priv-size _int]
@@ -1381,6 +1411,19 @@
    [flags _avfilter-command-flags]
    [next _avfilter-command-pointer]))
 
+(define-cstruct _avfilter-context
+  ([av-class _avclass-pointer]
+   [filter _avfilter-pointer]
+   [name _string]
+   [input-pads _avfilter-pad-pointer]
+   [inputs-data _pointer]
+   [nb-inputs _uint]
+   [output-pads _avfilter-pad-pointer]
+   [outputs-data _pointer]
+   [nb-outputs _uint]
+   [priv _pointer]
+   [commandqueue _avfilter-command-pointer]))
+
 (define-cstruct _avfilter-link
   ([src _avfilter-context-pointer]
    [srcpad _avfilter-pad-pointer]
@@ -1403,18 +1446,6 @@
 (define (set-avfilter-link-format/audio! link format)
   (set-avfilter-link-format! link (cast format _avsample-format _int)))
 
-(define-cstruct _avfilter-context
-  ([av-class _avclass-pointer]
-   [filter _avfilter-pointer]
-   [name _string]
-   [input-pads _avfilter-pad-pointer]
-   [inputs-data _pointer]
-   [nb-inputs _uint]
-   [output-pads _avfilter-pad-pointer]
-   [outputs-data _pointer]
-   [nb-outputs _uint]
-   [priv _pointer]
-   [commandqueue _avfilter-command-pointer]))
 (define (avfilter-context-inputs v)
   (cblock->list (avfilter-context-inputs-data v)
                 _avfilter-link-pointer
@@ -1471,6 +1502,8 @@
    [num-rects _int]
    [rects _pointer]
    [pts _int64]))
+
+(define-cpointer-type _avoption-pointer _int)
 
 ;; ===================================================================================================
 
@@ -1754,34 +1787,44 @@
                                                      (when (< ret 0)
                                                        (error "sample error"))
                                                      ret)))
-(define-avutil av-opt-set-int (_fun _pointer _string _int64 _int
+(define-avutil av-opt-set-int (_fun _pointer _string _int64 _av-opt-search-flags
                                     -> [ret : _int]
                                     -> (when (< ret 0)
                                          (error "AV_OPT"))))
-(define-avutil av-opt-set-bin (_fun _pointer _string _pointer _int _int
+(define-avutil av-opt-set-q (_fun _pointer _string _int64 _av-opt-search-flags
+                                  -> [ret : _int]
+                                  -> (when (< ret 0)
+                                       (error "AV_OPT"))))
+(define-avutil av-opt-set (_fun _pointer _string _string _av-opt-search-flags
+                                -> [ret : _int]
+                                -> (when (< ret 0)
+                                     (error "AV_OPT"))))
+(define-avutil av-opt-set-bin (_fun _pointer _string _pointer _int _av-opt-search-flags
                                     -> [ret : _int]
                                     -> (when (< ret 0)
                                          (error "AV_OPT"))))
-(define-avutil av-opt-set-image-size (_fun _pointer _string _int _int _int
+(define-avutil av-opt-set-image-size (_fun _pointer _string _int _int _av-opt-search-flags
                                            -> [ret : _int]
                                            -> (when (< ret 0)
                                                 (error "AV_OPT"))))
-(define-avutil av-opt-set-pixel-fmt (_fun _pointer _string _avpixel-format _int
+(define-avutil av-opt-set-pixel-fmt (_fun _pointer _string _avpixel-format _av-opt-search-flags
                                           -> [ret : _int]
                                           -> (when (< ret 0)
                                                (error "AV_OPT"))))
-(define-avutil av-opt-set-sample-fmt (_fun _pointer _string _avsample-format _int
+(define-avutil av-opt-set-sample-fmt (_fun _pointer _string _avsample-format _av-opt-search-flags
                                            -> [ret : _int]
                                            -> (when (< ret 0)
                                                 (error "AV_OPT"))))
-(define-avutil av-opt-set-video-rate (_fun _pointer _string _avrational _int
+(define-avutil av-opt-set-video-rate (_fun _pointer _string _avrational _av-opt-search-flags
                                            -> [ret : _int]
                                            -> (when (< ret 0)
                                                 (error "AV_OPT"))))
-(define-avutil av-opt-set-channel-layout (_fun _pointer _string _av-channel-layout _int
-                                               -> [ret : _int]
-                                               -> (when (< ret 0)
-                                                    (error "AV_OPT"))))
+(define-avutil av-opt-set-channel-layout
+  (_fun _pointer _string _av-channel-layout _av-opt-search-flags -> [ret : _int]
+        -> (when (< ret 0)
+             (error "AV_OPT"))))
+(define-avutil av-opt-find
+  (_fun _pointer _string _string _av-opt-flags _av-opt-search-flags -> _avoption-pointer/null))
 (define-avutil av-dict-set (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _int
                                  -> [ret : _int]
                                  -> (cond
@@ -1840,6 +1883,10 @@
 (define-avfilter avfilter-register-all (_fun -> _void))
 (define-avfilter avfilter-graph-alloc (_fun -> _avfilter-graph-pointer))
 (define-avfilter avfilter-graph-free (_fun (_ptr io _avfilter-graph-pointer/null) -> _void))
+(define-avfilter avfilter-graph-alloc-filter
+  (_fun _avfilter-graph-pointer _avfilter-pointer _string -> _avfilter-context-pointer))
+(define-avfilter avfilter-get-filter
+  (_fun _avfilter-graph-pointer _string -> _avfilter-context-pointer/null))
 (define-avfilter avfilter-graph-create-filter
   (_fun [out : (_ptr o _avfilter-context-pointer/null)]
         _avfilter-pointer
@@ -1957,3 +2004,16 @@
 (define-avfilter avfilter-version (_fun -> _uint))
 (define-avfilter avfilter-configuration (_fun -> _string))
 (define-avfilter avfilter-license (_fun -> _string))
+(define-avfilter avfilter-init-str
+  (_fun _avfilter-context-pointer _string -> [ret : _int]
+        -> (cond
+             [(= ret 0) (void)]
+             [else
+              (error 'avfilter-init-str "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-init-dict
+  (_fun _avfilter-context-pointer _pointer -> [ret : _int]
+        -> (cond
+             [(= ret 0) void]
+             [else
+              (error 'avfilter-init-str "~a : ~a" ret (convert-err ret))])))
+(define-avfilter avfilter-free (_fun _avfilter-context-pointer -> _void))
