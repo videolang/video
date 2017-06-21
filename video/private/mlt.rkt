@@ -16,6 +16,19 @@
    limitations under the License.
 |#
 
+;; WARNING!!!
+;; WARNING!!!
+;; WARNING!!!
+;;
+;; This module is not currently used, and has been replaced with ffmpeg bindings.
+;; We have kept this module in the source code in case future developers want mlt bindings
+;; to work from in the future. This module may get removed or altered without notice.
+;; We recommend you copy it into your own project if you want to use it.
+;;
+;; WARNING!!!
+;; WARNING!!!
+;; WARNING!!!
+
 (require ffi/unsafe
          ffi/unsafe/define
          racket/stxparam
