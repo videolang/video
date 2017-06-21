@@ -166,6 +166,17 @@
   ()
   (error "TODO"))
 
+(define-constructor nullsink service ([source #f])
+  ()
+  (define node (mk-filter-node (hash 'video (mk-filter "nullsink")
+                                     'audio (mk-filter "anullsink"))))
+  (add-vertex! (current-render-graph) node)
+  (when source
+    (define s-node (convert source))
+    (add-vertex! (current-render-graph) s-node)
+    (add-directed-edge! s-node node 1))
+  node)
+
 (define-constructor transition service ([source-track1 (hash)]
                                         [source-track2 (hash)]
                                         [length-track1 0]
@@ -331,10 +342,12 @@
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()
+  ;; Make the tracks
   (define nodes (make-hash))
   (for ([t (in-list tracks)]
         [index (in-naturals)])
     (dict-set! nodes t (cons (convert t) index)))
+  ;; Start merging tracks together
   (for ([f (in-list field)])
     (match f
       [(struct* field-element ([element element]
@@ -348,6 +361,20 @@
        (dict-set! bundle-pair nodes track-2 (cons element-node (min (cdr bundle-pair)
                                                                     (cdr bundle-pair-2))))
        (add-directed-edge! (current-render-graph) (car bundle-pair) element-node 1)
-       (add-directed-edge! (current-render-graph) (car bundle-pair-2) element-node 2)])))
+       (add-directed-edge! (current-render-graph) (car bundle-pair-2) element-node 2)]))
+  ;; Select top-most track from table
+  (define-values (ret trash)
+    (for/fold ([node #f]
+               [level -1])
+              ([(track n-pair) (in-dict nodes)])
+      (if (<= level (cdr n-pair))
+          (values (car n-pair) (cdr n-pair))
+          (values node level))))
+  ;; Return top-most track, throw away rest
+  (for ([(track n-pair) (in-dict nodes)])
+    (unless (equal? (car n-pair) ret)
+      (define trash (convert (make-nullsink)))
+      (add-directed-edge! (cdr n-pair) trash 1)))
+  ret)
 
 (define-constructor field-element video ([element #f] [track #f] [track-2 #f]) ())
