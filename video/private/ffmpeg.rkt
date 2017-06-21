@@ -1919,7 +1919,7 @@
         _pointer
         -> [ret : _int]
         -> (cond
-             [(= ret 0) (values in out)]
+             [(>= ret 0) (values in out)]
              [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
 (define-avfilter avfilter-graph-parse2
   (_fun _avfilter-graph-pointer

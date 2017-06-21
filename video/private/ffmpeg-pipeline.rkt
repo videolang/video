@@ -55,6 +55,7 @@
                    next-pts
                    buffer-context
                    callback-data
+                   extra-parameters
                    flags)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -67,8 +68,19 @@
                       #:next-pts [n 0]
                       #:buffer-context [bc #f]
                       #:callback-data [cd #f]
+                      #:extra-parameters [ep (mk-extra-codec-parameters)]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s n bc cd f))
+  (codec-obj occ t i id codec codec-context s n bc cd ep f))
+
+(struct extra-codec-parameters (time-base
+                                gop-size
+                                pix-fmt
+                                color-range))
+(define (mk-extra-codec-parameters #:time-base [tb #f]
+                                   #:gop-size [gs #f]
+                                   #:pix-fmt [pix-fmt #f]
+                                   #:color-range [color-range #f])
+  (extra-codec-parameters tb gs pix-fmt color-range))
 
 (struct filter (name
                 args
@@ -79,9 +91,9 @@
   (filter name args instance-name))
 (define (filter->string filter)
   (string-append (filter-name filter)
-                 (if (null? (filter-args filter)) "" "=")
+                 (if (dict-empty? (filter-args filter)) "" "=")
                  (string-join
-                  (for/list ([(k v) (in-dict filter-args filter)])
+                  (for/list ([(k v) (in-dict (filter-args filter))])
                     (format "~a=~a" k v))
                   ":")))
 (define (filter->avfilter f graph)
@@ -237,10 +249,36 @@
                              #:callback-table [callback-table (hash)]
                              #:by-index-callback by-index-callback))
 
-(define (bundle-for-file file bundle/spec
-                         #:output-format [output-format #f]
-                         #:format-name [format-name #f]
-                         #:options-dict [options-dict #f])
+(define (default-video-parameters format [stream #f])
+  (define parameters (avcodec-parameters-alloc))
+  (set-avcodec-parameters-codec-id! parameters (av-output-format-video-codec format))
+  (set-avcodec-parameters-bit-rate! parameters 400000)
+  (set-avcodec-parameters-width! parameters 1920)
+  (set-avcodec-parameters-height! parameters 1080)
+  (when stream
+    (set-avstream-time-base! stream 1/25))
+  (define rest
+    (mk-extra-codec-parameters #:time-base 1/25
+                               #:gop-size 12
+                               #:pix-fmt 'yuv420p
+                               #:color-range 'mpeg))
+  (values parameters rest))
+
+(define (default-audio-parameters format [stream #f])
+  (define parameters (avcodec-parameters-alloc))
+  (set-avcodec-parameters-codec-id! parameters (av-output-format-audio-codec format))
+  (set-avcodec-parameters-bit-rate! parameters 64000)
+  (set-avcodec-parameters-channel-layout! parameters 'stereo)
+  (set-avcodec-parameters-channels! parameters (av-get-channel-layout-nb-channels 'stereo))
+  (when stream
+    (set-avstream-time-base! stream 1/44100))
+  (define rest (mk-extra-codec-parameters #:time-base 1/44100))
+  (values parameters rest))
+
+(define (bundle->file file bundle/spec
+                      #:output-format [output-format #f]
+                      #:format-name [format-name #f]
+                      #:options-dict [options-dict #f])
   (define stream-table (make-hash))
   (define streams
     (match bundle/spec
@@ -251,9 +289,11 @@
              [(struct* codec-obj ([type t]
                                   [id i]
                                   [index index]
+                                  [codec-parameters parameters]
                                   [callback-data callback-data]))
               (mk-codec-obj #:type t
                             #:id i
+                            #:codec-parameters parameters
                             #:index index
                             #:callback-data callback-data)]
              [x (mk-codec-obj #:type x)]))
@@ -271,6 +311,52 @@
        (vector video audio)]))
   (define output-context
     (avformat-alloc-output-context2 output-format format-name file))
+  (define format (avformat-context-oformat output-context))
+  (define video-codec (av-output-format-video-codec format))
+  (define audio-codec (av-output-format-audio-codec format))
+  (define subtitle-codec (av-output-format-subtitle-codec format))
+  (for ([i streams])
+    (match i
+      [(struct* codec-obj ([type type]
+                           [id id]
+                           [index index]))
+       (define type-codec-id
+         (match type
+           ['video video-codec]
+           ['audio audio-codec]
+           ['subtitle subtitle-codec]
+           [else #f]))
+       (define codec-id (or id type-codec-id))
+       (define codec (avcodec-find-encoder codec-id))
+       (set-codec-obj-codec! i codec)
+       (define str (avformat-new-stream output-context #f))
+       (set-codec-obj-stream! i str)
+       (set-codec-obj-id! i codec-id)
+       (set-codec-obj-index! i index)
+       (set-avstream-id! str (sub1 (avformat-context-nb-streams output-context)))
+       (define maybe-extra-params #f)
+       (unless (codec-obj-codec-parameters i)
+         (set-codec-obj-codec-parameters!
+          i (match (codec-obj-type i)
+              ['video
+               (define-values (params extra) (default-video-parameters format str))
+               (set! maybe-extra-params extra)
+               params]
+              ['audio
+               (define-values (params extra) (default-audio-parameters format str))
+               (set! maybe-extra-params extra)
+               params]
+              [_ #f])))
+       (define ctx (avcodec-parameters-to-context codec (codec-obj-codec-parameters i)))
+       (set-codec-obj-codec-context! i ctx)
+       (when maybe-extra-params
+         (define (maybe-set! setter getter)
+           (when (getter maybe-extra-params)
+             (setter ctx (getter maybe-extra-params))))
+         (maybe-set! set-avcodec-context-time-base! extra-codec-parameters-time-base)
+         (maybe-set! set-avcodec-context-gop-size! extra-codec-parameters-gop-size)
+         (maybe-set! set-avcodec-context-pix-fmt! extra-codec-parameters-pix-fmt)
+         (maybe-set! set-avcodec-context-color-range! extra-codec-parameters-color-range))]))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
                     #:file file
@@ -296,9 +382,6 @@
   (define options (convert-dict (stream-bundle-options-dict bundle)))
   (define file (stream-bundle-file bundle))
   (define format (avformat-context-oformat output-context))
-  (define video-codec (av-output-format-video-codec format))
-  (define audio-codec (av-output-format-audio-codec format))
-  (define subtitle-codec (av-output-format-subtitle-codec format))
   ;; Get streams
   (define stream-table (make-hash))
   (define streams (stream-bundle-streams bundle))
@@ -307,23 +390,8 @@
         [index (in-naturals)])
     (match i
       [(struct* codec-obj ([id id]
-                           [type type]))
-       (define type-codec-id
-         (match type
-           ['video video-codec]
-           ['audio audio-codec]
-           ['subtitle subtitle-codec]
-           [else #f]))
-       (define codec-id (or id type-codec-id))
-       (define codec (avcodec-find-encoder codec-id))
-       (set-codec-obj-codec! i codec)
-       (define str (avformat-new-stream output-context #f))
-       (set-codec-obj-stream! i str)
-       (set-codec-obj-id! i codec-id)
-       (set-codec-obj-index! i index)
-       (set-avstream-id! str (sub1 (avformat-context-nb-streams output-context)))
-       (define ctx (avcodec-alloc-context3 codec))
-       (set-codec-obj-codec-context! i ctx)
+                           [type type]
+                           [codec-context ctx]))
        (if by-index-callback
            (by-index-callback 'init i)
            (match type
@@ -535,30 +603,33 @@
                    (begin0 (format "~a~a" prefix edge-counter)
                            (set! edge-counter (add1 edge-counter))))))
     (define ret
-      (string-append*
-       (for/list ([vert (in-vertices g)])
-         (cond
-           [(filter-node? vert)
-            (define out-str
-              (string-append*
-               (for/list ([n (get-sorted-neighbors g vert)])
-                 (format "[~a]"
-                         (edge-mapping-ref! vert n)))))
-            (define in-str
-              (string-append*
-               (for/list ([n (get-sorted-neighbors g* vert)])
-                 (format "[~a]"
-                         (edge-mapping-ref! n vert)))))
-            (format "~a~a~a;"
-                    in-str
-                    (filter->string
-                     (dict-ref filter-node-table type
-                               (λ ()
-                                 (match type
-                                   ['video (mk-filter "copy")]
-                                   ['audio (mk-filter "acopy")]))))
-                    out-str)]
-           [else ""]))))
+      (string-join
+       (append*
+        (for/list ([vert (in-vertices g)])
+          (cond
+            [(filter-node? vert)
+             (define out-str
+               (string-append*
+                (for/list ([n (get-sorted-neighbors g vert)])
+                  (format "[~a]"
+                          (edge-mapping-ref! vert n)))))
+             (define in-str
+               (string-append*
+                (for/list ([n (get-sorted-neighbors g* vert)])
+                  (format "[~a]"
+                          (edge-mapping-ref! n vert)))))
+             (list
+              (format "~a~a~a"
+                      in-str
+                      (filter->string
+                       (dict-ref (filter-node-table vert) type
+                                 (λ ()
+                                   (match type
+                                     ['video (mk-filter "copy")]
+                                     ['audio (mk-filter "anull")]))))
+                      out-str))]
+            [else '()])))
+       ";"))
     (for ([vert (in-vertices g)])
       (cond
         [(source-node? vert)
@@ -575,12 +646,13 @@
                                          (edge-mapping-ref! n vert)))]))
     ret)
   (values
-   (string-append*
+   (string-join
     (append* (for/list ([bundle (in-list bundle-lst)])
                (for/list ([str (stream-bundle-streams bundle)]
                           [index (in-naturals)])
                  (build-stream-subgraph (codec-obj-type str)
-                                        (format "str~a~a" index (codec-obj-id str)))))))
+                                        (format "str~a~a" index (codec-obj-id str))))))
+    ";")
    bundle-lst
    sink-bundle))
 
@@ -638,10 +710,11 @@
                          ['audio abuffersink]))
          (define n (make-inout type* name (if (null? outs) #f (car outs))))
          (cons n outs)])))
+  (displayln g-str)
   (define-values (in-ret out-ret)
     (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
-  (avfilter-inout-free in-ret)
-  (avfilter-inout-free out-ret)
+  ;(avfilter-inout-free in-ret)
+  ;(avfilter-inout-free out-ret)
   (values graph bundles out-bundle))
 
 (define (render g)
@@ -659,7 +732,8 @@
                                  (define frame (avcodec-receive-frame ctx))
                                  (set-av-frame-pts!
                                   frame (av-frame-get-best-effort-timestamp frame))
-                                 (av-buffersrc-add-frame buff-ctx frame)])]))
+                                 (av-buffersrc-add-frame buff-ctx frame)]
+                                [_ (void)])]))
   (mux-stream
    out-bundle
    #:by-index-callback (λ (mode obj)
@@ -676,5 +750,6 @@
                                      (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))])
                                        (avcodec-send-frame ctx frame)
                                        (define pkt (avcodec-receive-packet ctx))
-                                       pkt))))])])))))
+                                       pkt))))]
+                              [_ (void)])])))))
   (avfilter-graph-free graph))
