@@ -48,7 +48,9 @@
 ;; ===================================================================================================
 
 (define (convert-err err)
-  (bytes->string/locale (integer->integer-bytes (abs err) 4 #t)))
+  (define ret (integer->integer-bytes (abs err) 4 #t))
+  (with-handlers ([exn:fail? (λ (e) ret)])
+    (bytes->string/locale ret)))
 
 (define (MK-TAG [a #\space] [b #\space] [c #\space] [d #\space])
   (integer-bytes->integer (bytes (if (integer? a) a (char->integer a))
@@ -1318,6 +1320,7 @@
    [internal _pointer]
    [codecpar _avcodec-parameters-pointer/null]))
 
+
 ;; DEP AVCODEC 59
 (define-cstruct _av-picture
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
@@ -1503,7 +1506,7 @@
    [rects _pointer]
    [pts _int64]))
 
-(define-cpointer-type _avoption-pointer _int)
+(define-cpointer-type _avoption-pointer)
 
 ;; ===================================================================================================
 
@@ -1885,7 +1888,7 @@
 (define-avfilter avfilter-graph-free (_fun (_ptr io _avfilter-graph-pointer/null) -> _void))
 (define-avfilter avfilter-graph-alloc-filter
   (_fun _avfilter-graph-pointer _avfilter-pointer _string -> _avfilter-context-pointer))
-(define-avfilter avfilter-get-filter
+(define-avfilter avfilter-graph-get-filter
   (_fun _avfilter-graph-pointer _string -> _avfilter-context-pointer/null))
 (define-avfilter avfilter-graph-create-filter
   (_fun [out : (_ptr o _avfilter-context-pointer/null)]
@@ -1897,7 +1900,7 @@
         -> [ret : _int]
         -> (cond
              [(>= ret 0) out]
-             [else (error 'graph-create-filter (convert-err ret))])))
+             [else (error 'graph-create-filter "~a : ~a" ret (convert-err ret))])))
 (define-avfilter avfilter-graph-parse
   (_fun _avfilter-graph-pointer
         _string
