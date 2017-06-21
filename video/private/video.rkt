@@ -331,6 +331,23 @@
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()
-  (error "TODO"))
+  (define nodes (make-hash))
+  (for ([t (in-list tracks)]
+        [index (in-naturals)])
+    (dict-set! nodes t (cons (convert t) index)))
+  (for ([f (in-list field)])
+    (match f
+      [(struct* field-element ([element element]
+                               [track track]
+                               [track-2 track-2]))
+       (define bundle-pair (dict-ref nodes track))
+       (define bundle-pair-2 (dict-ref nodes track-2))
+       (define element-node (convert element))
+       (dict-set! bundle-pair nodes track (cons element-node (min (cdr bundle-pair)
+                                                                  (cdr bundle-pair-2))))
+       (dict-set! bundle-pair nodes track-2 (cons element-node (min (cdr bundle-pair)
+                                                                    (cdr bundle-pair-2))))
+       (add-directed-edge! (current-render-graph) (car bundle-pair) element-node 1)
+       (add-directed-edge! (current-render-graph) (car bundle-pair-2) element-node 2)])))
 
 (define-constructor field-element video ([element #f] [track #f] [track-2 #f]) ())
