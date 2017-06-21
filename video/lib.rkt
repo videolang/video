@@ -22,7 +22,7 @@
          racket/port
          racket/math
          "private/video.rkt"
-         "private/mlt.rkt"
+         "private/ffmpeg-pipeline.rkt"
          "private/utils.rkt"
          "render.rkt"
          (prefix-in list: "render/list.rkt")

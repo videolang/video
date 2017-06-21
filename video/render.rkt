@@ -25,9 +25,9 @@
          (except-in ffi/unsafe ->)
          (prefix-in file: file/convertible)
          (only-in pict pict? pict->bitmap)
-         "private/init-mlt.rkt"
+         "private/init.rkt"
          "init.rkt"
-         "private/mlt.rkt"
+         "private/ffmpeg-pipeline.rkt"
          "private/video.rkt"
          "private/utils.rkt"
          (for-syntax racket/base

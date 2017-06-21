@@ -2,7 +2,7 @@
 
 (require racket/class
          "../private/video.rkt"
-         "../private/mlt.rkt"
+         "../private/ffmpeg-pipeline.rkt"
          "../render.rkt")
 
 (provide render-mixin)

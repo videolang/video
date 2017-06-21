@@ -19,8 +19,8 @@
 (require racket/stxparam
          rackunit
          ffi/unsafe
-         "../private/init-mlt.rkt"
-         "../private/mlt.rkt")
+         "../private/init.rkt"
+         "../private/ffmpeg-pipeline.rkt")
 
 (syntax-parameterize ([current-func-name (make-rename-transformer #'hello)])
   (ret-error #f)

@@ -27,7 +27,7 @@
          "render.rkt"
          (only-in "base.rkt" producer-length)
          "lib.rkt"
-         "private/mlt.rkt" ; :(, we should remove this
+         "private/ffmpeg-pipeline.rkt" ; :(, we should remove this
          "private/video.rkt")
 
 ;; Probably not threadsafe when changing videos?
