@@ -1,3 +1,10 @@
+v0.1.1:
+Date: 2017-06-12
+Commit#: ca7db7f85ab7f19f91e1f63907c275fecdc39349
+ - Compatibility release for MLT. Development has shifted to the v0.2 line.
+ - Initial support for FFMPEG.
+
+
 v0.1:
 Date: 2017-05-24
 Commit#: f83e0b2e45361c9e188ddd4f6a5e4c8be3c2c006
