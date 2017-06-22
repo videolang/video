@@ -62,15 +62,19 @@
 (define (debug/save-prop prop filepath)
   (error "TODO"))
 
-(define (finish-video-object-init! video-object video)
-  ;; Set properties
+(define (finish-video-object-init video-object video)
+  ;; Set user properties
+  #;
   (when (properties? video)
     (for ([(k* v*) (in-dict (properties-prop video))])
       (error "TODO")))
   ;; Attach filters
+  #;
   (when (service? video)
     (for ([f (in-list (service-filters video))])
-      (error "TODO"))))
+      (error "TODO")))
+  ;; Return Resulting Node
+  video-object)
 
 ;; Dynamic Dispatch for Video Objects
 (define-generics video-ops
@@ -134,9 +138,7 @@
                         #`[#,(datum->syntax stx j)
                            (#,(format-id stx "~a-~a" i j) v)])
                  #f body ...)))
-           (when ret
-             (finish-video-object-init! ret v))
-           ret)
+           (finish-video-object-init ret v))
          (define (constructor #,@(append*
                                   (for/list ([i (in-list all-ids)]
                                              [j (in-list all-defaults)])
