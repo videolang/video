@@ -13,9 +13,15 @@ The easiest way to install Video is with `raco`, which comes bundled with [Racke
 raco pkg install video
 ```
 
+# Releases
+
+The `master` branch for Video is currently unstable. We recommend using the releases page for Video.
+
+[Video Releases Page][2]
+
 # Documentation
 
 The Documentation for Video can be found at: http://docs.racket-lang.org/video/index.html
 
 [1]: https://racket-lang.org
-
+[2]: https://github.com/videolang/video/releases
