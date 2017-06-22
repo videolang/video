@@ -204,7 +204,41 @@
 (define-constructor file producer ([path #f])
   ()
   (define bundle (file->stream-bundle path))
-  (define node (mk-source-node bundle))
+  (define fstart #f)
+  (define fend #f)
+  (define fwidth #f)
+  (define fheight #f)
+  (define ftime-base #f)
+  (define fpix-fmt #f)
+  (define fsample-fmt #f)
+  (define fsample-rate #f)
+  (define-syntax-rule (set!/error var val comp)
+    (cond [var (unless (comp var val)
+                 (error 'file "Incompatible stream values ~a and ~a" var val))]
+          [else (set! var val)]))
+  (for ([str (stream-bundle-streams bundle)])
+    (match str
+      [(struct* codec-obj ([codec-context cctx]
+                           [type type]))
+       (match type
+         ['video
+          (set!/error fwidth (avcodec-context-width cctx) =)
+          (set!/error fheight (avcodec-context-height cctx) =)
+          (set!/error ftime-base (avcodec-context-time-base cctx) =)
+          (set!/error fpix-fmt (avcodec-context-pix-fmt cctx) eq?)]
+         ['audio
+          (set!/error fsample-fmt (avcodec-context-sample-fmt cctx) eq?)
+          (set!/error fsample-rate (avcodec-context-sample-rate cctx) =)]
+         [_ (void)])]))
+  (define node (mk-source-node bundle
+                               #:props (hash "start" fstart
+                                             "end" fend
+                                             "width" fwidth
+                                             "height" fheight
+                                             "fps" (/ 1 ftime-base)
+                                             "pix-fmt" fpix-fmt
+                                             "sample-fmt" fsample-fmt
+                                             "sample-rate" fsample-rate)))
   (add-vertex! (current-render-graph) node)
   node)
 
@@ -292,13 +326,21 @@
   ;; Remove now unneded transitions
   (define only-videos (filter (compose not transition?) transition-videos))
   ;; Go through again and fix frame rates and aspect ratios
-  (define-values (rev-cleaned-vids rev-cleaned-nodes)
-    (for/fold ([prev-nodes '()])
-              ([node (in-list transition-nodes)]
-               [vid (in-list only-videos)])
-      (cons node prev-nodes)))
-  (define cleaned-nodes (reverse rev-cleaned-nodes))
-  (log-warning "Need to fix FPS/Width/Height")
+  (define cleaned-nodes
+    (for/list ([node (in-list transition-nodes)])
+      (define (coerce-clip vid-filter connect-node)
+        (define node
+          (mk-filter-node
+           (hash "video" vid-filter)))
+        (add-vertex! (current-render-graph) node)
+        (add-directed-edge! (current-render-graph) connect-node node)
+        node)
+      (let* ([ret (coerce-clip (mk-filter "pad" #:args (hash "width" width
+                                                             "height" height))
+                               node)]
+             [ret (coerce-clip (mk-filter "fps" #:args (hash "fps" fps))
+                               ret)])
+        ret)))
   ;; Offset each clip accordingly
   (define-values (prev-nodes time-again)
     (for/fold ([prev-nodes '()]

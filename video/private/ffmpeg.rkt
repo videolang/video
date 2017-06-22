@@ -114,6 +114,13 @@
               lanczos
               spline)))
 
+(define _av-seek-flags
+  (_bitmask `(backwards
+              byte
+              any
+              frame)
+            _int))
+
 (define _av-channel-layout
   (_bitmask '(front-left = #x1
               front-right = #x2
@@ -1535,6 +1542,18 @@
   (define frame* (or frame
                      (ptr-ref (av-malloc _avpacket) _avpacket)))
   (av-read-frame ctx frame*))
+(define-avformat av-seek-frame (_fun _avformat-context-pointer _int _int64 _av-seek-flags -> [ret : _int]
+                                     -> (when (< ret 0)
+                                          (error 'av-seek-frame "~a : ~a" ret (convert-err ret)))))
+(define-avformat avformat-seek-file
+  (_fun _avformat-context-pointer _int _int64 _int64 _int64 _int -> [ret : _int]
+        -> (when (< ret 0)
+             (error 'avformat-seek-file "~a : ~a" ret (convert-err ret)))))
+(define-avformat avformat-flush (_fun _avformat-context-pointer -> [ret : _int]
+                             -> (when (< ret 0)
+                                  (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))
+(define-avformat avformat-play (_fun _avformat-context-pointer -> [ret : _int]))
+(define-avformat avformat-pause (_fun _avformat-context-pointer -> [ret : _int]))
 (define (av-packet-ref dst/src [src #f])
   (define-avformat av-packet-ref (_fun [out : _avpacket-pointer]
                                        _avpacket-pointer
