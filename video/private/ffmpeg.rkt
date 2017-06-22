@@ -1950,9 +1950,9 @@
           -> (cond
                [(>= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks))]
+                (raise (exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
-                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
                [else (error 'buffersink-get-frame (convert-err ret))])))
   (define o (or out (av-frame-alloc)))
   (av-buffersink-get-frame ptr o))
@@ -1962,9 +1962,9 @@
           -> (cond
                [(= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks))]
+                (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
-                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
                [else (error 'buffersink-get-frame-flags (convert-err ret))])))
   (define flags (or maybe-flags flags/frame))
   (define frame (if maybe-flags
@@ -1978,9 +1978,9 @@
           -> (cond
                [(= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks))]
+                (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
-                (raise exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks))]
+                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
                [else (error 'buffersink-get-frame-flags (convert-err ret))])))
   (define samples (or maybe-samples frame/nb-samples))
   (define frame (if maybe-samples

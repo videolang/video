@@ -720,9 +720,9 @@
          (define n (make-inout type* name (if (null? outs) #f (car outs))))
          (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
          (cons n outs)])))
-  (avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
-  ;(define-values (in-ret out-ret)
-  ;  (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
+  ;(avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
+  (define-values (in-ret out-ret)
+    (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
   (avfilter-graph-config graph #f)
   ;(avfilter-inout-free in-ret)
   ;(avfilter-inout-free out-ret)
@@ -730,40 +730,56 @@
 
 (define (render g)
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))
-  (for ([bundle in-bundles])
-    (demux-stream
-     bundle
-     #:by-index-callback (λ (mode obj packet)
+  (define in-threads
+    (for/list ([bundle in-bundles])
+      (thread
+       (λ ()
+         (demux-stream
+          bundle
+          #:by-index-callback (λ (mode obj packet)
+                                (match obj
+                                  [(struct* codec-obj ([codec-context ctx]
+                                                       [buffer-context buff-ctx]))
+                                   (match mode
+                                     ['loop
+                                      (avcodec-send-packet ctx packet)
+                                      (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
+                                        (define frame (avcodec-receive-frame ctx))
+                                        (set-av-frame-pts!
+                                         frame (av-frame-get-best-effort-timestamp frame))
+                                        (av-buffersrc-add-frame-flags buff-ctx frame '(keep-ref))
+                                        #;(displayln "one in"))]
+                                     [_ (void)])])))))))
+  (define out-thread
+    (mux-stream
+     out-bundle
+     #:by-index-callback (λ (mode obj)
                            (match obj
                              [(struct* codec-obj ([codec-context ctx]
                                                   [buffer-context buff-ctx]))
                               (match mode
-                                ['loop
-                                 (avcodec-send-packet ctx packet)
-                                 (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
-                                   (define frame (avcodec-receive-frame ctx))
-                                   (set-av-frame-pts!
-                                    frame (av-frame-get-best-effort-timestamp frame))
-                                   (av-buffersrc-add-frame buff-ctx frame)
-                                   (exit)
-                                   )]
+                                ['write
+                                 (let loop ()
+                                   (with-handlers ([exn:ffmpeg:again?
+                                                    (λ (e)
+                                                      ;(displayln "try again")
+                                                      (if (ormap thread-running? in-threads)
+                                                          (loop)
+                                                          eof))]
+                                                   [exn:ffmpeg:eof? (λ (e) eof)])
+                                     ;(displayln "here")
+                                     (define frame (av-buffersink-get-frame buff-ctx))
+                                     ;(displayln frame)
+                                     (let loop ()
+                                       (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
+                                         ;(displayln ctx)
+                                         (avcodec-send-frame ctx frame)
+                                         ;(displayln "sent frame")
+                                         (define pkt (avcodec-receive-packet ctx))
+                                         ;(displayln pkt)
+                                         pkt))))]
                                 [_ (void)])]))))
-  (mux-stream
-   out-bundle
-   #:by-index-callback (λ (mode obj)
-                         (match obj
-                           [(struct* codec-obj ([codec-context ctx]
-                                                [buffer-context buff-ctx]))
-                            (match mode
-                              ['write
-                               (let loop ()
-                                 (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))]
-                                                 [exn:ffmpeg:eof? (λ (e) eof)])
-                                   (define frame (av-buffersink-get-frame buff-ctx))
-                                   (let loop ()
-                                     (with-handlers ([exn:ffmpeg:again? (λ (e) (loop))])
-                                       (avcodec-send-frame ctx frame)
-                                       (define pkt (avcodec-receive-packet ctx))
-                                       pkt))))]
-                              [_ (void)])])))
+  (map thread-wait in-threads)
+  (displayln "here")
+  (thread-wait out-thread)
   (avfilter-graph-free graph))
