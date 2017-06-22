@@ -75,12 +75,14 @@
 (struct extra-codec-parameters (time-base
                                 gop-size
                                 pix-fmt
-                                color-range))
+                                color-range
+                                sample-fmt))
 (define (mk-extra-codec-parameters #:time-base [tb #f]
                                    #:gop-size [gs #f]
                                    #:pix-fmt [pix-fmt #f]
-                                   #:color-range [color-range #f])
-  (extra-codec-parameters tb gs pix-fmt color-range))
+                                   #:color-range [color-range #f]
+                                   #:sample-fmt [sample-fmt #f])
+  (extra-codec-parameters tb gs pix-fmt color-range sample-fmt))
 
 (struct filter (name
                 args
@@ -171,10 +173,10 @@
                                   #:by-index-callback [by-index-callback #f])
   ;; Open file
   (define avformat (stream-bundle-avformat-context bundle))
-  (define streams (stream-bundle-raw-streams bundle))
+  (define streams (stream-bundle-streams bundle))
   ;(av-dump-format avformat 0 testfile 0)
   ;; Init Streams
-  (define stream-table (stream-bundle-stream-table))
+  (define stream-table (stream-bundle-stream-table bundle))
   (for ([i streams])
     (match i
       [(struct* codec-obj ([type codec-name]))
@@ -192,7 +194,7 @@
                            #:by-index-callback [by-index-callback #f])
   (define avformat (stream-bundle-avformat-context bundle))
   (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table))
+  (define stream-table (stream-bundle-stream-table bundle))
   (let loop ()
     (define packet (av-read-frame avformat))
     (when packet
@@ -211,7 +213,7 @@
                                    #:by-index-callback [by-index-callback #f])
   (define avformat (stream-bundle-avformat-context bundle))
   (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table))
+  (define stream-table (stream-bundle-stream-table bundle))
   (unless by-index-callback
     (for ([(k v) (in-hash stream-table)])
       ((callback-ref callback-table k)) 'close v #f))
@@ -236,22 +238,23 @@
   ;; Init Streams
   (define avformat (stream-bundle-avformat-context bundle))
   (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table))
+  (define stream-table (stream-bundle-stream-table bundle))
   (demux-stream/fill-bundle bundle
-                            #:callback-table [callback-table (hash)]
+                            #:callback-table callback-table
                             #:by-index-callback by-index-callback)
   ;; Main Loop
   (demux-stream/loop bundle
-                     #:callback-table [callback-table (hash)]
+                     #:callback-table callback-table
                      #:by-index-callback by-index-callback)
   ;; Close Down
   (demux-stream/close-bundle bundle
-                             #:callback-table [callback-table (hash)]
+                             #:callback-table callback-table
                              #:by-index-callback by-index-callback))
 
 (define (default-video-parameters format [stream #f])
   (define parameters (avcodec-parameters-alloc))
   (set-avcodec-parameters-codec-id! parameters (av-output-format-video-codec format))
+  (set-avcodec-parameters-codec-type! parameters 'video)
   (set-avcodec-parameters-bit-rate! parameters 400000)
   (set-avcodec-parameters-width! parameters 1920)
   (set-avcodec-parameters-height! parameters 1080)
@@ -267,18 +270,22 @@
 (define (default-audio-parameters format [stream #f])
   (define parameters (avcodec-parameters-alloc))
   (set-avcodec-parameters-codec-id! parameters (av-output-format-audio-codec format))
+  (set-avcodec-parameters-codec-type! parameters 'audio)
   (set-avcodec-parameters-bit-rate! parameters 64000)
+  (set-avcodec-parameters-sample-rate! parameters 44100)
   (set-avcodec-parameters-channel-layout! parameters 'stereo)
   (set-avcodec-parameters-channels! parameters (av-get-channel-layout-nb-channels 'stereo))
   (when stream
     (set-avstream-time-base! stream 1/44100))
-  (define rest (mk-extra-codec-parameters #:time-base 1/44100))
+  (define rest
+    (mk-extra-codec-parameters #:time-base 1/44100
+                               #:sample-fmt 'fltp))
   (values parameters rest))
 
-(define (bundle->file file bundle/spec
-                      #:output-format [output-format #f]
-                      #:format-name [format-name #f]
-                      #:options-dict [options-dict #f])
+(define (stream-bundle->file file bundle/spec
+                             #:output-format [output-format #f]
+                             #:format-name [format-name #f]
+                             #:options-dict [options-dict #f])
   (define stream-table (make-hash))
   (define streams
     (match bundle/spec
@@ -356,7 +363,8 @@
          (maybe-set! set-avcodec-context-time-base! extra-codec-parameters-time-base)
          (maybe-set! set-avcodec-context-gop-size! extra-codec-parameters-gop-size)
          (maybe-set! set-avcodec-context-pix-fmt! extra-codec-parameters-pix-fmt)
-         (maybe-set! set-avcodec-context-color-range! extra-codec-parameters-color-range))]))
+         (maybe-set! set-avcodec-context-color-range! extra-codec-parameters-color-range)
+         (maybe-set! set-avcodec-context-sample-fmt! extra-codec-parameters-sample-fmt))]))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
                     #:file file
@@ -660,7 +668,9 @@
   (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
     (define inout-ctx (avfilter-graph-create-filter type name args #f graph))
-    (set-avfilter-in-out-name! inout name)
+    (displayln name)
+    (displayln type)
+    (set-avfilter-in-out-name! inout (av-strdup name))
     (set-avfilter-in-out-filter-ctx! inout inout-ctx)
     (set-avfilter-in-out-pad-idx! inout 0)
     (set-avfilter-in-out-next! inout next)
@@ -681,6 +691,7 @@
                                [callback-data name]
                                [codec-context ctx]
                                [stream stream]))
+           (displayln type)
            (define type* (match type
                            ['video buffersrc]
                            ['audio abuffersrc]))
@@ -698,6 +709,7 @@
                                (avcodec-context-time-base ctx)
                                (avcodec-context-sample-rate ctx))]))
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
+           (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
            (cons n ins)]))))
   (define outputs
     (for/fold ([outs '()])
@@ -709,10 +721,17 @@
                          ['video buffersink]
                          ['audio abuffersink]))
          (define n (make-inout type* name (if (null? outs) #f (car outs))))
+         (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
          (cons n outs)])))
+  (displayln inputs)
+  (displayln outputs)
+  (displayln (avfilter-in-out-next (car inputs)))
+  (displayln (avfilter-in-out-next (avfilter-in-out-next (car inputs))))
+  (avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
+  ;(define-values (in-ret out-ret)
+  ;  (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
   (displayln g-str)
-  (define-values (in-ret out-ret)
-    (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
+  (avfilter-graph-config graph #f)
   ;(avfilter-inout-free in-ret)
   ;(avfilter-inout-free out-ret)
   (values graph bundles out-bundle))
@@ -729,11 +748,19 @@
                               (match mode
                                 ['loop
                                  (avcodec-send-packet ctx packet)
-                                 (define frame (avcodec-receive-frame ctx))
-                                 (set-av-frame-pts!
-                                  frame (av-frame-get-best-effort-timestamp frame))
-                                 (av-buffersrc-add-frame buff-ctx frame)]
-                                [_ (void)])]))
+                                 (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
+                                   (define frame (avcodec-receive-frame ctx))
+                                   (set-av-frame-pts!
+                                    frame (av-frame-get-best-effort-timestamp frame))
+                                   (displayln ctx)
+                                   (displayln (av-frame-pts frame))
+                                   (displayln buff-ctx)
+                                   (displayln frame)
+                                   (av-buffersrc-add-frame buff-ctx frame)
+                                   (displayln "there")
+                                   (exit)
+                                   )]
+                                [_ (void)])]))))
   (mux-stream
    out-bundle
    #:by-index-callback (λ (mode obj)
@@ -751,5 +778,5 @@
                                        (avcodec-send-frame ctx frame)
                                        (define pkt (avcodec-receive-packet ctx))
                                        pkt))))]
-                              [_ (void)])])))))
+                              [_ (void)])])))
   (avfilter-graph-free graph))

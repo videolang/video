@@ -1360,20 +1360,10 @@
   ([count _int]
    [elems _av-dictionary-entry-pointer]))
 
-(define-cstruct _avfilter-pad
-  ([name _string]
-   [type _avmedia-type]
-   [get-video-buffer _fpointer]
-   [get-audio-buffer _fpointer]
-   [filter-frame _fpointer]
-   [poll-frame _fpointer]
-   [request-frame _fpointer]
-   [config-props _fpointer]
-   [needs-fifo _int]
-   [needs-writable _int]))
+(define-cpointer-type _avfilter-pad-pointer)
 
 (define-cstruct _avfilter
-  ([name _string]
+  ([name _pointer]
    [description _string]
    [inputs _avfilter-pad-pointer/null]
    [outputs _avfilter-pad-pointer/null]
@@ -1417,7 +1407,7 @@
 (define-cstruct _avfilter-context
   ([av-class _avclass-pointer]
    [filter _avfilter-pointer]
-   [name _string]
+   [name _pointer]
    [input-pads _avfilter-pad-pointer]
    [inputs-data _pointer]
    [nb-inputs _uint]
@@ -1459,7 +1449,7 @@
                 (avfilter-context-nb-outputs v)))
 
 (define-cstruct _avfilter-in-out
-  ([name _string]
+  ([name _pointer]
    [filter-ctx _avfilter-context-pointer]
    [pad-idx _int]
    [next _avfilter-in-out-pointer/null]))
@@ -1736,9 +1726,9 @@
           -> (cond
                [(= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "receive-frame" (current-continuation-marks)))]
+                (raise (exn:ffmpeg:again "receive-frame: eagain" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "receive-frame" (current-continuation-marks)))]
+                (raise (exn:ffmpeg:eof "receive-frame: eof" (current-continuation-marks)))]
                [else
                 (error 'recev-frame "Error: ~a" (convert-err ret))])))
   (define frame (or maybe-frame
@@ -1747,8 +1737,18 @@
 (define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
-(define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer)
-                                   -> _void))
+(define (av-frame-ref src/dst [maybe-src #f])
+  (define-avutil av-frame-ref
+    (_fun [out : _av-frame-pointer] _av-frame-pointer -> [ret : _int]
+          -> (cond
+               [(= ret 0) out]
+               [else (error "~a : ~a" ret (convert-err ret))])))
+  (define src (or maybe-src src/dst))
+  (define dst (if maybe-src src/dst (av-frame-alloc)))
+  (av-frame-ref dst src))
+(define-avutil av-frame-free (_fun (_ptr i _av-frame-pointer) -> _void))
+(define-avutil av-frame-unref (_fun _av-frame-pointer -> _void))
+(define-avutil av-frame-clone (_fun _av-frame-pointer -> _av-frame-pointer))
 (define-avutil av-frame-make-writable
   (_fun _av-frame-pointer -> [ret : _int]
         -> (cond
@@ -1784,6 +1784,9 @@
                  [else 1]))
   (define-avutil av-malloc (_fun _size -> _pointer));(_array type size)))
   (av-malloc (* size (ctype-sizeof type))))
+(define-avutil av-free (_fun _pointer -> _void))
+(define-avutil av-freep (_fun _pointer -> _void))
+(define-avutil av-strdup (_fun _string -> _pointer))
 (define-avutil av-samples-get-buffer-size (_fun _pointer _int _int _avsample-format _int
                                                 -> [ret : _int]
                                                 -> (let ()
@@ -1850,7 +1853,6 @@
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))
-(define-avutil av-strdup (_fun _string -> _pointer))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
@@ -1891,7 +1893,7 @@
 (define-avfilter avfilter-graph-get-filter
   (_fun _avfilter-graph-pointer _string -> _avfilter-context-pointer/null))
 (define-avfilter avfilter-graph-create-filter
-  (_fun [out : (_ptr o _avfilter-context-pointer/null)]
+  (_fun [out : (_ptr o _avfilter-context-pointer)]
         _avfilter-pointer
         _string
         _string
@@ -1990,7 +1992,7 @@
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
 (define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
 (define-avfilter av-buffersrc-add-frame-flags
-  (_fun _avfilter-context-pointer _av-frame _av-buffer-src-flags -> [ret : _int]
+  (_fun _avfilter-context-pointer _av-frame-pointer _av-buffer-src-flags -> [ret : _int]
         -> (cond
              [(>= ret 0) (void)]
              [else (error 'buffersrc-add-frame-flags "~a : ~a" ret (convert-err ret))])))
