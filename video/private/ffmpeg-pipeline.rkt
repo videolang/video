@@ -668,8 +668,6 @@
   (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
     (define inout-ctx (avfilter-graph-create-filter type name args #f graph))
-    (displayln name)
-    (displayln type)
     (set-avfilter-in-out-name! inout (av-strdup name))
     (set-avfilter-in-out-filter-ctx! inout inout-ctx)
     (set-avfilter-in-out-pad-idx! inout 0)
@@ -681,7 +679,7 @@
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
   (define graph (avfilter-graph-alloc))
-  (define inputs
+  (define outputs
     (for/fold ([ins '()])
               ([bundle bundles])
       (for/fold ([ins ins])
@@ -691,7 +689,6 @@
                                [callback-data name]
                                [codec-context ctx]
                                [stream stream]))
-           (displayln type)
            (define type* (match type
                            ['video buffersrc]
                            ['audio abuffersrc]))
@@ -711,7 +708,7 @@
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
            (cons n ins)]))))
-  (define outputs
+  (define inputs
     (for/fold ([outs '()])
               ([str (stream-bundle-streams out-bundle)])
       (match str
@@ -723,14 +720,9 @@
          (define n (make-inout type* name (if (null? outs) #f (car outs))))
          (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
          (cons n outs)])))
-  (displayln inputs)
-  (displayln outputs)
-  (displayln (avfilter-in-out-next (car inputs)))
-  (displayln (avfilter-in-out-next (avfilter-in-out-next (car inputs))))
   (avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
   ;(define-values (in-ret out-ret)
   ;  (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
-  (displayln g-str)
   (avfilter-graph-config graph #f)
   ;(avfilter-inout-free in-ret)
   ;(avfilter-inout-free out-ret)
@@ -752,12 +744,7 @@
                                    (define frame (avcodec-receive-frame ctx))
                                    (set-av-frame-pts!
                                     frame (av-frame-get-best-effort-timestamp frame))
-                                   (displayln ctx)
-                                   (displayln (av-frame-pts frame))
-                                   (displayln buff-ctx)
-                                   (displayln frame)
                                    (av-buffersrc-add-frame buff-ctx frame)
-                                   (displayln "there")
                                    (exit)
                                    )]
                                 [_ (void)])]))))
