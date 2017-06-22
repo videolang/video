@@ -1552,8 +1552,8 @@
 (define-avformat avformat-flush (_fun _avformat-context-pointer -> [ret : _int]
                              -> (when (< ret 0)
                                   (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))
-(define-avformat avformat-play (_fun _avformat-context-pointer -> [ret : _int]))
-(define-avformat avformat-pause (_fun _avformat-context-pointer -> [ret : _int]))
+(define-avformat av-read-play (_fun _avformat-context-pointer -> [ret : _int]))
+(define-avformat av-read-pause (_fun _avformat-context-pointer -> [ret : _int]))
 (define (av-packet-ref dst/src [src #f])
   (define-avformat av-packet-ref (_fun [out : _avpacket-pointer]
                                        _avpacket-pointer
