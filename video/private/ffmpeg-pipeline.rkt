@@ -639,6 +639,11 @@
                      #:counts [c (hash)]
                      #:props [props (hash)])
   (mux-node props c out-type out-index))
+(struct demux-node node (in-counts))
+(define (mk-demux-node in-counts
+                       #:counts [c (hash)]
+                       #:props [props (hash)])
+  (demux-node props c in-counts))
 
 (define (mk-empty-video-filter)
   (mk-filter "color" (hash "color" "black")))
@@ -659,19 +664,32 @@
 (define current-graph (make-parameter #f))
 (define current-graph* (make-parameter #f))
 
+(define (demux-node->string vert)
+  (error "TODO"))
+
 (define (mux-node->string vert)
+  (define by-index-table (make-hash))
+  (define by-index-counter 0)
   (define out-str
     (string-append*
      (for/list ([n (get-sorted-neighbors (current-graph) vert)])
-       (format "[~a]"
-               ((current-edge-mapping-ref!) vert n (mux-node-out-type vert) 0)))))
+       (format "[~a]" ((current-edge-mapping-ref!) vert n (mux-node-out-type vert) 0)))))
   (define in-str
-    (string-append*
+    (append*
      (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-       (error "TODO"))))
+       (for/list ([(k v) (in-dict (node-counts n))])
+         (dict-set! by-index-table (cons k v) by-index-counter)
+         (set! by-index-counter (add1 by-index-counter))
+         (format "[~a]" ((current-edge-mapping-ref!) n vert k v))))))
   (format "~a~a~a"
           in-str
-          (error "TODO")
+          (mk-filter (match (mux-node-out-type vert)
+                       ['video "streamselect"]
+                       ['audio "astreamselect"])
+                     (hash "inputs" by-index-counter
+                           "map" (dict-ref by-index-counter
+                                           (mux-node-out-type vert)
+                                           (mux-node-out-index))))
           out-str))
 
 ;; Filter-Node -> (Listof String)
