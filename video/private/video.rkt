@@ -203,17 +203,18 @@
   ()
   (error "TODO"))
 
-(define-constructor file producer ([path #f])
-  ()
+(define-constructor file producer ([path #f]) ()
   (define bundle (file->stream-bundle path))
-  (define fstart #f)
-  (define fend #f)
+  (define fctx (stream-bundle-avformat-context bundle))
+  (define fstart 0)
+  (define fend (avformat-context-duration fctx))
   (define fwidth #f)
   (define fheight #f)
   (define ftime-base #f)
   (define fpix-fmt #f)
   (define fsample-fmt #f)
   (define fsample-rate #f)
+  (define count-tab (make-hash))
   (define-syntax-rule (set!/error var val comp)
     (cond [var (unless (comp var val)
                  (error 'file "Incompatible stream values ~a and ~a" var val))]
@@ -222,6 +223,9 @@
     (match str
       [(struct* codec-obj ([codec-context cctx]
                            [type type]))
+       (hash-update! count-tab type
+                     add1
+                     0)
        (match type
          ['video
           (set!/error fwidth (avcodec-context-width cctx) =)
@@ -233,11 +237,14 @@
           (set!/error fsample-rate (avcodec-context-sample-rate cctx) =)]
          [_ (void)])]))
   (define node (mk-source-node bundle
-                               #:props (hash "start" fstart
-                                             "end" fend
-                                             "width" fwidth
-                                             "height" fheight
-                                             "fps" (/ 1 ftime-base)
+                               #:counts count-tab
+                               #:props (hash "start" (or fstart 0)
+                                             "end" (or fend 0)
+                                             "width" (or fwidth 0)
+                                             "height" (or fheight 0)
+                                             "fps" (if (and ftime-base (not (= ftime-base 0)))
+                                                       (/ 1 ftime-base)
+                                                       0)
                                              "pix-fmt" fpix-fmt
                                              "sample-fmt" fsample-fmt
                                              "sample-rate" fsample-rate)))
@@ -251,15 +258,15 @@
   ()
   (define pre-list
     (cond
-      [(empty? elements) (list (blank #:start 0 #:end 1))]
+      [(empty? elements) (list (make-blank #:start 0 #:end 1))]
       [(transition? (first elements))
-       (list (blank #:start 0 #:end (transition-length-track1 (first elements))))]
+       (list (make-blank #:start 0 #:end (transition-length-track1 (first elements))))]
       [else (list)]))
   (define post-list
     (cond
       [(empty? elements) (list)]
       [(transition? (last elements))
-       (list (blank #:start 0 #:end (transition-length-track2 (last elements))))]
+       (list (make-blank #:start 0 #:end (transition-length-track2 (last elements))))]
       [else (list)]))
   (define elements*
     (append pre-list elements post-list))
@@ -326,21 +333,21 @@
   (define transition-nodes (reverse rev-trans-nodes))
   (define transition-videos (reverse rev-trans-vids))
   ;; Remove now unneded transitions
-  (define only-videos (filter (compose not transition?) transition-videos))
   ;; Go through again and fix frame rates and aspect ratios
   (define cleaned-nodes
     (for/list ([node (in-list transition-nodes)])
       (define (coerce-clip vid-filter connect-node)
         (define node
           (mk-filter-node
-           (hash "video" vid-filter)))
+           (hash "video" vid-filter)
+           #:props (dict-copy (node-props connect-node))))
         (add-vertex! (current-render-graph) node)
         (add-directed-edge! (current-render-graph) connect-node node)
         node)
-      (let* ([ret (coerce-clip (mk-filter "pad" #:args (hash "width" width
-                                                             "height" height))
+      (let* ([ret (coerce-clip (mk-filter "pad" (hash "width" width
+                                                      "height" height))
                                node)]
-             [ret (coerce-clip (mk-filter "fps" #:args (hash "fps" fps))
+             [ret (coerce-clip (mk-filter "fps" (hash "fps" fps))
                                ret)])
         ret)))
   ;; Offset each clip accordingly
@@ -351,29 +358,29 @@
       (define props (node-props n))
       (define start (dict-ref props "start"))
       (define end (dict-ref props "end"))
-      (define offset-str (format "setpts=PTS-STARTPTS+~a" time))
+      (define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
+      (define aoffset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
       (define node
-        (mk-filter-node (hash 'video offset-str
-                              'audio offset-str
-                              'subtitle offset-str)
-                        #:props (dict-set* props
-                                           "start" (+ start time)
-                                           "end" (+ end time))))
+        (mk-filter-node (hash 'video offset
+                              'audio aoffset)
+                        #:props (dict-set*! (dict-copy props)
+                                            "start" (+ start time)
+                                            "end" (+ end time))))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
       (values (cons node prev-nodes) (+ time (- end start)))))
   (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
-  (define background (blank #:start start
-                            #:end end
-                            #:fps fps
-                            #:width width
-                            #:height height))
+  (define background (make-blank #:start start
+                                 #:end end
+                                 ;#:fps fps
+                                 #:width width
+                                 #:height height))
   (for/fold ([curr-back background])
             ([i nodes]
              [index (in-naturals)])
     (define new-background
-      (mk-filter-node #:video "overlay"
+      (mk-filter-node (hash 'video (mk-filter "overlay"))
                       #:props (hash "start" start
                                     "end" end
                                     "fps" fps

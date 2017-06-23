@@ -88,15 +88,24 @@
                 args
                 instance-name))
 (define (mk-filter name
-                   #:args [args (hash)]
+                   [args (hash)]
                    #:instance-name [instance-name #f])
   (filter name args instance-name))
 (define (filter->string filter)
   (string-append (filter-name filter)
+                 (if (filter-instance-name filter)
+                     (format "@~a" filter-instance-name)
+                     "")
                  (if (dict-empty? (filter-args filter)) "" "=")
                  (string-join
                   (for/list ([(k v) (in-dict (filter-args filter))])
-                    (format "~a=~a" k v))
+                    (let loop ([v v])
+                      (define v*
+                        (cond
+                          [(list? v) (string-join (map loop v) ";")]
+                          [(interval? v) (interval->string v)]
+                          [else v]))
+                      (format "~a=~a" k v*)))
                   ":")))
 (define (filter->avfilter f graph)
   (define filter (avfilter-get-by-name (filter-name f)))
@@ -110,6 +119,43 @@
         [else (error 'filter->filter "unkown type for ~a" v)]))
     (set-proc filter-ctx k v '(search-children)))
   (avfilter-init-str filter-ctx #f))
+
+(struct command (flags target command arg))
+(define (mk-command target command
+                    #:flags [flags #f]
+                    #:arg [arg #f])
+  (command flags target command arg))
+(define (command->string com)
+  (match com
+    [(struct* command ([flags flags]
+                       [target target]
+                       [command command]
+                       [arg arg]))
+     (string-append (if flags
+                        (format "[~a] "
+                                (match flags
+                                  ['(enter) "enter"]
+                                  ['(leave) "leave"]
+                                  [_ "enter|leave"]))
+                        "")
+                    target
+                    " "
+                    command
+                    (if arg (format " ~a" arg) ""))]))
+
+(struct interval (start end commands))
+(define (mk-interval start commands
+                     #:end [end #f])
+  (interval start end commands))
+(define (interval->string int)
+  (match int
+    [(struct* interval ([start start]
+                        [end end]
+                        [commands commands]))
+     (string-append start
+                    (if end (format "-~a" end) "")
+                    " "
+                    (string-join (map command->string commands) ","))]))
 
 ;; ===================================================================================================
 
@@ -571,98 +617,149 @@
 
 ;; ===================================================================================================
 
-(struct node (props))
+(struct node (props counts))
 (struct source-node node (bundle))
 (define (mk-source-node b
+                        #:counts [c (hash)]
                         #:props [np (hash)])
-  (source-node np b))
+  (source-node np c b))
 (struct sink-node node (bundle)
   #:mutable)
 (define (mk-sink-node b
+                      #:counts [c (hash)]
                       #:props [np (hash)])
-  (sink-node np b))
+  (sink-node np c b))
 (struct filter-node node (table))
 (define (mk-filter-node table
+                        #:counts [c (hash)]
                         #:props [props (hash)])
-  (filter-node props table))
+  (filter-node props c table))
+(struct mux-node node (out-type out-index))
+(define (mk-mux-node out-type out-index
+                     #:counts [c (hash)]
+                     #:props [props (hash)])
+  (mux-node props c out-type out-index))
+
+(define (mk-empty-video-filter)
+  (mk-filter "color" (hash "color" "black")))
+(define (mk-empty-audio-filter)
+  (mk-filter "aevalsrc" (hash "exprs" "0")))
+
+(define (mk-edge-counter [start 0])
+  (define edge-counter start)
+  (define edge-mapping (make-hash))
+  (define (edge-mapping-ref! n vert type i)
+    (dict-ref! edge-mapping (vector n vert type i)
+               (λ ()
+                 (begin0 (format "~a~a~a" type edge-counter)
+                         (set! edge-counter (add1 edge-counter))))))
+  (values edge-mapping edge-mapping-ref!))
+(define current-edge-mapping-ref! #f)
+(define current-edge-mapping #f)
+(define current-graph (make-parameter #f))
+(define current-graph* (make-parameter #f))
+
+(define (mux-node->string vert)
+  (define out-str
+    (string-append*
+     (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+       (format "[~a]"
+               ((current-edge-mapping-ref!) vert n (mux-node-out-type vert) 0)))))
+  (define in-str
+    (string-append*
+     (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+       (error "TODO"))))
+  (format "~a~a~a"
+          in-str
+          (error "TODO")
+          out-str))
+
+;; Filter-Node -> (Listof String)
+(define (filter-node->string vert)
+  (append*
+   (for/list ([(type count) (in-dict (node-counts vert))])
+     (for/list ([i (in-range count)])
+       (define out-str
+         (string-append*
+          (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+            (format "[~a]"
+                    ((current-edge-mapping-ref!) vert n type i)))))
+       (define in-str
+         (string-append*
+          (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+            (format "[~a]"
+                    ((current-edge-mapping-ref!) n vert type i)))))
+       (format "~a~a~a"
+               in-str
+               (filter->string
+                (dict-ref (filter-node-table vert) type
+                          (λ ()
+                            (match type
+                              ['video (mk-filter "copy")]
+                              ['audio (mk-filter "anull")])))))))))
+
+;; Because `in-neighbors` returns neighbors in
+;; an unspecified order, we need them sorted based
+;; on weight
+(define (get-sorted-neighbors graph vert)
+  (define neighbors (get-neighbors graph vert))
+  (sort neighbors
+        <
+        #:key (λ (x) (edge-weight graph vert x))))
 
 (define (filter-graph->string g)
   (define g* (transpose g))
-  ;; Graph Source Nodes
-  (define src-nodes (base:filter source-node? (get-vertices g)))
-  (define bundle-lst (map source-node-bundle src-nodes))
-  (define sink-node (findf sink-node? (get-vertices g)))
-  (define sink-bundle (sink-node-bundle sink-node))
-  ;; Because `in-neighbors` returns neighbors in
-  ;; an unspecified order, we need them sorted based
-  ;; on weight
-  (define (get-sorted-neighbors graph vert)
-    (define neighbors (get-neighbors graph vert))
-    (sort neighbors
-          <
-          #:key (λ (x) (edge-weight graph vert x))))
-  ;; Build Graph for individual codec-obj
-  (define (build-stream-subgraph type prefix)
-    (define edge-counter 0)
-    (define edge-mapping (make-hash))
-    (define (edge-mapping-ref! n vert)
-      (dict-ref! edge-mapping (cons n vert)
-                 (λ ()
-                   (begin0 (format "~a~a" prefix edge-counter)
-                           (set! edge-counter (add1 edge-counter))))))
-    (define ret
-      (string-join
-       (append*
-        (for/list ([vert (in-vertices g)])
-          (cond
-            [(filter-node? vert)
-             (define out-str
-               (string-append*
-                (for/list ([n (get-sorted-neighbors g vert)])
-                  (format "[~a]"
-                          (edge-mapping-ref! vert n)))))
-             (define in-str
-               (string-append*
-                (for/list ([n (get-sorted-neighbors g* vert)])
-                  (format "[~a]"
-                          (edge-mapping-ref! n vert)))))
-             (list
-              (format "~a~a~a"
-                      in-str
-                      (filter->string
-                       (dict-ref (filter-node-table vert) type
-                                 (λ ()
-                                   (match type
-                                     ['video (mk-filter "copy")]
-                                     ['audio (mk-filter "anull")]))))
-                      out-str))]
-            [else '()])))
-       ";"))
-    (for ([vert (in-vertices g)])
-      (cond
-        [(source-node? vert)
-         (for ([n (get-sorted-neighbors g vert)])
-           (define table
-             (stream-bundle-stream-table (source-node-bundle vert)))
-           (set-codec-obj-callback-data! (dict-ref table type)
-                                         (edge-mapping-ref! vert n)))]
-        [(sink-node? vert)
-         (for ([n (get-sorted-neighbors g* vert)])
-           (define table
-             (stream-bundle-stream-table (sink-node-bundle vert)))
-           (set-codec-obj-callback-data! (dict-ref table type)
-                                         (edge-mapping-ref! n vert)))]))
-    ret)
-  (values
-   (string-join
-    (append* (for/list ([bundle (in-list bundle-lst)])
-               (for/list ([str (stream-bundle-streams bundle)]
-                          [index (in-naturals)])
-                 (build-stream-subgraph (codec-obj-type str)
-                                        (format "str~a~a" index (codec-obj-id str))))))
-    ";")
-   bundle-lst
-   sink-bundle))
+  (define-values (edge-mapping edge-mapping-ref!) (mk-edge-counter))
+  (parameterize ([current-edge-mapping-ref! edge-mapping-ref!]
+                 [current-edge-mapping edge-mapping]
+                 [current-graph g]
+                 [current-graph* g*])
+    ;; Graph Source Nodes
+    (define src-nodes (base:filter source-node? (get-vertices g)))
+    (define bundle-lst (map source-node-bundle src-nodes))
+    (define sink-node (findf sink-node? (get-vertices g)))
+    (define sink-bundle (sink-node-bundle sink-node))
+    ;; Build Graph for each individual codec-obj
+    (define node-str-list
+      (append*
+       (for/list ([vert (in-vertices g)])
+         (cond
+           [(filter-node? vert)
+            (filter-node->string vert)]
+           [(mux-node? vert)
+            (list (mux-node->string vert))]
+           [(source-node? vert)
+            (for ([(type count) (in-dict (node-counts vert))])
+              (for ([i (in-range count)])
+                (for ([n (get-sorted-neighbors g vert)])
+                  (define table
+                    (stream-bundle-stream-table (source-node-bundle vert)))
+                  (set-codec-obj-callback-data! (dict-ref table type)
+                                                ((current-edge-mapping-ref!) vert n)))))
+            '()]
+           [(sink-node? vert)
+            (for ([(type count) (in-dict (node-counts vert))])
+              (for ([i (in-range count)])
+                (for ([n (get-sorted-neighbors g* vert)])
+                  (define table
+                    (stream-bundle-stream-table (sink-node-bundle vert)))
+                  (set-codec-obj-callback-data! (dict-ref table type)
+                                                ((current-edge-mapping-ref!) n vert)))))
+            '()]
+           [else '()]))))
+    ;; Different nodes have different stream counts.
+    ;; Need to make empty (null) nodes for mismatching
+    ;; connections.
+    (define cap-nodes-list
+      (for/fold ([ret '()])
+                ([(edge name) (in-dict (current-edge-mapping))])
+        (match edge
+          [(vector src dst type i)
+           (error "TODO")])))
+    (values
+     (string-join (append node-str-list cap-nodes-list) ";")
+     bundle-lst
+     sink-bundle)))
 
 (define (init-filter-graph g)
   (define (make-inout type name [next #f] [args #f])

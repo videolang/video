@@ -87,6 +87,10 @@
 (define AV-INPUT-BUFFER-PADDING-SIZE 32)
 (define AV-INPUT-BUFFER-MIN-SIZE 16384)
 
+(define AV-NOPTS-VALUE #x8000000000000000)
+(define AV-TIME-BASE 1000000)
+(define AV-TIME-BASE-Q (/ 1 AV-TIME-BASE))
+
 ;; Although deprecated, still seems useful
 (define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
 
