@@ -649,6 +649,10 @@
   (mk-filter "color" (hash "color" "black")))
 (define (mk-empty-audio-filter)
   (mk-filter "aevalsrc" (hash "exprs" "0")))
+(define (mk-empty-sink-video-filter)
+  (mk-filter "nullsink"))
+(define (mk-empty-sink-audio-filter)
+  (mk-filter "anullsink"))
 
 (define (mk-edge-counter [start 0])
   (define edge-counter start)
@@ -667,55 +671,70 @@
 (define (demux-node->string vert)
   (error "TODO"))
 
+;; Mux-Node -> (Listof String)
 (define (mux-node->string vert)
-  (define by-index-table (make-hash))
-  (define by-index-counter 0)
+  (define out-type (mux-node-out-type vert))
+  (define out-index (mux-node-out-index vert))
+  (define counts (node-counts vert))
   (define out-str
     (string-append*
      (for/list ([n (get-sorted-neighbors (current-graph) vert)])
-       (format "[~a]" ((current-edge-mapping-ref!) vert n (mux-node-out-type vert) 0)))))
+       (format "[~a]" ((current-edge-mapping-ref!) vert n out-type 0)))))
   (define in-str
     (append*
      (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-       (for/list ([(k v) (in-dict (node-counts n))])
-         (dict-set! by-index-table (cons k v) by-index-counter)
-         (set! by-index-counter (add1 by-index-counter))
-         (format "[~a]" ((current-edge-mapping-ref!) n vert k v))))))
-  (format "~a~a~a"
-          in-str
-          (mk-filter (match (mux-node-out-type vert)
-                       ['video "streamselect"]
-                       ['audio "astreamselect"])
-                     (hash "inputs" by-index-counter
-                           "map" (dict-ref by-index-counter
-                                           (mux-node-out-type vert)
-                                           (mux-node-out-index))))
-          out-str))
+       (for/list ([i (in-range (dict-ref counts vert 0))])
+         (format "[~a]" ((current-edge-mapping-ref!) n vert out-type i))))))
+  ;; Otput main node and nodes for other types to null
+  (append*
+   (format "~a~a~a"
+           in-str
+           (filter->string
+            (mk-filter (match out-type
+                         ['video "streamselect"]
+                         ['audio "astreamselect"])
+                       (hash "inputs" (dict-ref counts vert)
+                             "map" out-index)))
+           out-str)
+   (append*
+    (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+      (append*
+       (for/list ([(type count) (in-dict counts)]
+                  #:unless (eq? type out-type))
+         (for/list ([i (in-range count)])
+           (format "~a~a"
+                   ((current-edge-mapping-ref!) n vert type i)
+                   (filter->string
+                    (match type
+                      ['video (mk-empty-sink-video-filter)]
+                      ['audio (mk-empty-sink-audio-filter)]))))))))))
 
 ;; Filter-Node -> (Listof String)
 (define (filter-node->string vert)
-  (append*
-   (for/list ([(type count) (in-dict (node-counts vert))])
-     (for/list ([i (in-range count)])
-       (define out-str
-         (string-append*
-          (for/list ([n (get-sorted-neighbors (current-graph) vert)])
-            (format "[~a]"
-                    ((current-edge-mapping-ref!) vert n type i)))))
-       (define in-str
-         (string-append*
-          (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-            (format "[~a]"
-                    ((current-edge-mapping-ref!) n vert type i)))))
-       (format "~a~a~a"
-               in-str
-               (filter->string
-                (dict-ref (filter-node-table vert) type
-                          (λ ()
-                            (match type
-                              ['video (mk-filter "copy")]
-                              ['audio (mk-filter "anull")])))))))))
-
+  (define node-list
+    (append*
+     (for/list ([(type count) (in-dict (node-counts vert))])
+       (for/list ([i (in-range count)])
+         (define out-str
+           (string-append*
+            (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+              (format "[~a]"
+                      ((current-edge-mapping-ref!) vert n type i)))))
+         (define in-str
+           (string-append*
+            (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+              (format "[~a]"
+                      ((current-edge-mapping-ref!) n vert type i)))))
+         (format "~a~a~a"
+                 in-str
+                 (filter->string
+                  (dict-ref (filter-node-table vert) type
+                            (λ ()
+                              (match type
+                                ['video (mk-filter "copy")]
+                                ['audio (mk-filter "anull")])))))))))
+  node-list)
+  
 ;; Because `in-neighbors` returns neighbors in
 ;; an unspecified order, we need them sorted based
 ;; on weight
@@ -725,6 +744,10 @@
         <
         #:key (λ (x) (edge-weight graph vert x))))
 
+(define filter-types
+  '(video audio)) ; subtitle, attachment, and data not supported by ffmpeg
+
+;; Graph -> String
 (define (filter-graph->string g)
   (define g* (transpose g))
   (define-values (edge-mapping edge-mapping-ref!) (mk-edge-counter))
@@ -745,7 +768,7 @@
            [(filter-node? vert)
             (filter-node->string vert)]
            [(mux-node? vert)
-            (list (mux-node->string vert))]
+            (mux-node->string vert)]
            [(source-node? vert)
             (for ([(type count) (in-dict (node-counts vert))])
               (for ([i (in-range count)])
@@ -773,7 +796,25 @@
                 ([(edge name) (in-dict (current-edge-mapping))])
         (match edge
           [(vector src dst type i)
-           (error "TODO")])))
+           (define src-count (dict-ref (node-counts src) type 0))
+           (define dst-count (dict-ref (node-counts dst) type 0))
+           (append
+              (if (< src-count i)
+                  (list (format
+                         "~a~a"
+                         (match type
+                           ['video (mk-empty-video-filter)]
+                           ['audio (mk-empty-audio-filter)])
+                         name))
+                  '())
+              (if (< dst-count i)
+                  (list (format
+                         "~a~a"
+                         name
+                         (match type
+                           ['video (mk-empty-sink-video-filter)]
+                           ['audio (mk-empty-sink-audio-filter)])))
+                  '()))])))
     (values
      (string-join (append node-str-list cap-nodes-list) ";")
      bundle-lst
