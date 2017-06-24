@@ -23,6 +23,7 @@
          racket/class
          racket/list
          racket/generic
+         racket/hash
          file/convertible
          (prefix-in file: file/convertible)
          graph
@@ -252,7 +253,11 @@
   node)
 
 (define-constructor blank producer () ()
-  (error "TODO"))
+ (mk-filter-node (hash 'video (mk-empty-video-filter)
+                       'audio (mk-empty-audio-filter))
+                  #:counts (hash 'video 1 'audio 1)
+                  #:props (hash "start" 0
+                                "end" +inf.0)))
 
 (define-constructor playlist producer ([elements '()])
   ()
@@ -271,14 +276,15 @@
   (define elements*
     (append pre-list elements post-list))
   ;; Generate nodes and handle transitions
-  (define-values (rev-trans-vids rev-trans-nodes start end fps width height)
+  (define-values (rev-trans-vids rev-trans-nodes start end fps width height counts)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
                [start 0]
                [end 0]
                [fps 0]
                [width 0]
-               [height 0])
+               [height 0]
+               [counts (hash)])
               ([i (in-list elements*)]
                [index (in-naturals)])
       (match i
@@ -290,7 +296,8 @@
                                                  #:props (dict-update (node-props (car prev-nodes))
                                                                       "end"
                                                                       (λ (end)
-                                                                        (- end length-track1)))))
+                                                                        (- end length-track1)))
+                                                 #:counts (node-counts (car prev-nodes))))
          (define prev-vid (car prev-vids))
          (add-vertex! (current-render-graph) track1-modifier)
          (add-directed-edge! (current-render-graph)
@@ -303,7 +310,8 @@
                            2))
                  fps
                  width
-                 height)]
+                 height
+                 (hash-union counts (node-counts (car prev-nodes) #:combine max)))]
         [else
          (define pre-node (convert i))
          (define node
@@ -316,7 +324,8 @@
                                     #:props (dict-update (node-props pre-node)
                                                          "end"
                                                          (λ (end)
-                                                           (- end length-track2)))))
+                                                           (- end length-track2)))
+                                    #:counts (node-counts pre-node)))
                   (add-vertex! (current-render-graph) track2-modifier)
                   (add-directed-edge! (current-render-graph)
                                       pre-node track2-modifier)
@@ -329,7 +338,8 @@
                  (+ end (- (dict-ref props "end") (dict-ref props "start")))
                  (max fps (dict-ref props "fps" 0))
                  (max width (dict-ref props "width" 0))
-                 (max height (dict-ref props "height" 0)))])))
+                 (max height (dict-ref props "height" 0))
+                 (hash-union counts (node-counts pre-node) #:combine max))])))
   (define transition-nodes (reverse rev-trans-nodes))
   (define transition-videos (reverse rev-trans-vids))
   ;; Remove now unneded transitions
@@ -340,7 +350,8 @@
         (define node
           (mk-filter-node
            (hash "video" vid-filter)
-           #:props (dict-copy (node-props connect-node))))
+           #:props (dict-copy (node-props connect-node))
+           #:counts counts))
         (add-vertex! (current-render-graph) node)
         (add-directed-edge! (current-render-graph) connect-node node)
         node)
@@ -359,33 +370,37 @@
       (define start (dict-ref props "start"))
       (define end (dict-ref props "end"))
       (define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
-      (define aoffset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
+      (define aoffset (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)
                         #:props (dict-set*! (dict-copy props)
                                             "start" (+ start time)
-                                            "end" (+ end time))))
+                                            "end" (+ end time))
+                        #:counts counts))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
       (values (cons node prev-nodes) (+ time (- end start)))))
   (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
-  (define background (make-blank #:start start
-                                 #:end end
-                                 ;#:fps fps
-                                 #:width width
-                                 #:height height))
+  (define background
+    (convert (make-blank #:start start
+                         #:end end
+                         ;#:fps fps
+                         #:width width
+                         #:height height)))
   (for/fold ([curr-back background])
             ([i nodes]
              [index (in-naturals)])
     (define new-background
-      (mk-filter-node (hash 'video (mk-filter "overlay"))
+      (mk-filter-node (hash 'video (mk-filter "overlay")
+                            'audio (mk-filter "amix"))
                       #:props (hash "start" start
                                     "end" end
                                     "fps" fps
                                     "width" width
-                                    "height" height)))
+                                    "height" height)
+                      #:counts counts))
     (add-vertex! (current-render-graph) new-background)
     (add-directed-edge! (current-render-graph) curr-back new-background 1)
     (add-directed-edge! (current-render-graph) i new-background 2)

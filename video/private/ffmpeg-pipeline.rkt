@@ -660,11 +660,11 @@
   (define (edge-mapping-ref! n vert type i)
     (dict-ref! edge-mapping (vector n vert type i)
                (λ ()
-                 (begin0 (format "~a~a~a" type edge-counter)
+                 (begin0 (format "~a~a" type edge-counter)
                          (set! edge-counter (add1 edge-counter))))))
   (values edge-mapping edge-mapping-ref!))
-(define current-edge-mapping-ref! #f)
-(define current-edge-mapping #f)
+(define current-edge-mapping-ref! (make-parameter #f))
+(define current-edge-mapping (make-parameter #f))
 (define current-graph (make-parameter #f))
 (define current-graph* (make-parameter #f))
 
@@ -732,7 +732,8 @@
                             (λ ()
                               (match type
                                 ['video (mk-filter "copy")]
-                                ['audio (mk-filter "anull")])))))))))
+                                ['audio (mk-filter "anull")]))))
+                 out-str)))))
   node-list)
   
 ;; Because `in-neighbors` returns neighbors in
@@ -776,7 +777,7 @@
                   (define table
                     (stream-bundle-stream-table (source-node-bundle vert)))
                   (set-codec-obj-callback-data! (dict-ref table type)
-                                                ((current-edge-mapping-ref!) vert n)))))
+                                                ((current-edge-mapping-ref!) vert n type i)))))
             '()]
            [(sink-node? vert)
             (for ([(type count) (in-dict (node-counts vert))])
@@ -785,7 +786,7 @@
                   (define table
                     (stream-bundle-stream-table (sink-node-bundle vert)))
                   (set-codec-obj-callback-data! (dict-ref table type)
-                                                ((current-edge-mapping-ref!) n vert)))))
+                                                ((current-edge-mapping-ref!) n vert type i)))))
             '()]
            [else '()]))))
     ;; Different nodes have different stream counts.
@@ -834,7 +835,6 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -871,6 +871,7 @@
       (match str
         [(struct* codec-obj ([type type]
                              [callback-data name]))
+         (displayln name)
          (define type* (match type
                          ['video buffersink]
                          ['audio abuffersink]))
