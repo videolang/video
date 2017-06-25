@@ -25,6 +25,7 @@
          racket/dict
          racket/async-channel
          racket/function
+         racket/struct
          (prefix-in base: racket/base)
          graph
          "init.rkt"
@@ -650,18 +651,41 @@
 
 ;; ===================================================================================================
 
-(struct node (props counts))
-(struct source-node node (bundle))
+(struct node (props counts)
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ _ 'node)
+      (λ (x) (list (node-counts x)))))])
+(struct source-node node (bundle)
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ _ 'source-node)
+      (λ (x) (list (stream-bundle-file (source-node-bundle x))
+                   (node-counts x)))))])
 (define (mk-source-node b
                         #:counts [c (hash)]
                         #:props [np (hash)])
   (source-node np c b))
-(struct sink-node node (bundle))
+(struct sink-node node (bundle)
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ _ 'sink-node)
+      (λ (x) (list (stream-bundle-file (sink-node-bundle x))
+                   (node-counts x)))))])
 (define (mk-sink-node b
                       #:counts [c (hash)]
                       #:props [np (hash)])
   (sink-node np c b))
-(struct filter-node node (table))
+(struct filter-node node (table)
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ _ 'filter-node)
+      (λ (x) (list (filter-node-table x)
+                   (node-counts x)))))])
 (define (mk-filter-node table
                         #:counts [c (hash)]
                         #:props [props (hash)])
