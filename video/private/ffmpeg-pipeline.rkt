@@ -23,12 +23,22 @@
          racket/set
          racket/string
          racket/dict
+         racket/async-channel
+         racket/function
          (prefix-in base: racket/base)
          graph
          "init.rkt"
          "packetqueue.rkt"
          "ffmpeg.rkt"
          "threading.rkt")
+
+(define DEFAULT-WIDTH 1920)
+(define DEFAULT-HEIGHT 1080)
+(define DEFAULT-FPS 25)
+(define DEFAULT-SAMPLE-FREQ 44100)
+(define DEFAULT-PIX-FMT 'yuv420p)
+(define DEFAULT-SAMPLE-FMT 'fltp)
+(define DEfAULT-CHANNEL-LAYOUT 'stereo)
 
 (struct stream-bundle (raw-streams
                        streams
@@ -86,7 +96,8 @@
 
 (struct filter (name
                 args
-                instance-name))
+                instance-name)
+  #:transparent)
 (define (mk-filter name
                    [args (hash)]
                    #:instance-name [instance-name #f])
@@ -297,6 +308,8 @@
                              #:callback-table callback-table
                              #:by-index-callback by-index-callback))
 
+;; ===================================================================================================
+
 (define (default-video-parameters format [stream #f])
   (define parameters (avcodec-parameters-alloc))
   (set-avcodec-parameters-codec-id! parameters (av-output-format-video-codec format))
@@ -418,19 +431,9 @@
                     #:raw-streams streams
                     #:stream-table stream-table))
 
-;; Callback ops:
-;;   'init
-;;   'open
-;;   'write
-;;   'close
-(define (mux-stream bundle
-                    #:video-callback [video-callback empty-proc]
-                    #:audio-callback [audio-callback empty-proc]
-                    #:subtitle-callback [subtitle-callback empty-proc]
-                    #:data-callback [data-callback empty-proc]
-                    #:attachment-callback [attachment-callback empty-proc]
-                    #:by-index-callback [by-index-callback #f])
-  ;; Initial Setup
+(define (mux-stream/init bundle
+                         #:callback-table callback-table
+                         #:by-index-callback by-index-callback)
   (define output-context
     (stream-bundle-avformat-context bundle))
   (define options (convert-dict (stream-bundle-options-dict bundle)))
@@ -448,16 +451,20 @@
                            [codec-context ctx]))
        (if by-index-callback
            (by-index-callback 'init i)
-           (match type
-             ['video (video-callback 'init i)]
-             ['audio (audio-callback 'init i)]
-             ['subtitle (subtitle-callback 'init i)]
-             ['data (data-callback 'init i)]
-             ['attachment (attachment-callback 'init i)]))
+           ((dict-ref callback-table type empty-proc) 'init i))
        (when (set-member? (avformat-context-flags output-context) 'globalheader)
          (set-avcodec-context-flags!
-          ctx (set-add (avcodec-context-flags ctx) 'global-header)))]))
-  ;; Open Streams
+          ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
+
+(define (mux-stream/open bundle
+                         #:callback-table callback-table
+                         #:by-index-callback by-index-callback)
+  (define output-context
+    (stream-bundle-avformat-context bundle))
+  (define file (stream-bundle-file bundle))
+  (define format (avformat-context-oformat output-context))
+  (define streams (stream-bundle-streams bundle))
+  (define options (convert-dict (stream-bundle-options-dict bundle)))
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj ([type type]
@@ -470,20 +477,23 @@
        ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
        (if by-index-callback
            (by-index-callback 'open i)
-           (match type
-             ['video (video-callback 'open i)]
-             ['audio (audio-callback 'open i)]
-             ['subtitle (subtitle-callback 'open i)]
-             ['data (data-callback 'open i)]
-             ['attachment (attachment-callback 'open i)]))
+           ((dict-ref callback-table empty-proc) 'open i))
        (avcodec-parameters-from-context (avstream-codecpar stream) ctx)]))
   ;; Create file.
   ;(av-dump-format output-context 0 file 'output)
   (unless (set-member? (av-output-format-flags format) 'nofile)
     (set-avformat-context-pb!
-     output-context (avio-open (avformat-context-pb output-context) file 'write)))
-  ;; Write the stream
+     output-context (avio-open (avformat-context-pb output-context) file 'write))))
+
+(define (mux-stream/write bundle
+                          #:callback-table callback-table
+                          #:by-index-callback by-index-callback)
+  (define output-context
+    (stream-bundle-avformat-context bundle))
+  (define file (stream-bundle-file bundle))
+  (define format (avformat-context-oformat output-context))
   (avformat-write-header output-context #f)
+  (define streams (stream-bundle-streams bundle))
   (define remaining-streams (mutable-set))
   (for ([i (in-vector streams)])
     (set-add! remaining-streams i))
@@ -503,12 +513,7 @@
       (define next-packet
         (if by-index-callback
             (by-index-callback 'write min-stream)
-            (match (codec-obj-type min-stream)
-              ['video (video-callback 'write min-stream)]
-              ['audio (audio-callback 'write min-stream)]
-              ['subtitle (subtitle-callback 'write min-stream)]
-              ['data (data-callback 'write min-stream)]
-              ['attachment (attachment-callback 'write min-stream)])))
+            ((dict-ref callback-table (codec-obj-type min-stream) empty-proc) 'write min-stream)))
       (let loop ([next-packet next-packet])
         (cond [(eof-object? next-packet)
                (set-remove! remaining-streams min-stream)]
@@ -525,23 +530,51 @@
                    next-packet (avstream-index (codec-obj-stream min-stream)))
                   (av-interleaved-write-frame output-context next-packet)])]))
       (loop)))
-  (av-write-trailer output-context)
-  ;; Clean Up
+  (av-write-trailer output-context))
+
+(define (mux-stream/close bundle
+                          #:callback-table callback-table
+                          #:by-index-callback by-index-callback)
+  (define output-context
+    (stream-bundle-avformat-context bundle))
+  (define file (stream-bundle-file bundle))
+  (define format (avformat-context-oformat output-context))
+  (define streams (stream-bundle-streams bundle))
   (for ([i (in-vector streams)])
     (match i
       [(struct* codec-obj ([type type]
                            [flags flags]))
        (if by-index-callback
            (by-index-callback 'close i)
-           (match type
-             ['video (video-callback 'close i)]
-             ['audio (audio-callback 'close i)]
-             ['subtitle (subtitle-callback 'close i)]
-             ['data (data-callback 'close i)]
-             ['attachment (attachment-callback 'close i)]))]))
+           ((dict-ref callback-table type empty-proc) 'close i))]))
   (unless (set-member? (av-output-format-flags format) 'nofile)
     (avio-close (avformat-context-pb output-context)))
   (avformat-free-context output-context))
+
+;; Callback ops:
+;;   'init
+;;   'open
+;;   'write
+;;   'close
+(define (mux-stream bundle
+                    #:callback-table [callback-table (hash)]
+                    #:by-index-callback [by-index-callback #f])
+  ;; Initial Setup
+  (mux-stream/init bundle
+                   #:callback-table callback-table
+                   #:by-index-callback by-index-callback)
+  ;; Open Streams
+  (mux-stream/open bundle
+                   #:callback-table callback-table
+                   #:by-index-callback by-index-callback)
+  ;; Write the stream
+  (mux-stream/write bundle
+                    #:callback-table callback-table
+                    #:by-index-callback by-index-callback)
+  ;; Clean Up
+  (mux-stream/close bundle
+                    #:callback-table callback-table
+                    #:by-index-callback by-index-callback))
 
 ;; ===================================================================================================
 
@@ -623,8 +656,7 @@
                         #:counts [c (hash)]
                         #:props [np (hash)])
   (source-node np c b))
-(struct sink-node node (bundle)
-  #:mutable)
+(struct sink-node node (bundle))
 (define (mk-sink-node b
                       #:counts [c (hash)]
                       #:props [np (hash)])
@@ -645,8 +677,10 @@
                        #:props [props (hash)])
   (demux-node props c in-counts))
 
-(define (mk-empty-video-filter)
-  (mk-filter "color" (hash "color" "black")))
+(define (mk-empty-video-filter #:width [width DEFAULT-WIDTH]
+                               #:height [height DEFAULT-HEIGHT])
+  (mk-filter "color" (hash "color" "black"
+                           "size" (format "~ax~a" width height))))
 (define (mk-empty-audio-filter)
   (mk-filter "aevalsrc" (hash "exprs" "0")))
 (define (mk-empty-sink-video-filter)
@@ -835,6 +869,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
+  (displayln (graphviz g))
+  ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -871,7 +907,6 @@
       (match str
         [(struct* codec-obj ([type type]
                              [callback-data name]))
-         (displayln name)
          (define type* (match type
                          ['video buffersink]
                          ['audio abuffersink]))
@@ -890,8 +925,13 @@
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))
   (define in-frame (av-frame-alloc))
   (define out-frame (av-frame-alloc))
-  (define in-threads
+  (define pipe-list
     (for/list ([bundle in-bundles])
+      (make-async-channel #f)))
+  (define in-threads
+    (for/list ([bundle in-bundles]
+               [pipe (in-list pipe-list)]
+               [index (in-naturals)])
       (thread
        (λ ()
          (demux-stream
@@ -909,6 +949,7 @@
                                          in-frame (av-frame-get-best-effort-timestamp in-frame))
                                         ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(keep-ref))
                                         (av-buffersrc-write-frame buff-ctx in-frame)
+                                        ;(async-channel-get pipe)
                                         ;(av-frame-unref in-frame)
                                         )]
                                      [_ (void)])])))))))
@@ -930,6 +971,7 @@
                                                              (loop)
                                                              eof))]
                                                       [exn:ffmpeg:eof? (λ (e) eof)])
+                                        ;(map (curryr async-channel-put #t) pipe-list)
                                         (av-buffersink-get-frame buff-ctx out-frame)
                                         (let loop ()
                                           (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
