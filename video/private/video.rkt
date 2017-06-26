@@ -245,7 +245,7 @@
                                              "height" (or fheight 0)
                                              "fps" (if (and ftime-base (not (= ftime-base 0)))
                                                        (/ 1 ftime-base)
-                                                       0)
+                                                       25)
                                              "pix-fmt" fpix-fmt
                                              "sample-fmt" fsample-fmt
                                              "sample-rate" fsample-rate)))
@@ -351,11 +351,11 @@
       (define (coerce-clip vid-filter connect-node)
         (define node
           (mk-filter-node
-           (hash "video" vid-filter)
+           (hash 'video vid-filter)
            #:props (dict-copy (node-props connect-node))
            #:counts counts))
         (add-vertex! (current-render-graph) node)
-        (add-directed-edge! (current-render-graph) connect-node node)
+        (add-directed-edge! (current-render-graph) connect-node node 1)
         node)
       (let* ([ret (coerce-clip (mk-filter "pad" (hash "width" width
                                                       "height" height))
@@ -371,9 +371,33 @@
       (define props (node-props n))
       (define start (dict-ref props "start"))
       (define end (dict-ref props "end"))
-      (define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
-      (define aoffset (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
+      (define offset (mk-filter "setpts" (hash "expr" "PTS-STARTPTS")))
+      ;(define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
+      (define aoffset (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+      ;(define aoffset (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
       ;(define aoffset (mk-filter "adelay" (hash "delays" time)))
+      #;
+      (define background-a
+        (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
+                                                            #:height height
+                                                            #:duration (- end start))
+                              'audio (mk-empty-audio-filter))
+                        #:counts counts))
+      #;
+      (define background-b
+        (mk-filter-node (hash 'video (mk-filter "pad" (hash "width" width
+                                                            "height" height)))
+                        #:counts counts))
+      ;(add-vertex! (current-render-graph) background-a)
+      ;(add-vertex! (current-render-graph) background-b)
+      ;(add-directed-edge! (current-render-graph) background-a background-b)
+      #;
+      (define overlay
+        (mk-filter-node (hash 'video (mk-filter "overlay")
+                              'audio (mk-filter "amix"))
+                        #:counts counts))
+      ;(add-vertex! (current-render-graph) overlay)
+      ;(add-directed-edge! (current-render-graph) background-b overlay 1)
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)
@@ -383,31 +407,30 @@
                         #:counts counts))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
+      ;(add-directed-edge! (current-render-graph) node overlay 2)
       (values (cons node prev-nodes) (+ time (- end start)))))
   (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
-  (define background
-    (convert (make-blank #:start start
-                         #:end end
-                         ;#:fps fps
-                         #:width width
-                         #:height height)))
-  (for/fold ([curr-back background])
-            ([i nodes]
-             [index (in-naturals)])
-    (define new-background
-      (mk-filter-node (hash 'video (mk-filter "overlay")
-                            'audio (mk-filter "amix"))
-                      #:props (hash "start" start
-                                    "end" end
-                                    "fps" fps
-                                    "width" width
-                                    "height" height)
-                      #:counts counts))
-    (add-vertex! (current-render-graph) new-background)
-    (add-directed-edge! (current-render-graph) curr-back new-background 1)
-    (add-directed-edge! (current-render-graph) i new-background 2)
-    new-background))
+  (define the-playlist
+    (mk-filter-node (hash 'video (mk-filter "concat"
+                                            (hash "n" (length nodes)
+                                                  "v" 1
+                                                  "a" 0))
+                          'audio (mk-filter "concat"
+                                            (hash "n" (length nodes)
+                                                  "v" 0
+                                                  "a" 1)))
+                    #:props (hash "start" start
+                                  "end" end
+                                  "fps" fps
+                                  "width" width
+                                  "height" height)
+                    #:counts counts))
+  (add-vertex! (current-render-graph) the-playlist)
+  (for ([i (in-list nodes)]
+        [index (in-naturals)])
+    (add-directed-edge! (current-render-graph) i the-playlist index))
+  the-playlist)
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()

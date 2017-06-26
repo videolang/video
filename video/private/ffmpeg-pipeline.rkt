@@ -87,13 +87,15 @@
                                 gop-size
                                 pix-fmt
                                 color-range
-                                sample-fmt))
+                                sample-fmt
+                                max-b-frames))
 (define (mk-extra-codec-parameters #:time-base [tb #f]
                                    #:gop-size [gs #f]
                                    #:pix-fmt [pix-fmt #f]
                                    #:color-range [color-range #f]
-                                   #:sample-fmt [sample-fmt #f])
-  (extra-codec-parameters tb gs pix-fmt color-range sample-fmt))
+                                   #:sample-fmt [sample-fmt #f]
+                                   #:max-b-frames [max-b-frames #f])
+  (extra-codec-parameters tb gs pix-fmt color-range sample-fmt max-b-frames))
 
 (struct filter (name
                 args
@@ -324,7 +326,8 @@
     (mk-extra-codec-parameters #:time-base 1/25
                                #:gop-size 12
                                #:pix-fmt 'yuv420p
-                               #:color-range 'mpeg))
+                               #:color-range 'mpeg
+                               #:max-b-frames 8))
   (values parameters rest))
 
 (define (default-audio-parameters format [stream #f])
@@ -424,7 +427,8 @@
          (maybe-set! set-avcodec-context-gop-size! extra-codec-parameters-gop-size)
          (maybe-set! set-avcodec-context-pix-fmt! extra-codec-parameters-pix-fmt)
          (maybe-set! set-avcodec-context-color-range! extra-codec-parameters-color-range)
-         (maybe-set! set-avcodec-context-sample-fmt! extra-codec-parameters-sample-fmt))]))
+         (maybe-set! set-avcodec-context-sample-fmt! extra-codec-parameters-sample-fmt)
+         (maybe-set! set-avcodec-context-max-b-frames! extra-codec-parameters-max-b-frames))]))
   (mk-stream-bundle #:avformat-context output-context
                     #:options-dict options-dict
                     #:file file
@@ -704,11 +708,14 @@
 (define (mk-empty-video-filter #:width [width DEFAULT-WIDTH]
                                #:height [height DEFAULT-HEIGHT]
                                #:duration [duration 100])
-  (mk-filter "color" (hash "color" "black"
-                           "size" (format "~ax~a"
-                                          (or width DEFAULT-WIDTH)
-                                          (or height DEFAULT-HEIGHT))
-                           "duration" (or duration 100))))
+  (mk-filter "color" (let* ([ret (hash "color" "black"
+                                       "size" (format "~ax~a"
+                                                      (or width DEFAULT-WIDTH)
+                                                      (or height DEFAULT-HEIGHT)))]
+                            [ret (if duration
+                                     (hash-set ret "duration" duration)
+                                     ret)])
+                       ret)))
 (define (mk-empty-audio-filter)
   (mk-filter "aevalsrc" (hash "exprs" "0")))
 (define (mk-empty-sink-video-filter)
@@ -915,8 +922,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  ;(displayln (graphviz g))
-  ;(displayln g-str)
+  (displayln (graphviz g))
+  (displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
