@@ -253,7 +253,9 @@
   node)
 
 (define-constructor blank producer () ()
- (mk-filter-node (hash 'video (mk-empty-video-filter)
+ (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
+                                                     #:height height
+                                                     #:duration (- end start))
                        'audio (mk-empty-audio-filter))
                   #:counts (hash 'video 1 'audio 1)
                   #:props (hash "start" 0
@@ -371,6 +373,7 @@
       (define end (dict-ref props "end"))
       (define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
       (define aoffset (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
+      ;(define aoffset (mk-filter "adelay" (hash "delays" time)))
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)

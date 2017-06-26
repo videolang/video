@@ -702,9 +702,13 @@
   (demux-node props c in-counts))
 
 (define (mk-empty-video-filter #:width [width DEFAULT-WIDTH]
-                               #:height [height DEFAULT-HEIGHT])
+                               #:height [height DEFAULT-HEIGHT]
+                               #:duration [duration 100])
   (mk-filter "color" (hash "color" "black"
-                           "size" (format "~ax~a" width height))))
+                           "size" (format "~ax~a"
+                                          (or width DEFAULT-WIDTH)
+                                          (or height DEFAULT-HEIGHT))
+                           "duration" (or duration 100))))
 (define (mk-empty-audio-filter)
   (mk-filter "aevalsrc" (hash "exprs" "0")))
 (define (mk-empty-sink-video-filter)
@@ -793,7 +797,30 @@
                                 ['audio (mk-filter "anull")]))))
                  out-str)))))
   node-list)
-  
+
+;; Source-Node -> (Listof String)
+(define (source-node->string vert)
+  (append*
+   (for/list ([(type count) (in-dict (node-counts vert))])
+     (for/list ([i (in-range count)])
+       (define in-str
+         (let ()
+           (define name ((current-edge-mapping-ref!) #f vert type i))
+           (define table
+             (stream-bundle-stream-table (source-node-bundle vert)))
+           (set-codec-obj-callback-data! (dict-ref table type) name)
+           (format "[~a]" name)))
+       (define out-str
+         (string-append*
+          (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+            (format "[~a]" ((current-edge-mapping-ref!) vert n type i)))))
+       (format "~a~a~a"
+               in-str
+               (match type
+                 ['video "fifo"]
+                 ['audio "afifo"])
+               out-str)))))
+
 ;; Because `in-neighbors` returns neighbors in
 ;; an unspecified order, we need them sorted based
 ;; on weight
@@ -829,14 +856,7 @@
            [(mux-node? vert)
             (mux-node->string vert)]
            [(source-node? vert)
-            (for ([(type count) (in-dict (node-counts vert))])
-              (for ([i (in-range count)])
-                (for ([n (get-sorted-neighbors g vert)])
-                  (define table
-                    (stream-bundle-stream-table (source-node-bundle vert)))
-                  (set-codec-obj-callback-data! (dict-ref table type)
-                                                ((current-edge-mapping-ref!) vert n type i)))))
-            '()]
+            (source-node->string vert)]
            [(sink-node? vert)
             (for ([(type count) (in-dict (node-counts vert))])
               (for ([i (in-range count)])
@@ -851,29 +871,31 @@
     ;; Need to make empty (null) nodes for mismatching
     ;; connections.
     (define cap-nodes-list
-      (for/fold ([ret '()])
-                ([(edge name) (in-dict (current-edge-mapping))])
-        (match edge
-          [(vector src dst type i)
-           (define src-count (dict-ref (node-counts src) type 0))
-           (define dst-count (dict-ref (node-counts dst) type 0))
-           (append
-              (if (< src-count i)
-                  (list (format
-                         "~a~a"
-                         (match type
-                           ['video (mk-empty-video-filter)]
-                           ['audio (mk-empty-audio-filter)])
-                         name))
-                  '())
-              (if (< dst-count i)
-                  (list (format
-                         "~a~a"
-                         name
-                         (match type
-                           ['video (mk-empty-sink-video-filter)]
-                           ['audio (mk-empty-sink-audio-filter)])))
-                  '()))])))
+      (append*
+       (for/list ([(edge name) (in-dict (current-edge-mapping))])
+         (match edge
+           [(vector src dst type i)
+            #:when (and src dst)
+            (define src-count (dict-ref (node-counts src) type 0))
+            (define dst-count (dict-ref (node-counts dst) type 0))
+            (append
+             (if (< src-count i)
+                 (list (format
+                        "~a~a"
+                        (match type
+                          ['video (mk-empty-video-filter)]
+                          ['audio (mk-empty-audio-filter)])
+                        name))
+                 '())
+             (if (< dst-count i)
+                 (list (format
+                        "~a~a"
+                        name
+                        (match type
+                          ['video (mk-empty-sink-video-filter)]
+                          ['audio (mk-empty-sink-audio-filter)])))
+                 '()))]
+           [_ '()]))))
     (values
      (string-join (append node-str-list cap-nodes-list) ";")
      bundle-lst
@@ -893,7 +915,7 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
+  ;(displayln (graphviz g))
   ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
