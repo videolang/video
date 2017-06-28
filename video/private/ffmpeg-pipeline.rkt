@@ -354,7 +354,8 @@
   (define streams
     (match bundle/spec
       [(struct* stream-bundle ([streams streams]))
-       (for/vector ([i streams])
+       (for/vector ([i streams]
+                    [index (in-naturals)])
          (define ret
            (match i
              [(struct* codec-obj ([type t]
@@ -367,9 +368,22 @@
                             #:codec-parameters parameters
                             #:index index
                             #:callback-data callback-data)]
-             [x (mk-codec-obj #:type x)]))
+             [x (mk-codec-obj #:type x
+                              #:index index)]))
          (dict-set! stream-table (codec-obj-type ret) ret)
          ret)]
+      [(or 'vid 'video)
+       (define video
+         (mk-codec-obj #:type 'video
+                       #:index 0))
+       (dict-set! stream-table 'video video)
+       (vector video)]
+      [(or 'aud 'audio)
+       (define audio
+         (mk-codec-obj #:type 'audio
+                       #:index 0))
+       (dict-set! stream-table 'audio audio)
+       (vector audio)]
       [(or 'vid+aud 'video+audio 'movie)
        (define video
          (mk-codec-obj #:type 'video
@@ -887,21 +901,23 @@
             (define src-count (dict-ref (node-counts src) type 0))
             (define dst-count (dict-ref (node-counts dst) type 0))
             (append
-             (if (< src-count i)
+             (if (<= src-count i)
                  (list (format
-                        "~a~a"
-                        (match type
-                          ['video (mk-empty-video-filter)]
-                          ['audio (mk-empty-audio-filter)])
+                        "~a[~a]"
+                        (filter->string
+                         (match type
+                           ['video (mk-empty-video-filter)]
+                           ['audio (mk-empty-audio-filter)]))
                         name))
                  '())
-             (if (< dst-count i)
+             (if (<= dst-count i)
                  (list (format
-                        "~a~a"
+                        "[~a]~a"
                         name
-                        (match type
-                          ['video (mk-empty-sink-video-filter)]
-                          ['audio (mk-empty-sink-audio-filter)])))
+                        (filter->string
+                         (match type
+                           ['video (mk-empty-sink-video-filter)]
+                           ['audio (mk-empty-sink-audio-filter)]))))
                  '()))]
            [_ '()]))))
     (values
@@ -923,8 +939,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  ;(displayln (graphviz g))
-  ;k(displayln g-str)
+  (displayln (graphviz g))
+  (displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1026,7 +1042,8 @@
                                            in-frame (av-frame-get-best-effort-timestamp in-frame))
                                           (av-buffersrc-write-frame buff-ctx in-frame)
                                           (loop)))
-                                      (avcodec-flush-buffers ctx)]
+                                      (avcodec-flush-buffers ctx)
+                                      (av-buffersrc-write-frame buff-ctx #f)]
                                      [_ (void)])])))
          (av-frame-free in-frame)))))
   (define out-thread
@@ -1043,19 +1060,17 @@
                ['write
                 (let loop ()
                   (with-handlers ([exn:ffmpeg:again?
+                                   (λ (e) '())] ;(loop))]
+                                  [exn:ffmpeg:eof?
                                    (λ (e)
-                                     (cond [(ormap thread-running? in-threads)
-                                            (loop)]
-                                           [else
-                                            (avcodec-send-frame ctx #f)
-                                            (let loop ([pkts '()])
-                                              (with-handlers ([exn:ffmpeg:eof?
-                                                               (λ (e)
-                                                                 (avcodec-flush-buffers ctx)
-                                                                 (reverse (cons eof pkts)))])
-                                                (define pkt (avcodec-receive-packet ctx))
-                                                (loop (cons pkt pkts))))]))]
-                                  [exn:ffmpeg:eof? (λ (e) eof)])
+                                     (avcodec-send-frame ctx #f)
+                                     (let loop ([pkts '()])
+                                       (with-handlers ([exn:ffmpeg:eof?
+                                                        (λ (e)
+                                                          (avcodec-flush-buffers ctx)
+                                                          (reverse (cons eof pkts)))])
+                                         (define pkt (avcodec-receive-packet ctx))
+                                         (loop (cons pkt pkts)))))])
                     (av-buffersink-get-frame buff-ctx out-frame)
                     (avcodec-send-frame ctx out-frame)
                     (let loop ([pkts '()])

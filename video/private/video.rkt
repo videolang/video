@@ -431,8 +431,23 @@
   (add-vertex! (current-render-graph) the-playlist)
   (for ([i (in-list nodes)]
         [index (in-naturals)])
-    (add-directed-edge! (current-render-graph) i the-playlist index))
-  the-playlist)
+    (define pre-buffer (mk-filter-node (hash 'video (mk-filter "fifo")
+                                             'audio (mk-filter "afifo"))
+                                       #:counts counts))
+    (add-vertex! (current-render-graph) pre-buffer)
+    (add-directed-edge! (current-render-graph) i pre-buffer 1)
+    (add-directed-edge! (current-render-graph) pre-buffer the-playlist index))
+  (define the-buffer
+    (mk-filter-node (hash 'video (mk-filter "fifo") 'audio (mk-filter "afifo"))
+                    #:props (hash "start" start
+                                  "end" end
+                                  "fps" fps
+                                  "width" width
+                                  "height" height)
+                    #:counts counts))
+  (add-vertex! (current-render-graph) the-buffer)
+  (add-directed-edge! (current-render-graph) the-playlist the-buffer 1)
+  the-buffer)
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()

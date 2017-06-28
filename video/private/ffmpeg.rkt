@@ -2040,17 +2040,17 @@
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
 (define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
 (define-avfilter av-buffersrc-add-frame-flags
-  (_fun _avfilter-context-pointer _av-frame-pointer _av-buffer-src-flags -> [ret : _int]
+  (_fun _avfilter-context-pointer _av-frame-pointer/null _av-buffer-src-flags -> [ret : _int]
         -> (cond
              [(>= ret 0) (void)]
              [else (error 'buffersrc-add-frame-flags "~a : ~a" ret (convert-err ret))])))
 (define-avfilter av-buffersrc-add-frame
-  (_fun _avfilter-context-pointer _av-frame-pointer -> [ret : _int]
+  (_fun _avfilter-context-pointer _av-frame-pointer/null -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
              [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
 (define-avfilter av-buffersrc-write-frame
-  (_fun _avfilter-context-pointer _av-frame-pointer -> [ret : _int]
+  (_fun _avfilter-context-pointer _av-frame-pointer/null -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
              [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
