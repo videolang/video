@@ -923,8 +923,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
-  (displayln g-str)
+  ;(displayln (graphviz g))
+  ;k(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -952,7 +952,6 @@
                                (cast (avcodec-context-sample-fmt ctx) _avsample-format _int)
                                (avcodec-context-time-base ctx)
                                (avcodec-context-sample-rate ctx))]))
-           (displayln args)
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
            (cons n ins)]))))
@@ -972,6 +971,23 @@
   (define-values (in-ret out-ret)
     (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
   (avfilter-graph-config graph #f)
+  (for ([str (stream-bundle-streams out-bundle)])
+    (match str
+      [(struct* codec-obj ([codec-context ctx]
+                           [buffer-context buff-ctx]
+                           [type type]))
+       (set-avcodec-context-time-base! ctx (av-buffersink-get-time-base buff-ctx))
+       ;(set-avcodec-context-frame-rate! ctx (/ 1 (av-buffersink-get-frame-rate buff-ctx)))
+       (match type
+         ['video (set-avcodec-context-pix-fmt! ctx (av-buffersink-get-format buff-ctx 'video))
+                 (set-avcodec-context-width! ctx (av-buffersink-get-w buff-ctx))
+                 (set-avcodec-context-height! ctx (av-buffersink-get-h buff-ctx))
+                 (set-avcodec-context-sample-aspect-ratio!
+                  ctx (av-buffersink-get-sample-aspect-ratio buff-ctx))]
+         ['audio (set-avcodec-context-sample-fmt! ctx (av-buffersink-get-format buff-ctx 'audio))
+                 (set-avcodec-context-channels! ctx (av-buffersink-get-channels buff-ctx))
+                 (set-avcodec-context-channel-layout! ctx (av-buffersink-get-channel-layout buff-ctx))
+                 (set-avcodec-context-sample-rate! ctx (av-buffersink-get-sample-rate buff-ctx))])]))
   (avfilter-inout-free in-ret)
   (avfilter-inout-free out-ret)
   (values graph bundles out-bundle))

@@ -2022,8 +2022,8 @@
   (match type*
     ['video (cast ret _int _avpixel-format)]
     ['audio (cast ret _int _avsample-format)]
-    [else ret]))
-(define av-buffersink-get-frame-rate (_fun _avfilter-context-pointer -> _avrational))
+    ['raw ret]))
+(define-avfilter av-buffersink-get-frame-rate (_fun _avfilter-context-pointer -> _avrational))
 (define-avfilter av-buffersink-get-w (_fun _avfilter-context-pointer -> _int))
 (define-avfilter av-buffersink-get-h (_fun _avfilter-context-pointer -> _int))
 (define-avfilter av-buffersink-get-sample-aspect-ratio
