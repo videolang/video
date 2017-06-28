@@ -17,7 +17,8 @@
 |#
 
 (provide (all-defined-out))
-(require ffi/unsafe
+(require racket/match
+         ffi/unsafe
          (except-in ffi/unsafe/define define-ffi-definer)
          ; Remove w/ Racket 6.10:
          ffi-definer-convention
@@ -1546,9 +1547,10 @@
   (define frame* (or frame
                      (ptr-ref (av-malloc _avpacket) _avpacket)))
   (av-read-frame ctx frame*))
-(define-avformat av-seek-frame (_fun _avformat-context-pointer _int _int64 _av-seek-flags -> [ret : _int]
-                                     -> (when (< ret 0)
-                                          (error 'av-seek-frame "~a : ~a" ret (convert-err ret)))))
+(define-avformat av-seek-frame
+  (_fun _avformat-context-pointer _int _int64 _av-seek-flags -> [ret : _int]
+        -> (when (< ret 0)
+             (error 'av-seek-frame "~a : ~a" ret (convert-err ret)))))
 (define-avformat avformat-seek-file
   (_fun _avformat-context-pointer _int _int64 _int64 _int64 _int -> [ret : _int]
         -> (when (< ret 0)
@@ -1703,7 +1705,7 @@
                                                   (error "av-image"))
                                                 ret)))
 (define-avcodec avcodec-send-packet
-  (_fun _avcodec-context-pointer (_ptr i _avpacket)
+  (_fun _avcodec-context-pointer _avpacket-pointer/null
         -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
@@ -1720,9 +1722,9 @@
           -> (cond
                [(= ret 0) out]
                [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "receive-packet" (current-continuation-marks)))]
+                (raise (exn:ffmpeg:again "receive-packet/again" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:again "receive-packet" (current-continuation-marks)))]
+                (raise (exn:ffmpeg:eof "receive-packet/eof" (current-continuation-marks)))]
                [else
                 (error 'recev-packet (convert-err ret))])))
   (define packet (or maybe-packet
@@ -1731,7 +1733,7 @@
                        p)))
   (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame
-  (_fun _avcodec-context-pointer _av-frame-pointer
+  (_fun _avcodec-context-pointer _av-frame-pointer/null
         -> [ret : _int]
         -> (cond
              [(= ret 0) (void)]
@@ -1757,6 +1759,7 @@
   (define frame (or maybe-frame
                     (av-frame-alloc)))
   (avcodec-receive-frame ctxt frame))
+(define-avcodec avcodec-flush-buffers (_fun _avcodec-context-pointer -> _void))
 (define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
@@ -2010,7 +2013,29 @@
                     frame/nb-samples
                     (av-frame-alloc)))
   (av-buffersink-get-samples ptr frame samples))
-          
+(define-avfilter av-buffersink-get-type (_fun _avfilter-context-pointer -> _avmedia-type))
+(define-avfilter av-buffersink-get-time-base (_fun _avfilter-context-pointer -> _avrational))
+(define (av-buffersink-get-format ptr [type #f])
+  (define-avfilter av-buffersink-get-format (_fun _avfilter-context-pointer -> _int))
+  (define ret (av-buffersink-get-format ptr))
+  (define type* (or type (av-buffersink-get-type)))
+  (match type*
+    ['video (cast ret _int _avpixel-format)]
+    ['audio (cast ret _int _avsample-format)]
+    [else ret]))
+(define av-buffersink-get-frame-rate (_fun _avfilter-context-pointer -> _avrational))
+(define-avfilter av-buffersink-get-w (_fun _avfilter-context-pointer -> _int))
+(define-avfilter av-buffersink-get-h (_fun _avfilter-context-pointer -> _int))
+(define-avfilter av-buffersink-get-sample-aspect-ratio
+  (_fun _avfilter-context-pointer -> _avrational))
+(define-avfilter av-buffersink-get-channels
+  (_fun _avfilter-context-pointer -> _int))
+(define-avfilter av-buffersink-get-channel-layout
+  (_fun _avfilter-context-pointer -> _av-channel-layout))
+(define-avfilter av-buffersink-get-sample-rate
+  (_fun _avfilter-context-pointer -> _int))
+(define-avfilter av-buffersink-get-hw-frames-ctx
+  (_fun _avfilter-context-pointer -> _avbuffer-ref-pointer))
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
 (define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))

@@ -361,6 +361,8 @@
                                                       "height" height))
                                node)]
              [ret (coerce-clip (mk-filter "fps" (hash "fps" fps))
+                               ret)]
+             [ret (coerce-clip (mk-filter "format" (hash "pix_fmts" "yuv420p"))
                                ret)])
         ret)))
   ;; Offset each clip accordingly
