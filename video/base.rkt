@@ -24,6 +24,7 @@
          racket/list
          racket/set
          racket/math
+         racket/dict
          syntax/location
          (except-in pict frame blank)
          "private/video.rkt"
@@ -41,10 +42,7 @@
   ;;   looks like yet)
   [multitrack (->* []
                    [#:transitions (listof field-element?)
-                    #:start (or/c nonnegative-integer? #f)
-                    #:end (or/c nonnegative-integer? #f)
-                    #:length (or/c nonnegative-integer? #f)
-                    #:prop (or/c (hash/c string? any/c) #f)
+                    #:properties (or/c (hash/c string? any/c) #f)
                     #:filters (or/c (listof filter?) #f)]
                    #:rest (listof any/c)
                    producer?)]
@@ -53,10 +51,7 @@
   ;;   (syntactic sugar for list)
   [playlist (->* []
                  [#:transitions (listof field-element?)
-                  #:start (or/c nonnegative-integer? #f)
-                  #:end (or/c nonnegative-integer? #f)
-                  #:length (or/c nonnegative-integer? #f)
-                  #:prop (or/c (hash/c string? any/c) #f)
+                  #:properties (or/c (hash/c string? any/c) #f)
                   #:filters (or/c (listof filter?) #f)]
                  #:rest (listof any/c)
                  producer?)]
@@ -89,10 +84,10 @@
 
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  [composite-transition (->transition [(or/c (between/c 0 1) pixel?)
-                                       (or/c (between/c 0 1) pixel?)
-                                       (or/c (between/c 0 1) pixel?)
-                                       (or/c (between/c 0 1) pixel?)]
+  [composite-transition (->transition [(or/c (between/c 0 1) pixels?)
+                                       (or/c (between/c 0 1) pixels?)
+                                       (or/c (between/c 0 1) pixels?)
+                                       (or/c (between/c 0 1) pixels?)]
                                        []
                                        #:direction t/b)]
 
@@ -123,68 +118,48 @@
   ;; Envelope filter for audio tracks
   [envelope-filter (-> #:length nonnegative-integer?
                        #:direction (or/c 'in 'out)
-                       filter?)]
-
-  [producer-length (-> producer? (or/c nonnegative-integer? #f))]
-  [producer-start (-> producer? (or/c nonnegative-integer? #f))]
-  [producer-end (-> producer? (or/c nonnegative-integer? #f))])
+                       filter?)])
 
   external-video)
 
 (define (blank length)
   (if length
-      (make-blank #:length length
-                  #:prop-default-proc (λ (prop key [extra-data #f])
-                                        (match key
-                                          ["start" (mlt-prop-default-proc prop "in" extra-data)]
-                                          ["end" (- (mlt-prop-default-proc prop "out" extra-data) 1)]
-                                          [else (mlt-prop-default-proc prop key extra-data)]))
-                  #:prop (hash "start" 0
-                              "end" length))
-      (color "white")))
+      (make-blank #:prop (hash "start" 0
+                               "end" length))
+      (color "black")))
 
-(define-producer (clip path
-                       #:video-index [video-index #f]
-                       #:audio-index [audio-index #f])
-  #:source clip-path
-  #:properties properties
-  #:prod-properties prod-properties
+(define (clip path
+              #:filters [filters #f]
+              #:properties [properties #f])
   (define clip-path (relative-path->string path))
-  (define properties
-    (let* ([p (if video-index
-                  (hash-set prod-properties "video-index" video-index)
-                  prod-properties)]
-           [p (if audio-index
-                  (hash-set prod-properties "audio-index" audio-index)
-                  p)])
-      p)))
+  (make-file #:source clip-path
+             #:properties (or properties (hash))
+             #:filters (or filters '())))
 
-(define-producer (image path)
-  #:source (format "pixbuf:~a" image-path)
-  #:unbounded? #t
-  (define image-path (relative-path->string path)))
+(define (image path
+               #:filters [filters #f]
+               #:properties [properties #f])
+  (clip path #:filters filters #:properties properties))
 
-(define-producer (color c)
-  #:source (format "color:0x~a~a~a~a"
-                   (number->2string (send c* red))
-                   (number->2string (send c* green))
-                   (number->2string (send c* blue))
-                   (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-  #:unbounded? #t
+(define (color c
+               #:filters [filters #f]
+               #:properties [properties #f])
   (define c*
     (match c
       [`(,r ,g ,b) (make-object color% r g b)]
-      [_ (make-object color% c)])))
+      [_ (make-object color% c)]))
+  (clip (format "color:0x~a~a~a~a"
+                (number->2string (send c* red))
+                (number->2string (send c* green))
+                (number->2string (send c* blue))
+                (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
+        #:filters [filters #f]
+        #:properties [properties #f]))
 
 (define (multitrack #:transitions [transitions '()]
-                    #:start [maybe-start #f]
-                    #:end [maybe-end #f]
-                    #:length [maybe-length #f]
-                    #:prop [prop #f]
+                    #:properties [prop #f]
                     #:filters [maybe-filters #f]
                     . tracks)
-  (define start (or maybe-start (and maybe-length 0)))
-  (define end (or maybe-end maybe-length))
   (for ([t (in-list transitions)])
     (define start (field-element-track t))
     (define end (field-element-track-2 t))
@@ -214,25 +189,13 @@
                           prev))])))
   (make-multitrack #:tracks (reverse tracks*)
                    #:field transitions*
-                   #:start start
-                   #:end end
                    #:prop (or prop (hash))
-                   #:prop-default-proc (λ (prop key [default #f])
-                                         (match key
-                                           ["start" (mlt-prop-default-proc prop "in" default)]
-                                           ["end" (add1 (mlt-prop-default-proc prop "out" default))]
-                                           [_ (mlt-prop-default-proc prop key default)]))
                    #:filters (or maybe-filters '())))
 
 (define (playlist #:transitions [transitions '()]
-                  #:start [maybe-start #f]
-                  #:end [maybe-end #f]
-                  #:length [maybe-length #f]
                   #:prop [prop #f]
                   #:filters [maybe-filters #f]
                   . clips)
-  (define start (or maybe-start (and maybe-length 0)))
-  (define end (or maybe-end maybe-length))
   (make-playlist
    #:elements
    (for/fold ([acc clips])
@@ -253,14 +216,7 @@
           [(and (not start) (equal? end clip))
            (list (field-element-element t) clip)]
           [else (list clip)]))))
-   #:start start
-   #:end end
    #:prop (or prop (hash))
-   #:prop-default-proc (λ (prop key [default #f])
-                         (match key
-                           ["start" (mlt-prop-default-proc prop "in" default)]
-                           ["end" (add1 (mlt-prop-default-proc prop "out" default))]
-                           [_ (mlt-prop-default-proc prop key default)]))
    #:filters (or maybe-filters '())))
 
 (define (attach-filter obj . f)
@@ -319,35 +275,17 @@
                       #:start [start #f]
                       #:end [end #f])
   (copy-video producer
-              #:start (or start (producer-start producer))
-              #:end (or end (producer-end producer))))
-
-(define (producer-length producer)
-  (define s (producer-start producer))
-  (define e (producer-end producer))
-  (or
-   (and s e (- e s))
-   (and (not (unbounded-video? producer))
-        (get-property producer "length" 'int))))
-
-(define (producer-start producer)
-  (or (core:producer-start producer)
-      (and (not (unbounded-video? producer))
-           (get-property producer "start" 'int))))
-
-(define (producer-end producer)
-  (or (core:producer-end producer)
-      (and (not (unbounded-video? producer))
-           (get-property producer "end" 'int))))
+              #:prop (let* ([p (properties-prop producer)]
+                            [p (if start (dict-set p "start" start) p)]
+                            [p (if end (dict-set p "end" end) p)])
+                       p)))
 
 (define (grayscale-filter)
-  (make-filter #:type 'grayscale))
+  (error "TODO"))
 
 (define (envelope-filter #:direction direction
                          #:length length)
-  (make-filter #:type 'avformat.afade
-               #:prop (hash "av.type" (symbol->string direction)
-                            "av.durration" length)))
+  (error "TODO"))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
@@ -373,8 +311,11 @@
 ;; Dispatch on the type of value given to it
 ;; any/c -> Nonnegative-Integer
 (define (unit-dispatch prod prop val)
+  val)
+#|
   (cond
     [(pixel? val)
      (* (pixel-val val) (get-property prod prop))]
     [else
      (inexact->exact (round (* val 100)))]))
+|#

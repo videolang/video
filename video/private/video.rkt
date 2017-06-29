@@ -38,8 +38,9 @@
                      syntax/parse))
 
 (define current-render-graph (make-parameter (weighted-graph/directed '())))
+(define current-video-directory (make-parameter (current-directory)))
 
-;; A helper function to convert videos to MLT object
+;; A helper function to convert videos to video nodes
 ;; Video (U Graph #f) -> _node
 (define (convert source
                  #:renderer [renderer* #f])
@@ -59,6 +60,12 @@
     (cond
       [(properties? video-source)
        (define prop (properties-prop video-source))
+       (define demuxed-node
+         (cond [(dict-ref prop "video-index")
+                video-node] ;; TODO
+               [(dict-ref prop "audio-index")
+                video-node] ;; TODO
+               [else video-node]))
        (define scaled-node
          (mk-filter-node (hash 'video (mk-filter "pad"
                                                  (hash "width" (dict-ref prop "width" "iw")
@@ -67,7 +74,7 @@
                                                        "y" (dict-ref prop "y" "0-1"))))
                          #:counts (node-counts video-node)))
        (add-vertex! (current-render-graph) scaled-node)
-       (add-directed-edge! (current-render-graph) video-node scaled-node 1)
+       (add-directed-edge! (current-render-graph) demuxed-node scaled-node 1)
        (define start
          (or (dict-ref prop "start" #f)
              (and (dict-ref prop "length" #f) 0)
@@ -82,7 +89,8 @@
               (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" start
                                                                    "end" end))
                                     'audio (mk-filter "atrim" (hash "start" start
-                                                                    "end" end)))))
+                                                                    "end" end)))
+                              #:counts (node-counts scaled-node)))
             (add-vertex! (current-render-graph) node)
             (add-directed-edge! (current-render-graph) scaled-node node)
             node]

@@ -37,42 +37,19 @@
 (define-syntax (define-producer stx)
   (syntax-parse stx
     [(_ f:function-header
-        (~or (~optional (~seq #:drop (datums ...)) #:defaults ([(datums 1) #'()]))
-             (~optional (~seq #:type type) #:defaults ([type #'#f]))
+        (~or (~optional (~seq #:type type) #:defaults ([type #'#f]))
              (~optional (~seq #:source source) #:defaults ([source #'#f]))
-             (~optional (~seq #:start prod-start) #:defaults ([prod-start #'start*]))
-             (~optional (~seq #:end prod-end) #:defaults ([prod-end #'end*]))
-             (~optional (~seq #:length prod-length) #:defaults ([prod-length #'length*]))
-             (~optional (~seq #:unbounded? unbounded?)
-                        #:defaults ([unbounded? #'#f]))
-             (~optional (~seq #:properties properties) #:defaults ([properties #'properties]))
-             (~optional (~seq #:prod-properties prod-properties)
-                        #:defaults ([prod-properties #'properties]))
-             (~optional (~seq #:properties-default-porc pdp)
-                        #:defaults ([pdp #'mlt-prop-default-proc])))
+             (~optional (~seq #:properties properties) #:defaults ([properties #'properties])))
         ...
         body ...)
      #`(define (f.name
-                #:start [start #f]
-                #:end [end #f]
-                #:length [len #f]
-                #:properties [prop (hash)]
+                #:properties [properties (hash)]
                 #:filters [filters '()]
                 . f.args)
-         (when (and len (or start end))
-           (error "Cannot define both start/end and length"))
-         (when (and start end (> start end))
-           (error "Start of clip cannot be larger than its end"))
-         (define start* (or start (and len 0)))
-         (define end* (or end len))
-         (define length* (or len (and start end (- end start))))
          body ...
          (make-producer
           #:type type
           #:source source
-          #:start prod-start
-          #:end prod-end
-          #:unbounded? (and unbounded? (not (or prod-start prod-end)))
           #:filters filters
           #:prop properties))]))
 
@@ -82,10 +59,7 @@
         [optional-args ...]
         (~optional ret? #:defaults ([ret? #'any/c])))
      #'(->* [extra-args ...]
-            [#:start (or/c nonnegative-integer? #f)
-             #:end (or/c nonnegative-integer? #f)
-             #:length (or/c nonnegative-integer? #f)
-             #:properties (hash/c string? any/c)
+            [#:properties (hash/c string? any/c)
              #:filters (list/c filter?)
              optional-args ...]
             (and/c producer? ret?))]))
@@ -96,9 +70,6 @@
         (~optional (~seq #:return ret)) ;; TODO, don't ignore this
         content ...)
      #'(defproc (id args ...
-                    [#:start start (or/c nonnegative-integer? #f) #f]
-                    [#:end end (or/c nonnegative-integer? #f) #f]
-                    [#:length length (or/c nonnegative-integer? #f) #f]
                     [#:properties properties (hash/c string? any/c) (hash)]
                     [#:filters filters (listof filter?) '()])
          producer?
