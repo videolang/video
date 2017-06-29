@@ -19,11 +19,8 @@
 (provide (all-defined-out))
 (require racket/match
          ffi/unsafe
-         (except-in ffi/unsafe/define define-ffi-definer)
-         ; Remove w/ Racket 6.10:
-         ffi-definer-convention
-         ; Uncomment w/ Racket 6.10:
-         ; ffi/unsafe/define/conventions
+         ffi/unsafe/define
+         ffi/unsafe/define/conventions
          (for-syntax racket/base))
 
 (define avcodec-lib (ffi-lib "libavcodec" "57"))
