@@ -23,7 +23,10 @@
          images/icons/style
          images/icons/control
          ffi/unsafe/atomic
+         graph
          racket/file
+         "private/video-canvas.rkt"
+         "private/ffmpeg.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))
 
@@ -38,10 +41,58 @@
                [stretchable-height #f]
                [min-width 500]
                [min-height 100])
-    (define (convert source graph)
-      (parameterize ([video:current-render-graph graph])
+
+    ;; Internal State
+    (define (convert source)
+      (parameterize ([video:current-render-graph internal-video-graph])
         (video:convert source)))
-    (define internal-video (convert video (video:mk-render-graph)))
+    (define internal-video-graph #f)
+    (define internal-video #f)
+    (define graph #f)
+    (define in-bundles #f)
+    (define out-bundle #f)
+    (define/public (set-video v)
+      (call-as-atomic
+       (λ ()
+         ;(stop)
+         (set! video v)
+         (set! internal-video-graph (video:mk-render-graph))
+         (set! internal-video (convert v))
+         (define scale-node
+           (ffmpeg:mk-filter-node (hash 'video (ffmpeg:mk-filter "scale" (hash "width" 640
+                                                                               "height" 480)))
+                                  #:counts (ffmpeg:node-counts internal-video)))
+         (define pix-node
+           (ffmpeg:mk-filter-node (hash 'video (ffmpeg:mk-filter "format" (hash "pix_fmts" 'rgb24))
+                                        'audio (ffmpeg:mk-filter "aformat"
+                                                                 (hash "sample_fmts" 's16
+                                                                       "channel_layouts" 'stereo)))
+                                  #:counts (ffmpeg:node-counts internal-video)))
+         (define sink-node
+           (ffmpeg:mk-sink-node (ffmpeg:fill-stream-bundle
+                                 (ffmpeg:mk-stream-bundle
+                                  #:streams (list (ffmpeg:mk-codec-obj
+                                                   #:type 'video
+                                                   #:id 'rawvideo)
+                                                  (ffmpeg:mk-codec-obj
+                                                   #:type 'audio
+                                                   #:id 'pcm-s16be))))
+                                #:counts (ffmpeg:node-counts internal-video)))
+         (add-vertex! internal-video-graph scale-node)
+         (add-vertex! internal-video-graph pix-node)
+         (add-vertex! internal-video-graph sink-node)
+         (add-directed-edge! internal-video-graph internal-video scale-node 1)
+         (add-directed-edge! internal-video-graph scale-node pix-node 1)
+         (add-directed-edge! internal-video-graph pix-node sink-node 1)
+         (let-values ([(g i o) (ffmpeg:init-filter-graph internal-video-graph)])
+           (set! internal-video-graph g)
+           (set! in-bundles i)
+           (set! out-bundle o))
+         ;(seek 0)
+         ;(set-speed 1)
+         (update-seek-bar-and-labels))))
+    
+    ;; Player Backend
     (define/public (get-video-length)
       (or (video:get-property internal-video "length")
           99999))
@@ -64,16 +115,7 @@
     (define/public (get-position)
       (error "TODO"))
     (define/public (get-fps)
-      (error "TODO"))
-    (define/public (set-video v)
-      (call-as-atomic
-       (λ ()
-         (stop)
-         (set! video v)
-         (set! internal-video (convert v (video:mk-render-graph)))
-         (seek 0)
-         (set-speed 1)
-         (update-seek-bar-and-labels))))
+      (video:get-property internal-video "fps" 0))
     (define/override (show show?)
       (unless show?
         (send seek-bar-updater stop)
@@ -83,6 +125,18 @@
       (send seek-bar-updater stop)
       (stop))
     (define step-distance 100)
+
+    ;; GUI For Player
+    (define screen-row
+      (new horizontal-pane%
+           [parent this]
+           [alignment '(center center)]
+           [spacing 20]))
+    (define screen
+      (new video-canvas%
+           [parent screen-row]
+           [width 640]
+           [height 480]))
     (define top-row
       (new horizontal-pane%
            [parent this]
@@ -131,10 +185,6 @@
       (define frame (floor (* seek-bar-max (/ (get-position) len))))
       (send seek-bar set-value frame)
       (send seek-message set-label (make-frame-string frame len)))
-    (define seek-bar-updater
-      (new timer%
-           [interval 1000]
-           [notify-callback update-seek-bar-and-labels]))
     (define/private (make-frame-string frame len)
       (format "Frame: ~a/~a" frame len))
     (define frame-row
@@ -192,7 +242,14 @@
                (set-speed speed)))])
     (new message%
          [parent this]
-         [label (format "FPS: ~a" (get-fps))])))
+         [label (format "FPS: ~a" (get-fps))])
+
+    ;; Start the initial video
+    (set-video video)
+    (define seek-bar-updater
+      (new timer%
+           [interval 1000]
+           [notify-callback update-seek-bar-and-labels]))))
 
 (define (preview clip)
   (define vp

@@ -37,8 +37,8 @@
                      racket/function
                      syntax/parse))
 
-(define current-render-graph (make-parameter (mk-render-graph)))
 (define (mk-render-graph) (weighted-graph/directed '()))
+(define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
 
 ;; A helper function to convert videos to video nodes
@@ -194,7 +194,9 @@
 (define (get-property dict key
                       [default #f]
                       #:extra-info [extra-info #f])
-  (dict-ref (properties-prop dict) key default))
+  (dict-ref (cond [(properties? dict) (properties-prop dict)]
+                  [(node? dict) (node-props dict)])
+            key default))
 
 (define-constructor service properties ([filters '()]) ())
 
