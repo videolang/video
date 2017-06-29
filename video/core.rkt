@@ -34,10 +34,6 @@
   link?
   make-properties
   properties?
-  make-anim-property
-  anim-property?
-  make-frame
-  frame?
   make-service
   service?
   make-filter
@@ -52,8 +48,6 @@
   blank?
   make-playlist
   playlist?
-  make-playlist-producer
-  playlist-producer?
   make-multitrack
   multitrack?
   make-field-element

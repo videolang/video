@@ -2,5 +2,5 @@
 
 (provide (all-defined-out))
 
-(struct pixel (val))
+(struct pixels (val))
 (struct seconds (val))

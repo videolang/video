@@ -22,13 +22,14 @@
          racket/dict
          racket/class
          racket/file
+         graph
          (except-in ffi/unsafe ->)
          (prefix-in file: file/convertible)
          (only-in pict pict? pict->bitmap)
          "private/init.rkt"
-         "init.rkt"
          "private/ffmpeg-pipeline.rkt"
-         "private/video.rkt"
+         (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
+         (prefix-in video: "private/video.rkt")
          "private/utils.rkt"
          (for-syntax racket/base
                      racket/list
@@ -37,10 +38,6 @@
 
 (provide
  (contract-out
-  [rendering-ref? (-> any/c boolean?)]
-  [get-rendering-length (-> rendering-ref? (or/c nonnegative-integer? #f))]
-  [get-rendering-position (-> rendering-ref? (or/c nonnegative-integer? #f))]
-  
   ;; Render a video object (including the links
   [render (->* [any/c]
                [(or/c path-string? path? #f)
@@ -76,96 +73,75 @@
   (define r% (render-mixin render%))
   (define renderer
     (new r%
+         [source video]
          [dest-dir dest*]
          [dest-filename dest-filename]
          [width width]
          [height height]
+         [start start]
+         [end end]
          [fps fps]))
-  (let* ([res (send renderer setup-profile)]
-         [res (send renderer prepare video)]
-         [target (send renderer render res)]
-         [_ (when (box? rendering-box)
-              (set-box! rendering-box (rendering-ref res)))]
-         [res (send renderer play res target start end speed timeout)])
-    (void)))
+  (send renderer setup)
+  (send renderer convert)
+  (send renderer render))
 
 (define render<%>
-  (interface () get-fps get-profile setup-profile prepare render play))
+  (interface () setup convert render))
 
 (define render%
   (class* object% (render<%>)
     (super-new)
-    (init-field dest-dir
+    (init-field source
+                dest-dir
                 [dest-filename #f]
                 [prof-name #f]
-                [width 720]
-                [height 576]
+                [width 1920]
+                [height 1080]
+                [start #f]
+                [end #f]
                 [fps 25])
+
+    (define render-graph #f)
+    (define output-node #f)
     
-    (define res-counter 0)
-    (define profile (mlt-profile-init prof-name))
+    (define/public (setup)
+      (define file (or dest-filename "out.mp4"))
+      (define out-path (path->complete-path (build-path dest-dir file)))
+      (set! render-graph (weighted-graph/directed '()))
+      (define pad-node
+        (mk-filter-node
+         (hash 'video (mk-filter "pad"
+                                 (hash "width" 1920
+                                       "height" 1080))
+               'audio (mk-filter "anull"))
+         #:counts (hash 'video 1 'audio 1)))
+      (add-vertex! render-graph pad-node)
+      (define fps-node
+        (mk-filter-node
+         (hash 'video (mk-filter "fps"
+                                 (hash "fps" 25)))
+         #:counts (hash 'video 1 'audio 1)))
+      (add-vertex! render-graph fps-node)
+      (add-directed-edge! render-graph pad-node fps-node 1)
+      (define pix-fmt-node
+        (mk-filter-node
+         (hash 'video (mk-filter "format"
+                                 (hash "pix_fmts"
+                                       "yuv420p")))
+         #:counts (hash 'video 1 'audio 1)))
+      (add-vertex! render-graph pix-fmt-node)
+      (add-directed-edge! render-graph fps-node pix-fmt-node 1)
+      (define sink-node
+        (mk-sink-node (stream-bundle->file out-path 'vid+aud)
+                      #:counts (hash 'video 1 'audio 1)))
+      (add-vertex! render-graph sink-node)
+      (add-directed-edge! render-graph pix-fmt-node sink-node 1)
+      (set! output-node pad-node))
+
+    (define/public (convert)
+      (parameterize ([video:current-render-graph render-graph])
+        (define dst (video:convert source))
+        (add-directed-edge! render-graph dst output-node 1)))
     
-    (define/private (get-current-filename)
-      (begin0 (format "resource~a" res-counter)
-              (set! res-counter (add1 res-counter))))
-
-    (define/public (get-fps)
-      fps)
-
-    (define/public (get-profile)
-      profile)
-
-    (define/public (setup-profile)
-      (define fps* (rationalize (inexact->exact fps) 1/1000000))
-      (set-mlt-profile-width! profile width)
-      (set-mlt-profile-height! profile height)
-      (set-mlt-profile-frame-rate-den! profile (denominator fps*))
-      (set-mlt-profile-frame-rate-num! profile (numerator fps*)))
-    
-    (define/public (prepare source)
-      (parameterize ([current-renderer this]
-                     [current-profile profile])
-        (cond
-          [(pict? source)
-           (define pict-name
-             (build-path (or dest-dir
-                             (make-temporary-file "rktvid~a" 'directory))
-                         (get-current-filename)))
-           (send (pict->bitmap source) save-file pict-name 'png 100)
-           (prepare (make-producer #:source (format "pixbuf:~a" pict-name)))]
-          [(file:convertible? source)
-           (define ret (or (file:convert source 'mlt)
-                           (file:convert source 'video)))
-           (or ret (error "Not convertible to video data"))]
-          [else (raise-user-error 'render "~a is not convertible" source)])))
-
-    (define/public (render source)
-      (parameterize ([current-renderer this])
-        (mlt-*-connect (make-consumer) source)))
-
-    (define/public (play source target start end speed timeout)
-      (mlt-producer-set-in-and-out source (or start -1) (or end -1))
-      (when speed
-        (mlt-producer-set-speed source (exact->inexact speed)))
-      (mlt-consumer-start target)
-      (let loop ([timeout timeout])
-        (sleep 1)
-        (when (and timeout (zero? timeout))
-          (mlt-consumer-stop target))
-        (unless (mlt-consumer-is-stopped target)
-          (loop (and timeout (sub1 timeout))))))))
-
-(struct rendering-ref (obj))
-
-(define (get-rendering-length source)
-  (mlt-producer-get-length (rendering-ref-obj source)))
-
-(define (get-rendering-position source)
-  (mlt-producer-position (rendering-ref-obj source)))
-
-;; Set the current renderer
-(when (ffi-lib? mlt-lib)
-  (let ([r (new render% [dest-dir #f])])
-    (send r setup-profile)
-    (current-renderer r)
-    (current-profile (send r get-profile))))
+    (define/public (render)
+      (ffmpeg:render render-graph))))

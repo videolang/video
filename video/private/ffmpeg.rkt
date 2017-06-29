@@ -1620,12 +1620,12 @@
                                                                 "send-frame"
                                                                 (current-continuation-marks)))])))
 (define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer/null)]
-                                 _path
+                                 [p : _path]
                                  _avio-flags
                                  -> [ret : _int]
                                  -> (cond
                                       [(>= ret 0) out]
-                                      [else (error 'avio-open (convert-err ret))])))
+                                      [else (error 'avio-open "path ~a: ~a : ~a" p ret (convert-err ret))])))
 (define-avformat avio-close (_fun _avio-context-pointer -> [ret : _int]
                                   -> (cond
                                        [(= ret 0) (void)]

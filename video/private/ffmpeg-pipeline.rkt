@@ -939,8 +939,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
-  (displayln g-str)
+  ;(displayln (graphviz g))
+  ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])

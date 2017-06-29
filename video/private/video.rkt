@@ -46,16 +46,6 @@
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
     (file:convert source 'video)))
 
-;; Helper function to determine if a producer
-;; can be potentially unbounded in length.
-;; Producer -> Boolean
-(define (unbounded-video? prod)
-  (cond
-    [(playlist? prod) (ormap unbounded-video? (playlist-elements prod))]
-    [(multitrack? prod) (andmap unbounded-video? (multitrack-tracks prod))]
-    [(producer? prod) (producer-unbounded? prod)]
-    [else #f])) ;; Should only happen in playlists
-
 ;; DEBUG FUNCTION ONLY
 ;; Save a textual marshalization of a property's prop
 ;;  table to a file.
@@ -63,19 +53,50 @@
 (define (debug/save-prop prop filepath)
   (error "TODO"))
 
-(define (finish-video-object-init video-object video)
+(define (finish-video-object-init video-node video-source)
   ;; Set user properties
-  #;
-  (when (properties? video)
-    (for ([(k* v*) (in-dict (properties-prop video))])
-      (error "TODO")))
+  (define vprop
+    (cond
+      [(properties? video-source)
+       (define prop (properties-prop video-source))
+       (define scaled-node
+         (mk-filter-node (hash 'video (mk-filter "pad"
+                                                 (hash "width" (dict-ref prop "width" "iw")
+                                                       "height" (dict-ref prop "height" "ih")
+                                                       "x" (dict-ref prop "x" "0-1")
+                                                       "y" (dict-ref prop "y" "0-1"))))
+                         #:counts (node-counts video-node)))
+       (add-vertex! (current-render-graph) scaled-node)
+       (add-directed-edge! (current-render-graph) video-node scaled-node 1)
+       (define start
+         (or (dict-ref prop "start" #f)
+             (and (dict-ref prop "length" #f) 0)
+             (and (dict-ref prop "end" #f) 0)))
+       (define end
+         (or (dict-ref prop "end" #f)
+             (dict-ref prop "length #f")))
+       (define trimmed-prop
+         (cond
+           [(and start end)
+            (define node
+              (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" start
+                                                                   "end" end))
+                                    'audio (mk-filter "atrim" (hash "start" start
+                                                                    "end" end)))))
+            (add-vertex! (current-render-graph) node)
+            (add-directed-edge! (current-render-graph) scaled-node node)
+            node]
+           [else scaled-node]))
+       trimmed-prop]
+      [else video-node]))
   ;; Attach filters
-  #;
-  (when (service? video)
-    (for ([f (in-list (service-filters video))])
-      (error "TODO")))
-  ;; Return Resulting Node
-  video-object)
+  (if (service? video-source)
+      (for/fold ([ret vprop])
+                ([f (in-list (service-filters video-source))])
+        (define f* (convert f))
+        (add-directed-edge! (current-render-graph) ret f* 1)
+        f*)
+      vprop))
 
 ;; Dynamic Dispatch for Video Objects
 (define-generics video-ops
@@ -191,16 +212,7 @@
   (error "TODO"))
 
 (define-constructor producer service ([type #f]
-                                      [source #f]
-                                      [start 0]
-                                      [end 0]
-                                      [speed #f]
-                                      [seek #f]
-                                      [x #f]
-                                      [y #f]
-                                      [width #f]
-                                      [height #f]
-                                      [unbounded? #f])
+                                      [source #f])
   ()
   (error "TODO"))
 
@@ -253,13 +265,14 @@
   node)
 
 (define-constructor blank producer () ()
- (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
-                                                     #:height height
-                                                     #:duration (- end start))
+  (define start (dict-ref prop "start" #f))
+  (define end (dict-ref prop "end" #f))
+ (mk-filter-node (hash 'video (mk-empty-video-filter #:width (dict-ref prop "width" #f)
+                                                     #:height (dict-ref prop "height" #f)
+                                                     #:duration (and end start (- end start)))
                        'audio (mk-empty-audio-filter))
                   #:counts (hash 'video 1 'audio 1)
-                  #:props (hash "start" 0
-                                "end" +inf.0)))
+                  #:props prop))
 
 (define-constructor playlist producer ([elements '()])
   ()

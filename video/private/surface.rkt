@@ -66,12 +66,6 @@
          (define start* (or start (and len 0)))
          (define end* (or end len))
          (define length* (or len (and start end (- end start))))
-         (define prod-properties
-           #,(if (syntax-e (attribute unbounded?))
-                 #'(hash-set* prop
-                              "start" (or start* 0)
-                              "end" (or end* -1))
-                 #'prop))
          body ...
          (make-producer
           #:type type
@@ -80,23 +74,7 @@
           #:end prod-end
           #:unbounded? (and unbounded? (not (or prod-start prod-end)))
           #:filters filters
-          #:prop properties
-          #:prop-default-proc
-          (λ (prop key [extra-data #f])
-            (match key
-              ["start" (or prod-start
-                           #,(if (syntax-e (attribute unbounded?))
-                                 #'#f
-                                 #'(mlt-prop-default-proc prop "in" extra-data)))]
-              ["end" (or prod-end
-                         #,(if (syntax-e (attribute unbounded?))
-                               #'#f
-                               #'(add1 (mlt-prop-default-proc prop "out" extra-data))))]
-              ["length" (or prod-length
-                            #,(if (syntax-e (attribute unbounded?))
-                                  #'#f
-                                  #'(mlt-prop-default-proc prop "length" extra-data)))]
-              [else (pdp prop key extra-data)]))))]))
+          #:prop properties))]))
 
 (define-syntax (->producer stx)
   (syntax-parse stx
