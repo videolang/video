@@ -16,7 +16,6 @@
    limitations under the License.
 |#
 
-(provide (all-defined-out))
 (require racket/match
          ffi/unsafe
          racket/list
@@ -26,12 +25,28 @@
          racket/async-channel
          racket/function
          racket/struct
+         (except-in racket/contract ->)
+         (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
          graph
          "init.rkt"
          "packetqueue.rkt"
          "ffmpeg.rkt"
          "threading.rkt")
+
+(provide (contract-out [file->stream-bundle (con:-> (or/c path-string? path?) stream-bundle?)]
+                       [stream-bundle->file (con:->* [(or/c path-string? path?)
+                                                      (or/c symbol?
+                                                            (listof (or/c symbol? stream-bundle?)))]
+                                                     [#:output-format (or/c string? #f)
+                                                      #:format-name (or/c string? #f)
+                                                      #:options-dict (or/c (hash/c string? any/c) #f)]
+                                                     stream-bundle?)]
+                       [render (con:-> graph? void?)])
+         (except-out (all-defined-out)
+                     file->stream-bundle
+                     stream-bundle->file
+                     render))
 
 (define DEFAULT-WIDTH 1920)
 (define DEFAULT-HEIGHT 1080)

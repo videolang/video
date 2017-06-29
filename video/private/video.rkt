@@ -61,17 +61,18 @@
       [(properties? video-source)
        (define prop (properties-prop video-source))
        (define demuxed-node
-         (cond [(dict-ref prop "video-index")
+         (cond [(dict-ref prop "video-index" #f)
                 video-node] ;; TODO
-               [(dict-ref prop "audio-index")
+               [(dict-ref prop "audio-index" #f)
                 video-node] ;; TODO
                [else video-node]))
        (define scaled-node
          (mk-filter-node (hash 'video (mk-filter "pad"
                                                  (hash "width" (dict-ref prop "width" "iw")
                                                        "height" (dict-ref prop "height" "ih")
-                                                       "x" (dict-ref prop "x" "0-1")
-                                                       "y" (dict-ref prop "y" "0-1"))))
+                                                       "x" (dict-ref prop "x" "0")
+                                                       "y" (dict-ref prop "y" "0"))))
+                         #:props (node-props video-node)
                          #:counts (node-counts video-node)))
        (add-vertex! (current-render-graph) scaled-node)
        (add-directed-edge! (current-render-graph) demuxed-node scaled-node 1)
@@ -81,7 +82,7 @@
              (and (dict-ref prop "end" #f) 0)))
        (define end
          (or (dict-ref prop "end" #f)
-             (dict-ref prop "length #f")))
+             (dict-ref prop "length" #f)))
        (define trimmed-prop
          (cond
            [(and start end)
@@ -90,6 +91,7 @@
                                                                    "end" end))
                                     'audio (mk-filter "atrim" (hash "start" start
                                                                     "end" end)))
+                              #:props (node-props scaled-node)
                               #:counts (node-counts scaled-node)))
             (add-vertex! (current-render-graph) node)
             (add-directed-edge! (current-render-graph) scaled-node node)
@@ -225,6 +227,8 @@
   (error "TODO"))
 
 (define-constructor file producer ([path #f]) ()
+  (when (not path)
+    (error 'file "No path given"))
   (define bundle (file->stream-bundle path))
   (define fctx (stream-bundle-avformat-context bundle))
   (define fstart 0)
@@ -275,10 +279,10 @@
 (define-constructor blank producer () ()
   (define start (dict-ref prop "start" #f))
   (define end (dict-ref prop "end" #f))
- (mk-filter-node (hash 'video (mk-empty-video-filter #:width (dict-ref prop "width" #f)
-                                                     #:height (dict-ref prop "height" #f)
-                                                     #:duration (and end start (- end start)))
-                       'audio (mk-empty-audio-filter))
+  (mk-filter-node (hash 'video (mk-empty-video-filter #:width (dict-ref prop "width" #f)
+                                                      #:height (dict-ref prop "height" #f)
+                                                      #:duration (and end start (- end start)))
+                        'audio (mk-empty-audio-filter))
                   #:counts (hash 'video 1 'audio 1)
                   #:props prop))
 

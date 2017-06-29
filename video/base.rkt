@@ -62,8 +62,7 @@
   
   ;; Creates a producer that plays a clip from a file
   [clip (->producer [(or/c path-string? path?)]
-                    [#:video-index (or/c nonnegative-integer? #f)
-                     #:audio-index (or/c nonnegative-integer? #f)])]
+                    [])]
 
   ;; Creates a producer that is a solid color
   [color (->producer [(or/c string? (is-a?/c color%)
@@ -132,8 +131,8 @@
               #:filters [filters #f]
               #:properties [properties #f])
   (define clip-path (relative-path->string path))
-  (make-file #:source clip-path
-             #:properties (or properties (hash))
+  (make-file #:path clip-path
+             #:prop (or properties (hash))
              #:filters (or filters '())))
 
 (define (image path
@@ -193,7 +192,7 @@
                    #:filters (or maybe-filters '())))
 
 (define (playlist #:transitions [transitions '()]
-                  #:prop [prop #f]
+                  #:properties [prop #f]
                   #:filters [maybe-filters #f]
                   . clips)
   (make-playlist

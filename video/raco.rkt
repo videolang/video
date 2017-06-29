@@ -21,11 +21,11 @@
          racket/path
          racket/match
          "render.rkt"
-         (prefix-in mp4: "render/mp4.rkt")
-         (prefix-in jpg: "render/jpg.rkt")
-         (prefix-in png: "render/png.rkt")
-         (prefix-in xml: "render/xml.rkt")
-         "player.rkt")
+         ;(prefix-in mp4: "render/mp4.rkt")
+         ;(prefix-in jpg: "render/jpg.rkt")
+         ;(prefix-in png: "render/png.rkt")
+         ;(prefix-in xml: "render/xml.rkt")
+         #;"player.rkt")
 
 (define output-type (make-parameter #f))
 (define output-width (make-parameter 720))
@@ -74,9 +74,11 @@
 
   (define video (dynamic-require video-file 'vid))
   (define output-dir (or (path-only video-file) (current-directory)))
-  (define output-file (path-replace-extension (file-name-from-path video-file) ""))
+  (define output-file (path-replace-extension (file-name-from-path video-file) ".mp4"))
 
   (define render-mixin
+    #f
+    #;
     (match (output-type)
       ["mp4" mp4:render-mixin]
       ["jpg" jpg:render-mixin]
@@ -85,7 +87,7 @@
       [_ #f]))
   
   (match (output-type)
-    [(or "png" "jpg" "mp4" "xml")
+    [_ ;(or "png" "jpg" "mp4" "xml")
      (define t
        (thread
         (λ ()
@@ -99,6 +101,11 @@
                   #:dest-filename output-file
                   #:render-mixin render-mixin
                   #:rendering-box rendering-box))))
+     (let loop ()
+       (sleep 1)
+       (when (thread-running? t)
+         (loop)))]))
+     #|
      (newline)
      (let loop ()
        (let ()
@@ -114,3 +121,4 @@
            (loop)
            (newline)))]
     [_ (void (preview video))]))
+|#

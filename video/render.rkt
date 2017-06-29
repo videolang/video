@@ -42,7 +42,7 @@
   [render (->* [any/c]
                [(or/c path-string? path? #f)
                 #:dest-filename (or/c path-string? path? #f)
-                #:render-mixin (-> class? class?)
+                #:render-mixin (or/c (-> class? class?) #f)
                 #:profile-name (or/c string? #f)
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
@@ -70,7 +70,7 @@
                 #:timeout [timeout #f]
                 #:rendering-box [rendering-box #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
-  (define r% (render-mixin render%))
+  (define r% ((or render-mixin values) render%))
   (define renderer
     (new r%
          [source video]
