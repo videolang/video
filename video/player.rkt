@@ -24,11 +24,8 @@
          images/icons/control
          ffi/unsafe/atomic
          racket/file
-         "render.rkt"
-         (only-in "base.rkt" producer-length)
-         "lib.rkt"
-         "private/ffmpeg-pipeline.rkt" ; :(, we should remove this
-         "private/video.rkt")
+         (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
+         (prefix-in video: "private/video.rkt"))
 
 ;; Probably not threadsafe when changing videos?
 ;; Sadly not entirely sure.
@@ -41,55 +38,39 @@
                [stretchable-height #f]
                [min-width 500]
                [min-height 100])
-    (define renderer
-      (new render% [dest-dir (make-temporary-file "rktvid~a" 'directory)]))
-    (send renderer setup-profile)
-    (define (convert source)
-      (send renderer prepare source))
-    (define (video->internal-video v)
-      (make-link #:source v
-                 #:target (make-consumer)))
-    (define internal-video (video->internal-video video))
-    (define video-mlt (convert video))
-    (define internal-video-mlt (convert internal-video))
+    (define (convert source graph)
+      (parameterize ([video:current-render-graph graph])
+        (video:convert source)))
+    (define internal-video (convert video (video:mk-render-graph)))
     (define/public (get-video-length)
-      (or (producer-length video)
+      (or (video:get-property internal-video "length")
           99999))
     (define/public (play)
-      (define v internal-video-mlt)
-      (when (mlt-consumer-is-stopped v)
-        (mlt-consumer-start internal-video-mlt))
-      (mlt-producer-set-speed video-mlt 1.0))
+      (error "TODO"))
     (define/public (is-stopped?)
-      (mlt-consumer-is-stopped internal-video-mlt))
+      (error "TODO"))
     (define/public (pause)
-      (set-speed 0))
+      (error "TODO"))
     (define/public (stop)
-      (mlt-consumer-stop internal-video-mlt))
+      (error "TODO"))
     (define/public (seek frame)
-      (define frame* (max 0 (inexact->exact (round frame))))
-      (mlt-producer-seek video-mlt frame*)
-      (update-seek-bar-and-labels))
+      (error "TODO"))
     (define/public (set-speed speed)
-      (define speed* (exact->inexact speed))
-      (mlt-producer-set-speed video-mlt speed*))
+      (error "TODO"))
     (define/public (rewind)
       (set-speed -5))
     (define/public (fast-forward)
       (set-speed 5))
     (define/public (get-position)
-      (mlt-producer-position video-mlt))
+      (error "TODO"))
     (define/public (get-fps)
-      (send renderer get-fps))
+      (error "TODO"))
     (define/public (set-video v)
-      ;; Really should be atomic.... :/
       (call-as-atomic
        (λ ()
          (stop)
          (set! video v)
-         (set! internal-video (video->internal-video v))
-         (set! video-mlt (convert video))
-         (set! internal-video-mlt (convert internal-video))
+         (set! internal-video (convert v (video:mk-render-graph)))
          (seek 0)
          (set-speed 1)
          (update-seek-bar-and-labels))))
@@ -101,7 +82,7 @@
     (define/augment (on-close)
       (send seek-bar-updater stop)
       (stop))
-    (define step-distance (* (get-fps) 20))
+    (define step-distance 100)
     (define top-row
       (new horizontal-pane%
            [parent this]
