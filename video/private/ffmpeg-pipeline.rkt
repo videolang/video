@@ -117,6 +117,13 @@
                                    #:max-b-frames [max-b-frames #f])
   (extra-codec-parameters tb gs pix-fmt color-range sample-fmt max-b-frames))
 
+(struct render-status-box (position
+                           rendering?)
+  #:mutable)
+(define (mk-render-status-box #:position [p #f]
+                              #:rendering? [r? #f])
+  (render-status-box p r?))
+
 (struct filter (name
                 args
                 instance-name)
@@ -1032,59 +1039,66 @@
 
 ;; ===================================================================================================
 
-(define ((filtergraph-insert-packet [in-frame #f]) mode obj packet)
-  (match obj
-    [(struct* codec-obj ([codec-context ctx]
-                         [buffer-context buff-ctx]))
-     (match mode
-       ['loop
-        (avcodec-send-packet ctx packet)
-        (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
-          (let loop ()
-            (avcodec-receive-frame ctx in-frame)
-            (set-av-frame-pts!
-             in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-write-frame buff-ctx in-frame)
-            (loop)))]
-       ['close
-        (avcodec-send-packet ctx #f)
-        (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
-          (let loop ()
-            (avcodec-receive-frame ctx in-frame)
-            (set-av-frame-pts!
-             in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-write-frame buff-ctx in-frame)
-            (loop)))
-        (avcodec-flush-buffers ctx)
-        (av-buffersrc-write-frame buff-ctx #f)]
-       [_ (void)])]))
+(define (filtergraph-insert-packet [in-frame* #f])
+  ;; Memory leak in-frame
+  (define in-frame (or in-frame* (av-frame-alloc)))
+  (λ (mode obj packet)
+    (match obj
+      [(struct* codec-obj ([codec-context ctx]
+                           [buffer-context buff-ctx]))
+       (match mode
+         ['loop
+          (avcodec-send-packet ctx packet)
+          (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
+            (let loop ()
+              (avcodec-receive-frame ctx in-frame)
+              (set-av-frame-pts!
+               in-frame (av-frame-get-best-effort-timestamp in-frame))
+              (av-buffersrc-write-frame buff-ctx in-frame)
+              (loop)))]
+         ['close
+          (avcodec-send-packet ctx #f)
+          (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
+            (let loop ()
+              (avcodec-receive-frame ctx in-frame)
+              (set-av-frame-pts!
+               in-frame (av-frame-get-best-effort-timestamp in-frame))
+              (av-buffersrc-write-frame buff-ctx in-frame)
+              (loop)))
+          (avcodec-flush-buffers ctx)
+          (av-buffersrc-write-frame buff-ctx #f)]
+         [_ (void)])])))
 
-(define ((filtergraph-next-packet [out-frame #f]) mode obj)
-  (match obj
-    [(struct* codec-obj ([codec-context ctx]
-                         [buffer-context buff-ctx]))
-     (match mode
-       ['write
-        (let loop ()
-          (with-handlers ([exn:ffmpeg:again?
-                           (λ (e) '())] ;(loop))]
-                          [exn:ffmpeg:eof?
-                           (λ (e)
-                             (avcodec-send-frame ctx #f)
-                             (let loop ([pkts '()])
-                               (with-handlers ([exn:ffmpeg:eof?
-                                                (λ (e)
-                                                  (avcodec-flush-buffers ctx)
-                                                  (reverse (cons eof pkts)))])
-                                 (define pkt (avcodec-receive-packet ctx))
-                                 (loop (cons pkt pkts)))))])
-            (av-buffersink-get-frame buff-ctx out-frame)
-            (avcodec-send-frame ctx out-frame)
-            (let loop ([pkts '()])
-              (with-handlers ([exn:ffmpeg:again? (λ (e) (reverse pkts))])
-                (define pkt (avcodec-receive-packet ctx))
-                (loop (cons pkt pkts))))))]
-       [_ (void)])]))
+(define (filtergraph-next-packet [out-frame* #f]
+                                 #:render-status [rs-box #f])
+  ;; Memory leak out-frame
+  (define out-frame (or out-frame* (av-frame-alloc)))
+  (λ (mode obj)
+    (match obj
+      [(struct* codec-obj ([codec-context ctx]
+                           [buffer-context buff-ctx]))
+       (match mode
+         ['write
+          (let loop ()
+            (with-handlers ([exn:ffmpeg:again?
+                             (λ (e) '())] ;(loop))]
+                            [exn:ffmpeg:eof?
+                             (λ (e)
+                               (avcodec-send-frame ctx #f)
+                               (let loop ([pkts '()])
+                                 (with-handlers ([exn:ffmpeg:eof?
+                                                  (λ (e)
+                                                    (avcodec-flush-buffers ctx)
+                                                    (reverse (cons eof pkts)))])
+                                   (define pkt (avcodec-receive-packet ctx))
+                                   (loop (cons pkt pkts)))))])
+              (av-buffersink-get-frame buff-ctx out-frame)
+              (avcodec-send-frame ctx out-frame)
+              (let loop ([pkts '()])
+                (with-handlers ([exn:ffmpeg:again? (λ (e) (reverse pkts))])
+                  (define pkt (avcodec-receive-packet ctx))
+                  (loop (cons pkt pkts))))))]
+         [_ (void)])])))
 
 (define (render g)
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))

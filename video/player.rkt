@@ -43,14 +43,16 @@
                [min-height 100])
 
     ;; Internal State
-    (define (convert source)
-      (parameterize ([video:current-render-graph internal-video-graph])
-        (video:convert source)))
     (define internal-video-graph #f)
     (define internal-video #f)
     (define graph #f)
     (define in-bundles #f)
     (define out-bundle #f)
+    (define position 0) ;; in timebase
+    (define speed 1) ;; in percent of timebase
+    (define (convert source)
+      (parameterize ([video:current-render-graph internal-video-graph])
+        (video:convert source)))
     (define/public (set-video v)
       (call-as-atomic
        (λ ()
