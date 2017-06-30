@@ -84,7 +84,7 @@
  ;; (define r (new render% [source <source>))
  ;; (send r setup #:dest "out.mp4" <other args> ...)
  ;; (thread (λ () (send r feed-buffers)))
- ;; (thread (λ () (send r write-results)))
+ ;; (thread (λ () (send r write-output)))
  ;; (let loop ()
  ;;    (when (send r rendering?)
  ;;      (displayln (send r get-position?))
@@ -116,7 +116,7 @@
         #:end end
         #:fps fps)
   (define in-t (thread (λ () (send r feed-buffers))))
-  (define out-t (thread (λ () (send r write-results))))
+  (define out-t (thread (λ () (send r write-output))))
   (thread-wait in-t)
   (thread-wait out-t))
 
@@ -143,7 +143,7 @@
   (thread
    (λ ()
      (define in-t (thread (λ () (send r feed-buffers))))
-     (define out-t (thread (λ () (send r write-results))))
+     (define out-t (thread (λ () (send r write-output))))
      (let loop ()
        (when (send r rendering?)
          (async-channel-put channel (send r get-position))
@@ -155,7 +155,7 @@
   channel)
 
 (define render<%>
-  (interface () copy setup feed-buffers write-result rendering? get-current-position))
+  (interface () copy setup feed-buffers write-output rendering? get-current-position))
 
 (define render%
   (class* object% (render<%>)
@@ -190,7 +190,9 @@
                           #:end [end #f]
                           #:fps [fps 25]
                           #:pix-fmt [pix-fmt 'yuv420p]
-                          #:sample-fmt [sample-fmt 'fmlp])
+                          #:sample-fmt [sample-fmt 'fltp]
+                          #:sample-rate [sample-rate 44100]
+                          #:channel-layout [channel-layout  'stereo])
       (define out-path (path->complete-path (or dest "out.mp4")))
       (set! render-graph (graph-copy video-graph))
       (define trim-node
@@ -206,11 +208,12 @@
                                 "atrim" (let* ([r (hash)]
                                                [r (if start (hash-set r "start" start) r)]
                                                [r (if end (hash-set r "end" end) r)])
-                                          r)))))
+                                          r)))
+                  #:counts (hash 'video 1 'audio 1)))
                (add-vertex! render-graph t-node)
-               (add-directed-edge! render-graph output-node trim-node 1)
+               (add-directed-edge! render-graph video-sink t-node 1)
                t-node]
-              [else output-node]))
+              [else video-sink]))
       (define pad-node
         (mk-filter-node
          (hash 'video (mk-filter "pad"
@@ -240,6 +243,7 @@
       (add-vertex! render-graph sink-node)
       (add-directed-edge! render-graph pix-fmt-node sink-node 1)
       (set! output-node pad-node)
+      ;(displayln (graphviz render-graph))
       (let-values ([(g i o) (init-filter-graph render-graph)])
         (set! graph-obj g)
         (set! input-bundles i)
@@ -263,10 +267,10 @@
 
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
-    (define/public (write-results)
+    (define/public (write-output)
       (define out-frame #f)
       (dynamic-wind
-       (λ () (set! out-frame av-frame-alloc))
+       (λ () (set! out-frame (av-frame-alloc)))
        (λ ()
          (mux-stream output-bundle
                      #:by-index-callback (filtergraph-next-packet

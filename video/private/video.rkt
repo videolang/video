@@ -95,7 +95,7 @@
                               #:props (node-props scaled-node)
                               #:counts (node-counts scaled-node)))
             (add-vertex! (current-render-graph) node)
-            (add-directed-edge! (current-render-graph) scaled-node node)
+            (add-directed-edge! (current-render-graph) scaled-node node 1)
             node]
            [else scaled-node]))
        trimmed-prop]
