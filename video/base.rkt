@@ -230,29 +230,9 @@
 (define-transition (fade-transition #:length [fade-length 1])
   #:direction s/e
   #:track1-subgraph (λ (ctx node-a)
-                      (define node
-                        (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                              'audio (mk-empty-sink-audio-filter))
-                                        #:counts (node-counts node-a)
-                                        #:props (dict-set* (node-props node-a)
-                                                           "start" 0
-                                                           "end" 0)))
-                      (add-vertex! ctx node)
-                      (make-video-subgraph #:graph ctx
-                                           #:sources node
-                                           #:sinks node))
+                      #f)
   #:track2-subgraph (λ (ctx node-b)
-                      (define node
-                        (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                              'audio (mk-empty-sink-audio-filter))
-                                        #:counts (node-counts node-b)
-                                        #:props (dict-set* (node-props node-b)
-                                                           "start" 0
-                                                           "end" 0)))
-                      (add-vertex! ctx node)
-                      (make-video-subgraph #:graph ctx
-                                           #:sources node
-                                           #:sinks node))
+                      #f)
   #:combined-subgraph (λ (ctx node-a node-b)
                         (define width (max (get-property node-a "width")
                                            (get-property node-b "width")))
@@ -266,7 +246,7 @@
                            (hash 'video (mk-filter "color" (hash "color" "black"
                                                                  "size" (format "~ax~a" width height)
                                                                  "d" t-length))
-                                 'audio (mk-filter "aevalsrc" (hash "exprs" 0)))
+                                 'audio (mk-empty-audio-filter))
                            #:counts (node-counts node-a)))
                         (define pad-a
                           (mk-filter-node (hash 'video "pad" (hash "width" width
