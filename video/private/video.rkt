@@ -183,13 +183,7 @@
 ;; Structs
 (define-constructor video #f () ())
 
-(define-constructor link video ([source #f] [target #f] [index 0])
-  ()
-  (error "TODO"))
-
-(define-constructor properties video ([prop (hash)])
-  ()
-  (error "TODO"))
+(define-constructor properties video ([prop (hash)]) ())
 
 (define (get-property dict key
                       [default #f]
@@ -215,20 +209,14 @@
     (add-directed-edge! s-node node 1))
   node)
 
-(define-constructor transition service ([source-track1 (hash)]
-                                        [source-track2 (hash)]
-                                        [length-track1 0]
-                                        [length-track2 0])
+(define-constructor transition service ([track1-subgraph #f]
+                                        [track2-subgraph #f]
+                                        [combined-subgraph #f])
   ())
-
-(define-constructor consumer service ([type #f] [target #f])
-  ()
-  (error "TODO"))
 
 (define-constructor producer service ([type #f]
                                       [source #f])
-  ()
-  (error "TODO"))
+  ())
 
 (define-constructor file producer ([path #f]) ()
   (when (not path)
@@ -296,13 +284,16 @@
     (cond
       [(empty? elements) (list (make-blank #:start 0 #:end 1))]
       [(transition? (first elements))
-       (list (make-blank #:start 0 #:end (transition-length-track1 (first elements))))]
+       (list (make-blank
+              #:start 0
+              #:end (get-property (transition-track1-subgraph (first elements)) "length")))]
       [else (list)]))
   (define post-list
     (cond
       [(empty? elements) (list)]
       [(transition? (last elements))
-       (list (make-blank #:start 0 #:end (transition-length-track2 (last elements))))]
+       (list (make-blank #:start 0
+                         #:end (get-property (transition-track2-subgraph (last elements)) "length")))]
       [else (list)]))
   (define elements*
     (append pre-list elements post-list))
@@ -319,52 +310,62 @@
               ([i (in-list elements*)]
                [index (in-naturals)])
       (match i
-        [(struct* transition ([source-track1 source-track1]
-                              [source-track2 source-track2]
-                              [length-track1 length-track1]
-                              [length-track2 length-track2]))
-         (define track1-modifier (mk-filter-node source-track1
-                                                 #:props (dict-update (node-props (car prev-nodes))
-                                                                      "end"
-                                                                      (λ (end)
-                                                                        (- end length-track1)))
-                                                 #:counts (node-counts (car prev-nodes))))
-         (define prev-vid (car prev-vids))
-         (add-vertex! (current-render-graph) track1-modifier)
-         (add-directed-edge! (current-render-graph)
-                             (car prev-nodes) track1-modifier 1)
+        [(struct* transition ([track1-subgraph track1-subgraph-proc]
+                              [track2-subgraph track2-subgraph-proc]
+                              [combined-subgraph combined-subgraph-proc]))
+         (define track1-copy (mk-filter-node (hash 'video (mk-filter "copy")
+                                                   'audio (mk-filter "acopy"))
+                                             #:counts (node-counts (car prev-nodes))))
+         (add-directed-edge! (current-render-graph) (car prev-nodes) track1-copy 1)
+         (define track1-subgraph (track1-subgraph-proc (node-counts (car prev-nodes))))
+         (define length-track1 (get-property track1-subgraph "length" 0))
+         (define source (video-subgraph-sources track1-subgraph))
+         (define sink (video-subgraph-sinks track1-subgraph))
+         (graph-union! (current-render-graph) (video-subgraph-graph track1-subgraph))
+         (add-directed-edge! (current-render-graph) track1-copy source 2)
          (values (cons i prev-vids)
-                 (cons track1-modifier (cdr prev-nodes))
+                 (list* track1-copy sink (cdr prev-nodes))
                  start
-                 (- end (/ (+ (length-track1 i)
-                              (length-track2 i))
-                           2))
+                 (- end length-track1)
                  fps
                  width
                  height
                  (hash-union counts (node-counts (car prev-nodes) #:combine max)))]
-        [else
+        [_
          (define pre-node (convert i))
          (define node
            (cond [(and (not (null? prev-vids))
                        (transition? (car prev-vids)))
-                  (define source-track2 (transition-source-track2 (car prev-vids)))
-                  (define length-track2 (transition-length-track2 (car prev-vids)))
-                  (define track2-modifier
-                    (mk-filter-node source-track2
-                                    #:props (dict-update (node-props pre-node)
-                                                         "end"
-                                                         (λ (end)
-                                                           (- end length-track2)))
-                                    #:counts (node-counts pre-node)))
-                  (add-vertex! (current-render-graph) track2-modifier)
+                  (define track1-copy (car prev-nodes))
+                  (define track2-subgraph-proc (transition-track2-subgraph (car prev-vids)))
+                  (define combined-subgraph-proc (transition-combined-subgraph (car prev-vids)))
+                  (define track2-subgraph (track2-subgraph-proc (node-counts pre-node)))
+                  (define length-track2 (get-property track2-subgraph "length" 0))
+                  (define combined-subgraph
+                    (combined-subgraph-proc (node-counts (cadr prev-vids)) (node-counts pre-node)))
+                  (define track2-copy (mk-filter-node (hash 'video (mk-filter "copy")
+                                                            'audio (mk-filter "acopy"))
+                                                      #:counts (node-counts pre-node)))
+                  (graph-union! (current-render-graph) (video-subgraph-graph track2-subgraph))
+                  (graph-union! (current-render-graph) (video-subgraph-graph combined-subgraph))
+                  (add-directed-edge!
+                   (current-render-graph) track2-copy (video-subgraph-sources track2-subgraph) 1)
                   (add-directed-edge! (current-render-graph)
-                                      pre-node track2-modifier)
-                  track2-modifier]
+                                      track2-copy
+                                      (car (video-subgraph-sources combined-subgraph))
+                                      2)
+                  (add-directed-edge! (current-render-graph)
+                                      track1-copy
+                                      (cdr (video-subgraph-sources combined-subgraph))
+                                      1)
+                  (cons (video-subgraph-sinks combined-subgraph)
+                        (video-subgraph-sinks track2-subgraph))]
                  [else pre-node]))
          (define props (node-props node))
          (values (cons i prev-vids)
-                 (cons node prev-nodes)
+                 (if (pair? node)
+                     (list* (cdr node) (car node) prev-nodes)
+                     (cons node prev-nodes))
                  start
                  (+ end (- (dict-ref props "end") (dict-ref props "start")))
                  (max fps (dict-ref props "fps" 0))
@@ -403,32 +404,7 @@
       (define start (dict-ref props "start"))
       (define end (dict-ref props "end"))
       (define offset (mk-filter "setpts" (hash "expr" "PTS-STARTPTS")))
-      ;(define offset (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
       (define aoffset (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
-      ;(define aoffset (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS+~a" time))))
-      ;(define aoffset (mk-filter "adelay" (hash "delays" time)))
-      #;
-      (define background-a
-        (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
-                                                            #:height height
-                                                            #:duration (- end start))
-                              'audio (mk-empty-audio-filter))
-                        #:counts counts))
-      #;
-      (define background-b
-        (mk-filter-node (hash 'video (mk-filter "pad" (hash "width" width
-                                                            "height" height)))
-                        #:counts counts))
-      ;(add-vertex! (current-render-graph) background-a)
-      ;(add-vertex! (current-render-graph) background-b)
-      ;(add-directed-edge! (current-render-graph) background-a background-b)
-      #;
-      (define overlay
-        (mk-filter-node (hash 'video (mk-filter "overlay")
-                              'audio (mk-filter "amix"))
-                        #:counts counts))
-      ;(add-vertex! (current-render-graph) overlay)
-      ;(add-directed-edge! (current-render-graph) background-b overlay 1)
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)
@@ -438,7 +414,6 @@
                         #:counts counts))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
-      ;(add-directed-edge! (current-render-graph) node overlay 2)
       (values (cons node prev-nodes) (+ time (- end start)))))
   (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
@@ -514,5 +489,12 @@
       (define trash (convert (make-nullsink)))
       (add-directed-edge! (cdr n-pair) trash 1)))
   ret)
+
+(define-constructor video-subgraph properties ([graph (mk-render-graph)]
+                                               [sinks '()]
+                                               [sources '()])
+  ()
+  (graph-union! (current-render-graph) graph)
+  (car sources))
 
 (define-constructor field-element video ([element #f] [track #f] [track-2 #f]) ())
