@@ -30,8 +30,6 @@
   copy-video
   make-video
   video?
-  make-link
-  link?
   make-properties
   properties?
   make-service
@@ -40,8 +38,6 @@
   filter?
   make-transition
   transition?
-  make-consumer
-  consumer?
   make-producer
   producer?
   make-blank
@@ -51,4 +47,6 @@
   make-multitrack
   multitrack?
   make-field-element
-  field-element?)
+  field-element?
+  make-video-subgraph
+  video-subgraph?)

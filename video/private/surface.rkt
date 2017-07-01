@@ -80,10 +80,14 @@
 (define-syntax (define-transition stx)
   (syntax-parse stx
     [(_ f:function-header
-        (~or (~optional (~seq #:type type) #:defaults ([type #'#f]))
-             (~optional (~seq #:source source) #:defaults ([source #'#f]))
-             (~optional (~seq #:length trans-len) #:defaults ([trans-len #'len*]))
-             (~optional (~seq #:direction direction))
+        (~or (~optional (~seq #:direction direction))
+             (~optional (~seq #:properties properties*) #:defaults ([properties* #'properties]))
+             (~optional (~seq #:track1-subgraph track1-subgraph-proc)
+                        #:defaults ([track1-subgraph-proc #'(λ (x) (make-video-subgraph))]))
+             (~optional (~seq #:track2-subgraph track2-subgraph-proc)
+                        #:defaults ([track2-subgraph-proc #'(λ (x) (make-video-subgraph))]))
+             (~optional (~seq #:combined-subgraph combined-subgraph-proc)
+                        #:defaults ([combined-subgraph-proc #'(λ (x y) (make-video-subgraph))]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
@@ -93,14 +97,15 @@
      #`(define (f.name #,@(match (syntax-e (attribute direction))
                             [(or 't/b 'top/bottom) #'(#:top arg2 #:bottom arg1)]
                             [(or 's/e 'start/end _) #'(#:start arg2 #:end arg1)])
-                       #:length [len* #f]
+                       #:properties [properties #f]
                        . f.args)
          body ...
          (define trans
            (make-transition
-            #:type type
-            #:source source
-            #:length trans-len))
+            #:track1-subgraph track1-subgraph-proc
+            #:track2-subgraph track2-subgraph-proc
+            #:combined-subgraph combined-subgraph-proc
+            #:properties properties*))
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
              trans))]))
