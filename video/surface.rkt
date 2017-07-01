@@ -19,10 +19,19 @@
 ;; This library is still experimental, and the workings of
 ;; the API are liekly to change
 
-(require "private/surface.rkt")
+(require "private/surface.rkt"
+         "private/ffmpeg-pipeline.rkt")
 (provide define-producer
          ->producer
          defproducer
          define-transition
          ->transition
-         deftransition)
+         deftransition
+         node-counts
+         node-props
+         mk-filter-node
+         mk-empty-sink-video-filter
+         mk-empty-sink-audio-filter
+         mk-empty-video-filter
+         mk-empty-audio-filter
+         mk-filter)

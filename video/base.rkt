@@ -27,8 +27,9 @@
          racket/dict
          syntax/location
          (except-in pict frame blank)
+         graph
          "private/video.rkt"
-         "private/surface.rkt"
+         "surface.rkt"
          (prefix-in core: "private/video.rkt")
          "units.rkt"
          (for-syntax syntax/parse
@@ -83,7 +84,7 @@
 
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  [composite-transition (->transition [(or/c (between/c 0 1) pixels?)
+  #;[composite-transition (->transition [(or/c (between/c 0 1) pixels?)
                                        (or/c (between/c 0 1) pixels?)
                                        (or/c (between/c 0 1) pixels?)
                                        (or/c (between/c 0 1) pixels?)]
@@ -226,10 +227,93 @@
   (define new-props (hash-set (properties-prop obj) key val))
   (copy-video obj #:prop new-props))
 
-(define-transition (fade-transition)
+(define-transition (fade-transition #:length [fade-length 1])
   #:direction s/e
-  #:type 'luma)
+  #:track1-subgraph (λ (ctx node-a)
+                      (define node
+                        (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
+                                              'audio (mk-empty-sink-audio-filter))
+                                        #:counts (node-counts node-a)
+                                        #:props (dict-set* (node-props node-a)
+                                                           "start" 0
+                                                           "end" 0)))
+                      (add-vertex! ctx node)
+                      (make-video-subgraph #:graph ctx
+                                           #:sources node
+                                           #:sinks node))
+  #:track2-subgraph (λ (ctx node-b)
+                      (define node
+                        (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
+                                              'audio (mk-empty-sink-audio-filter))
+                                        #:counts (node-counts node-b)
+                                        #:props (dict-set* (node-props node-b)
+                                                           "start" 0
+                                                           "end" 0)))
+                      (add-vertex! ctx node)
+                      (make-video-subgraph #:graph ctx
+                                           #:sources node
+                                           #:sinks node))
+  #:combined-subgraph (λ (ctx node-a node-b)
+                        (define width (max (get-property node-a "width")
+                                           (get-property node-b "width")))
+                        (define height (max (get-property node-a "height")
+                                            (get-property node-b "height")))
+                        (define len-a (- (get-property node-a "end") (get-property node-a "start")))
+                        (define len-b (- (get-property node-b "end") (get-property node-b "start")))
+                        (define t-length (- (+ len-a len-b) fade-length))
+                        (define bg-node
+                          (mk-filter-node
+                           (hash 'video (mk-filter "color" (hash "color" "black"
+                                                                 "size" (format "~ax~a" width height)
+                                                                 "d" t-length))
+                                 'audio (mk-filter "aevalsrc" (hash "exprs" 0)))
+                           #:counts (node-counts node-a)))
+                        (define pad-a
+                          (mk-filter-node (hash 'video "pad" (hash "width" width
+                                                                   "height" height))
+                                          #:counts (node-counts node-a)))
+                        (add-vertex! ctx pad-a)
+                        (define pad-b
+                          (mk-filter-node (hash 'video (mk-filter "pad" (hash "width" width
+                                                                              "height" height)))
+                                          #:counts (node-counts node-a)))
+                        (add-vertex! ctx pad-b)
+                        (define pts-a
+                          (mk-filter-node (hash 'video (mk-filter "setpts"
+                                                                  (hash "expr" "PTS-STARTPTS")))
+                                          #:counts (node-counts node-a)))
+                        (add-vertex! ctx pts-a)
+                        (add-directed-edge! ctx pad-a pts-a 1)
+                        (define pts-b
+                          (mk-filter-node
+                           (hash 'video (mk-filter "setpts"
+                                                   (hash "expr" (format "PTS-STARTPTS+(~a/TB)"
+                                                                        (- len-a fade-length)))))
+                           #:counts (node-counts node-b)))
+                        (add-vertex! ctx pts-b)
+                        (add-directed-edge! ctx pad-b pts-b 1)
+                        (define ovr-a
+                          (mk-filter-node (hash 'video (mk-filter "overlay")
+                                                'audio (mk-filter "amix"
+                                                                  (hash "inputs" 2
+                                                                        "duration" "shortest")))
+                                          #:counts (node-counts node-a)))
+                        (add-vertex! ctx ovr-a)
+                        (add-directed-edge! ctx bg-node ovr-a 1)
+                        (add-directed-edge! ctx pts-a ovr-a 2)
+                        (define ovr-b
+                          (mk-filter-node (hash 'video (mk-filter "overlay")
+                                                'audio (mk-filter "acrossfade"
+                                                                  (hash "d" fade-length)))
+                                          #:counts (node-counts node-a)))
+                        (add-vertex! ctx ovr-b)
+                        (add-directed-edge! ctx ovr-a ovr-b 1)
+                        (add-directed-edge! ctx pts-b ovr-b 2)
+                        (make-video-subgraph #:graph ctx
+                                             #:sources (cons pad-a pad-b)
+                                             #:sinks ovr-b)))
 
+#; ;TODO
 (define-transition (composite-transition x y w h)
   #:direction t/b
   #:type 'composite
