@@ -68,15 +68,18 @@
                 video-node] ;; TODO
                [else video-node]))
        (define scaled-node
-         (mk-filter-node (hash 'video (mk-filter "pad"
-                                                 (hash "width" (dict-ref prop "width" "iw")
-                                                       "height" (dict-ref prop "height" "ih")
-                                                       "x" (dict-ref prop "x" "0")
-                                                       "y" (dict-ref prop "y" "0"))))
-                         #:props (node-props video-node)
-                         #:counts (node-counts video-node)))
-       (add-vertex! (current-render-graph) scaled-node)
-       (add-directed-edge! (current-render-graph) demuxed-node scaled-node 1)
+         (cond [(and (dict-ref prop "width" #f)
+                     (dict-ref prop "height" #f))
+                (define s-node
+                  (mk-filter-node (hash 'video (mk-filter "scale"
+                                                          (hash "width" (dict-ref prop "width" "iw")
+                                                                "height" (dict-ref prop "height" "ih"))))
+                                  #:props (node-props video-node)
+                                  #:counts (node-counts video-node)))
+                (add-vertex! (current-render-graph) s-node)
+                (add-directed-edge! (current-render-graph) demuxed-node s-node 1)
+                s-node]
+               [else demuxed-node]))
        (define start
          (or (dict-ref prop "start" #f)
              (and (dict-ref prop "length" #f) 0)
@@ -186,10 +189,10 @@
 (define-constructor properties video ([prop (hash)]) ())
 
 (define (get-property dict key
-                      [default #f]
-                      #:extra-info [extra-info #f])
+                      [default (λ () (error 'get-property "Key not found: ~a" key))])
   (dict-ref (cond [(properties? dict) (properties-prop dict)]
-                  [(node? dict) (node-props dict)])
+                  [(node? dict) (node-props dict)]
+                  [else (error 'get-property "Not a valid video object: ~a" dict)])
             key default))
 
 (define-constructor service properties ([filters '()]) ())
@@ -200,8 +203,8 @@
 
 (define-constructor nullsink service ([source #f])
   ()
-  (define node (mk-filter-node (hash 'video (mk-filter "nullsink")
-                                     'audio (mk-filter "anullsink"))))
+  (define node (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
+                                     'audio (mk-empty-sink-audio-filter))))
   (add-vertex! (current-render-graph) node)
   (when source
     (define s-node (convert source))
@@ -313,11 +316,12 @@
         [(struct* transition ([track1-subgraph track1-subgraph-proc]
                               [track2-subgraph track2-subgraph-proc]
                               [combined-subgraph combined-subgraph-proc]))
-         (define track1-copy (mk-filter-node (hash 'video (mk-filter "copy")
-                                                   'audio (mk-filter "acopy"))
+         (define track1-copy (mk-filter-node (hash 'video (mk-filter "split")
+                                                   'audio (mk-filter "asplit"))
+                                             #:props (node-props (car prev-nodes))
                                              #:counts (node-counts (car prev-nodes))))
          (add-directed-edge! (current-render-graph) (car prev-nodes) track1-copy 1)
-         (define track1-subgraph (track1-subgraph-proc (node-counts (car prev-nodes))))
+         (define track1-subgraph (track1-subgraph-proc (mk-render-graph) (car prev-nodes)))
          (cond [(video-subgraph? track1-subgraph)
                 (define length-track1 (get-property track1-subgraph "length" 0))
                 (define source (video-subgraph-sources track1-subgraph))
@@ -335,7 +339,8 @@
                [else
                 (define sink
                   (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                        'audio (mk-empty-sink-video-filter))))
+                                        'audio (mk-empty-sink-audio-filter))
+                                  #:counts (node-counts (car prev-nodes))))
                 (add-vertex! (current-render-graph) sink)
                 (add-directed-edge! (current-render-graph) track1-copy sink 2)
                 (values (cons i prev-vids)
@@ -356,25 +361,31 @@
                   (define track1-copy (car prev-nodes))
                   (define track2-subgraph-proc (transition-track2-subgraph (car prev-vids)))
                   (define combined-subgraph-proc (transition-combined-subgraph (car prev-vids)))
-                  (define track2-subgraph (track2-subgraph-proc (node-counts pre-node)))
-                  (define length-track2 (get-property track2-subgraph "length" 0))
+                  (define track2-subgraph (track2-subgraph-proc (mk-render-graph) pre-node))
                   (define combined-subgraph
-                    (combined-subgraph-proc (node-counts (cadr prev-vids)) (node-counts pre-node)))
-                  (define track2-copy (mk-filter-node (hash 'video (mk-filter "copy")
-                                                            'audio (mk-filter "acopy"))
+                    (combined-subgraph-proc (mk-render-graph) track1-copy pre-node))
+                  (define track2-copy (mk-filter-node (hash 'video (mk-filter "split")
+                                                            'audio (mk-filter "asplit"))
+                                                      #:props (node-props pre-node)
                                                       #:counts (node-counts pre-node)))
+                  (add-vertex! (current-render-graph) track2-copy)
+                  (add-directed-edge! (current-render-graph) pre-node track2-copy 1)
                   (cond [(video-subgraph? track2-subgraph)
                          (graph-union! (current-render-graph) (video-subgraph-graph track2-subgraph))
-                         (add-directed-edge!
-                          (current-render-graph) track2-copy (video-subgraph-sources track2-subgraph) 1)]
+                         (add-directed-edge! (current-render-graph)
+                                             track2-copy
+                                             (video-subgraph-sources track2-subgraph)
+                                             1)]
                         [else
                          (define sink
                            (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-video-filter))))
+                                                 'audio (mk-empty-sink-audio-filter))
+                                           #:counts (node-counts pre-node)))
                          (add-vertex! (current-render-graph) sink)
                          (add-directed-edge! (current-render-graph) track2-copy sink 1)])
                   (cond [(video-subgraph? combined-subgraph)
-                         (graph-union! (current-render-graph) (video-subgraph-graph combined-subgraph))
+                         (graph-union! (current-render-graph)
+                                       (video-subgraph-graph combined-subgraph))
                          (add-directed-edge! (current-render-graph)
                                              track2-copy
                                              (car (video-subgraph-sources combined-subgraph))
@@ -386,7 +397,8 @@
                         [else
                          (define sink-a
                            (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-video-filter))))
+                                                 'audio (mk-empty-sink-audio-filter))
+                                           #:counts (node-counts pre-node)))
                          (add-vertex! (current-render-graph) sink-a)
                          (add-directed-edge! (current-render-graph)
                                              track1-copy
@@ -394,31 +406,35 @@
                                              1)
                          (define sink-b
                            (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-video-filter))))
+                                                 'audio (mk-empty-sink-audio-filter))))
                          (add-vertex! (current-render-graph) sink-b)
                          (add-directed-edge! (current-render-graph)
                                              track2-copy
                                              sink-b
                                              2)])
                   (hash 'combined (and combined-subgraph (video-subgraph-sinks combined-subgraph))
-                        'track2 (and track2-subgraph (video-subgraph-sinks track2-subgraph)))]
+                        'combined-subgraph combined-subgraph
+                        'track2 (and track2-subgraph (video-subgraph-sinks track2-subgraph))
+                        'track2-subgraph track2-subgraph)]
                  [else pre-node]))
          (cond [(dict? node)
                 (values (cons i prev-vids)
-                        (append (list (if (dict-ref node 'track2)
-                                          (list (dict-ref node 'track2))
-                                          '())
-                                      (if (dict-ref node 'combined)
-                                          (list (dict-ref node 'combined))
-                                          '()))
-                                prev-nodes)
+                        (append
+                         (append
+                          (if (dict-ref node 'track2)
+                                            (list (dict-ref node 'track2))
+                                            '())
+                          (if (dict-ref node 'combined)
+                              (list (dict-ref node 'combined))
+                              '()))
+                         (cdr prev-nodes))
                         start
                         (+ end
-                           (if (dict-ref node 'combined)
-                               (get-property (dict-ref node 'combined) "length")
+                           (if (dict-ref node 'combined-subgraph)
+                               (get-property (dict-ref node 'combined-subgraph) "length")
                                0)
-                           (- (if (dict-ref node 'track2)
-                                  (get-property (dict-ref node 'track2) "length")
+                           (- (if (dict-ref node 'track2-subgraph)
+                                  (get-property (dict-ref node 'track2-subgraph) "length")
                                   0)))
                         fps
                         width
@@ -449,7 +465,7 @@
         (add-vertex! (current-render-graph) node)
         (add-directed-edge! (current-render-graph) connect-node node 1)
         node)
-      (let* ([ret (coerce-clip (mk-filter "pad" (hash "width" width
+      (let* ([ret (coerce-clip (mk-filter "scale" (hash "width" width
                                                       "height" height))
                                node)]
              [ret (coerce-clip (mk-filter "fps" (hash "fps" fps))

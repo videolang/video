@@ -762,10 +762,37 @@
                        ret)))
 (define (mk-empty-audio-filter)
   (mk-filter "aevalsrc" (hash "exprs" "0")))
+(define (mk-empty-node #:width [width DEFAULT-WIDTH]
+                       #:height [height DEFAULT-HEIGHT]
+                       #:duration [duration 100]
+                       #:counts [counts (hash)]
+                       #:props [props (hash)])
+  (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
+                                                      #:height height
+                                                      #:duration duration)
+                        'audio (mk-empty-audio-filter))
+                  #:counts counts
+                  #:props props))
 (define (mk-empty-sink-video-filter)
   (mk-filter "nullsink"))
 (define (mk-empty-sink-audio-filter)
   (mk-filter "anullsink"))
+(define (mk-empty-sink-node #:counts [counts (hash)]
+                            #:props (props (hash)))
+  (mk-filter-node (hash 'video (mk-empty-video-filter)
+                        'audio (mk-empty-audio-filter))
+                  #:counts counts
+                  #:props props))
+(define (mk-fifo-video-filter)
+  (mk-filter "fifo"))
+(define (mk-fifo-audio-filter)
+  (mk-filter "afifo"))
+(define (mk-fifo-node #:counts [counts (hash)]
+                      #:props [props (hash)])
+  (mk-filter-node (hash 'video (mk-fifo-video-filter)
+                        'audio (mk-fifo-audio-filter))
+                  #:counts counts
+                  #:props props))
 
 (define (mk-edge-counter [start 0])
   (define edge-counter start)
@@ -968,7 +995,7 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  ;(displayln (graphviz g))
+  (displayln (graphviz g))
   ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs

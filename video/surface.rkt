@@ -82,6 +82,11 @@
          mk-filter-node
          mk-empty-sink-video-filter
          mk-empty-sink-audio-filter
+         mk-empty-sink-node
          mk-empty-video-filter
          mk-empty-audio-filter
+         mk-empty-node
+         mk-fifo-video-filter
+         mk-fifo-audio-filter
+         mk-fifo-node
          mk-filter)

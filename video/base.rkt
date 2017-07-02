@@ -79,7 +79,8 @@
                      [])]
 
   ;; Creates a fading transition from a start to end clip
-  [fade-transition (->transition [] []
+  [fade-transition (->transition []
+                                 [(and/c number? positive?)]
                                  #:direction s/e)]
 
   ;; Creates a composite transition where the top track is
@@ -91,11 +92,13 @@
                                        []
                                        #:direction t/b)]
 
+  #| TODO
   ;; Creates a swiping transition from a start clip to an
   ;;   end clip
   [swipe-transition (->transition [#:direction symbol?]
                                   []
                                   #:direction t/b)]
+|#
   
   [scale-filter (-> (and/c number? positive?) (and/c number? positive?) filter?)]
 
@@ -227,19 +230,25 @@
   (define new-props (hash-set (properties-prop obj) key val))
   (copy-video obj #:prop new-props))
 
-(define-transition (fade-transition #:length [fade-length 1])
+(define-transition (fade-transition [fade-length 1])
   #:direction s/e
+  #:properties (λ (prop)
+                 (dict-set* (or prop (hash))
+                            "pre-length" fade-length
+                            "post-length" fade-length))
   #:track1-subgraph (λ (ctx node-a)
                       #f)
   #:track2-subgraph (λ (ctx node-b)
                       #f)
   #:combined-subgraph (λ (ctx node-a node-b)
-                        (define width (max (get-property node-a "width")
-                                           (get-property node-b "width")))
-                        (define height (max (get-property node-a "height")
-                                            (get-property node-b "height")))
-                        (define len-a (- (get-property node-a "end") (get-property node-a "start")))
-                        (define len-b (- (get-property node-b "end") (get-property node-b "start")))
+                        (define width (max (get-property node-a "width" 0)
+                                           (get-property node-b "width" 0)))
+                        (define height (max (get-property node-a "height" 0)
+                                            (get-property node-b "height" 0)))
+                        (define len-a (- (get-property node-a "end")
+                                         (get-property node-a "start" 0)))
+                        (define len-b (- (get-property node-b "end")
+                                         (get-property node-b "start" 0)))
                         (define t-length (- (+ len-a len-b) fade-length))
                         (define bg-node
                           (mk-filter-node
@@ -249,12 +258,12 @@
                                  'audio (mk-empty-audio-filter))
                            #:counts (node-counts node-a)))
                         (define pad-a
-                          (mk-filter-node (hash 'video "pad" (hash "width" width
-                                                                   "height" height))
+                          (mk-filter-node (hash 'video (mk-filter "scale" (hash "width" width
+                                                                              "height" height)))
                                           #:counts (node-counts node-a)))
                         (add-vertex! ctx pad-a)
                         (define pad-b
-                          (mk-filter-node (hash 'video (mk-filter "pad" (hash "width" width
+                          (mk-filter-node (hash 'video (mk-filter "scale" (hash "width" width
                                                                               "height" height)))
                                           #:counts (node-counts node-a)))
                         (add-vertex! ctx pad-b)
@@ -272,6 +281,8 @@
                            #:counts (node-counts node-b)))
                         (add-vertex! ctx pts-b)
                         (add-directed-edge! ctx pad-b pts-b 1)
+                        (define buff-a1 (mk-fifo-node #:counts (node-counts node-a)))
+                        (define buff-a2 (mk-fifo-node #:counts (node-counts node-a)))
                         (define ovr-a
                           (mk-filter-node (hash 'video (mk-filter "overlay")
                                                 'audio (mk-filter "amix"
@@ -279,19 +290,31 @@
                                                                         "duration" "shortest")))
                                           #:counts (node-counts node-a)))
                         (add-vertex! ctx ovr-a)
-                        (add-directed-edge! ctx bg-node ovr-a 1)
-                        (add-directed-edge! ctx pts-a ovr-a 2)
+                        (add-directed-edge! ctx bg-node buff-a1 1)
+                        (add-directed-edge! ctx buff-a1 ovr-a 1)
+                        (add-directed-edge! ctx pts-a buff-a2 2)
+                        (add-directed-edge! ctx buff-a2 ovr-a 2)
+                        (define buff-b1 (mk-fifo-node #:counts (node-counts node-a)))
+                        (define buff-b2 (mk-fifo-node #:counts (node-counts node-a)))
                         (define ovr-b
                           (mk-filter-node (hash 'video (mk-filter "overlay")
                                                 'audio (mk-filter "acrossfade"
                                                                   (hash "d" fade-length)))
+                                          #:props (hash "start" 0
+                                                        "length" t-length
+                                                        "end" t-length
+                                                        "width" width
+                                                        "height" height)
                                           #:counts (node-counts node-a)))
                         (add-vertex! ctx ovr-b)
-                        (add-directed-edge! ctx ovr-a ovr-b 1)
-                        (add-directed-edge! ctx pts-b ovr-b 2)
+                        (add-directed-edge! ctx ovr-a buff-b1 1)
+                        (add-directed-edge! ctx buff-b1 ovr-b 1)
+                        (add-directed-edge! ctx pts-b buff-b2 2)
+                        (add-directed-edge! ctx buff-b2 ovr-b 2)
                         (make-video-subgraph #:graph ctx
                                              #:sources (cons pad-a pad-b)
-                                             #:sinks ovr-b)))
+                                             #:sinks ovr-b
+                                             #:prop (hash "length" t-length))))
 
 #; ;TODO
 (define-transition (composite-transition x y w h)
@@ -305,6 +328,7 @@
                    (unit-dispatch front "width" w)
                    (unit-dispatch front "height" h)))
 
+#; ; TODO
 (define-transition (swipe-transition #:direction dir)
   #:direction t/b
   (error "TODO"))

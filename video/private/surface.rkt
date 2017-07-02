@@ -19,6 +19,7 @@
 (require racket/match
          racket/contract/base
          racket/math
+         racket/dict
          (only-in scribble/manual defproc)
          "video.rkt"
          (for-label "init.rkt"
@@ -81,7 +82,7 @@
   (syntax-parse stx
     [(_ f:function-header
         (~or (~optional (~seq #:direction direction))
-             (~optional (~seq #:properties properties*) #:defaults ([properties* #'properties]))
+             (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc #'(λ (x) (make-video-subgraph))]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
@@ -105,7 +106,7 @@
             #:track1-subgraph track1-subgraph-proc
             #:track2-subgraph track2-subgraph-proc
             #:combined-subgraph combined-subgraph-proc
-            #:properties properties*))
+            #:prop (properties-proc properties)))
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
              trans))]))
@@ -117,7 +118,7 @@
         (~optional (~seq #:direction direction))
         (~optional ret? #:defaults ([ret? #'any/c])))
      #`(->* [required ...]
-            [#:length (or/c nonnegative-integer? #f)
+            [#:properties (or/c dict? #f)
              #,@(match (syntax-e (attribute direction))
                   [(or 't/b 'top/bottom) #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))]
                   [(or 's/e 'start/end _) #'(#:start (or/c any/c #f) #:end (or/c any/c #f))])
