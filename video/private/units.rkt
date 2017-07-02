@@ -16,16 +16,14 @@
    limitations under the License.
 |#
 
+(provide (all-defined-out))
+(require racket/generic
+         (prefix-in base: racket/base))
 
-;; The Units library is still being designed. The idea is
-;;    to have Video do the dimentional analysis for you.
-;; For example, add two minutes to 30 seconds should return
-;;    either 150 seconds or 2.5 (exact) minutes.
+(define-generics unit-coerce
+  [unit->number unit-coerce])
 
-(require racket/contract/base
-         "private/units.rkt")
-(provide
- (contract-out [pixels? (-> any/c boolean?)]
-               [seconds? (-> any/c boolean?)]
-               [pixels (-> number? pixels?)]
-               [seconds (-> number? seconds?)]))
+(struct pixels (val)
+  #:transparent)
+(struct seconds (val)
+  #:transparent)

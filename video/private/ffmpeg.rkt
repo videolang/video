@@ -1579,6 +1579,20 @@
 (define-avformat av-packet-rescale-ts (_fun _avpacket-pointer _avrational _avrational
                                             -> _void))
 (define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
+(define-avformat av-guess-frame-rate
+  (_fun _avformat-context-pointer _avstream-pointer _av-frame-pointer/null -> [ret : _avrational]
+        -> (cond [(and (= (numerator ret) 0)
+                       (= (denominator ret) 1))
+                  (error 'av-guess-framerate "Cannot guess framerate")]
+                 [else ret])))
+(define-avformat av-guess-sample-aspect-ratio
+  (_fun _avformat-context-pointer _avstream-pointer _av-frame-pointer/null -> [ret : _avrational]
+        -> (cond [(and (= (numerator ret) 0)
+                       (= (denominator ret) 1))
+                  (error 'av-guess-sample-aspect-ratio "Cannot guess sample aspect ratio")]
+                 [else ret])))
+(define-avformat av-guess-codec
+  (_fun _av-output-format-pointer _string _string _string _avmedia-type -> _avcodec-id))
 (define-avformat avformat-alloc-output-context2
   (_fun [out : (_ptr o _avformat-context-pointer)] _av-output-format-pointer/null _string _string
         -> [ret : _int]
@@ -1616,13 +1630,12 @@
                                                         (raise (exn:ffmpeg:flush
                                                                 "send-frame"
                                                                 (current-continuation-marks)))])))
-(define-avformat avio-open (_fun [out : (_ptr io _avio-context-pointer/null)]
-                                 [p : _path]
-                                 _avio-flags
-                                 -> [ret : _int]
-                                 -> (cond
-                                      [(>= ret 0) out]
-                                      [else (error 'avio-open "path ~a: ~a : ~a" p ret (convert-err ret))])))
+(define-avformat avio-open
+  (_fun [out : (_ptr io _avio-context-pointer/null)] [p : _path] _avio-flags
+        -> [ret : _int]
+        -> (cond
+             [(>= ret 0) out]
+             [else (error 'avio-open "path ~a: ~a : ~a" p ret (convert-err ret))])))
 (define-avformat avio-close (_fun _avio-context-pointer -> [ret : _int]
                                   -> (cond
                                        [(= ret 0) (void)]

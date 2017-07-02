@@ -240,6 +240,9 @@
       (define codec-id (avcodec-parameters-codec-id codec-parameters))
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-parameters-to-context codec codec-parameters))
+      (when (eq? codec-name 'video)
+        (set-avcodec-context-time-base! codec-ctx (avstream-time-base i))
+        (set-avcodec-context-framerate! codec-ctx (av-guess-frame-rate avformat i #f)))
       (avcodec-open2 codec-ctx codec #f)
       (define obj (mk-codec-obj #:codec-parameters codec-parameters
                                 #:type codec-name
@@ -704,14 +707,15 @@
   [(define write-proc
      (make-constructor-style-printer
       (λ _ 'node)
-      (λ (x) (list (node-counts x)))))])
+      (λ (x) (list '#:counts (node-counts x)))))])
 (struct source-node node (bundle)
   #:methods gen:custom-write
   [(define write-proc
      (make-constructor-style-printer
       (λ _ 'source-node)
-      (λ (x) (list (stream-bundle-file (source-node-bundle x))
-                   (node-counts x)))))])
+      (λ (x) (list '#:file (stream-bundle-file (source-node-bundle x))
+                   '#:props (node-props x)
+                   '#:counts (node-counts x)))))])
 (define (mk-source-node b
                         #:counts [c (hash)]
                         #:props [np (hash)])
@@ -721,8 +725,9 @@
   [(define write-proc
      (make-constructor-style-printer
       (λ _ 'sink-node)
-      (λ (x) (list (stream-bundle-file (sink-node-bundle x))
-                   (node-counts x)))))])
+      (λ (x) (list '#:file (stream-bundle-file (sink-node-bundle x))
+                   '#:props (node-props x)
+                   '#:counts (node-counts x)))))])
 (define (mk-sink-node b
                       #:counts [c (hash)]
                       #:props [np (hash)])
@@ -732,8 +737,9 @@
   [(define write-proc
      (make-constructor-style-printer
       (λ _ 'filter-node)
-      (λ (x) (list (filter-node-table x)
-                   (node-counts x)))))])
+      (λ (x) (list '#:filters (filter-node-table x)
+                   '#:props (node-props x)
+                   '#:counts (node-counts x)))))])
 (define (mk-filter-node table
                         #:counts [c (hash)]
                         #:props [props (hash)])

@@ -31,6 +31,7 @@
          "ffmpeg.rkt"
          "ffmpeg-pipeline.rkt"
          "init.rkt"
+         "units.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
@@ -72,8 +73,8 @@
                      (dict-ref prop "height" #f))
                 (define s-node
                   (mk-filter-node (hash 'video (mk-filter "scale"
-                                                          (hash "width" (dict-ref prop "width" "iw")
-                                                                "height" (dict-ref prop "height" "ih"))))
+                                                          (hash "width" (dict-ref prop "width")
+                                                                "height" (dict-ref prop "height"))))
                                   #:props (node-props video-node)
                                   #:counts (node-counts video-node)))
                 (add-vertex! (current-render-graph) s-node)
@@ -225,12 +226,13 @@
   (when (not path)
     (error 'file "No path given"))
   (define bundle (file->stream-bundle path))
+  (define fstart #f)
+  (define fduration #f)
   (define fctx (stream-bundle-avformat-context bundle))
-  (define fstart 0)
-  (define fend (avformat-context-duration fctx))
   (define fwidth #f)
   (define fheight #f)
   (define ftime-base #f)
+  (define ffps #f)
   (define fpix-fmt #f)
   (define fsample-fmt #f)
   (define fsample-rate #f)
@@ -242,7 +244,8 @@
   (for ([str (stream-bundle-streams bundle)])
     (match str
       [(struct* codec-obj ([codec-context cctx]
-                           [type type]))
+                           [type type]
+                           [stream stream]))
        (hash-update! count-tab type
                      add1
                      0)
@@ -250,7 +253,10 @@
          ['video
           (set!/error fwidth (avcodec-context-width cctx) =)
           (set!/error fheight (avcodec-context-height cctx) =)
-          (set!/error ftime-base (avcodec-context-time-base cctx) =)
+          (set!/error ffps (avcodec-context-framerate cctx) =)
+          (set!/error ftime-base (avstream-time-base stream) =)
+          (set!/error fstart (avstream-start-time stream) =)
+          (set!/error fduration (avstream-duration stream) =)
           (set!/error fpix-fmt (avcodec-context-pix-fmt cctx) eq?)]
          ['audio
           (set!/error fsample-fmt (avcodec-context-sample-fmt cctx) eq?)
@@ -258,13 +264,16 @@
          [_ (void)])]))
   (define node (mk-source-node bundle
                                #:counts count-tab
-                               #:props (hash "start" (or fstart 0)
-                                             "end" (or fend 0)
+                               #:props (hash "start" (or (and fstart ftime-base
+                                                              (* fstart ftime-base))
+                                                         0)
+                                             "end" (or (and fstart fduration ftime-base
+                                                            (* (+ fduration fstart) ftime-base))
+                                                       0)
                                              "width" (or fwidth 0)
                                              "height" (or fheight 0)
-                                             "fps" (if (and ftime-base (not (= ftime-base 0)))
-                                                       (/ 1 ftime-base)
-                                                       25)
+                                             "time-base" (or ftime-base 0)
+                                             "fps" (or ffps 0)
                                              "pix-fmt" fpix-fmt
                                              "sample-fmt" fsample-fmt
                                              "sample-rate" fsample-rate)))

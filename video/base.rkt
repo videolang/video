@@ -254,7 +254,7 @@
                           (mk-filter-node
                            (hash 'video (mk-filter "color" (hash "color" "black"
                                                                  "size" (format "~ax~a" width height)
-                                                                 "d" t-length))
+                                                                 "d" (exact->inexact t-length)))
                                  'audio (mk-empty-audio-filter))
                            #:counts (node-counts node-a)))
                         (define pad-a
