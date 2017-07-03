@@ -233,12 +233,16 @@
       (define pix-fmt-node
         (mk-filter-node
          (hash 'video (mk-filter "format" (hash "pix_fmts" pix-fmt))
-               'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt)))
+               'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
+                                                 "sample_rates" sample-rate
+                                                 "channel_layouts" channel-layout)))
          #:counts (hash 'video 1 'audio 1)))
       (add-vertex! render-graph pix-fmt-node)
       (add-directed-edge! render-graph fps-node pix-fmt-node 1)
+      (define out-bundle (stream-bundle->file out-path 'vid+aud))
+      (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
       (define sink-node
-        (mk-sink-node (stream-bundle->file out-path 'vid+aud)
+        (mk-sink-node out-bundle
                       #:counts (hash 'video 1 'audio 1)))
       (add-vertex! render-graph sink-node)
       (add-directed-edge! render-graph pix-fmt-node sink-node 1)

@@ -75,7 +75,9 @@
                   (mk-filter-node (hash 'video (mk-filter "scale"
                                                           (hash "width" (dict-ref prop "width")
                                                                 "height" (dict-ref prop "height"))))
-                                  #:props (node-props video-node)
+                                  #:props (dict-set* (or (node-props demuxed-node) (hash))
+                                                     "width" (dict-ref prop "width")
+                                                     "height" (dict-ref prop "height"))
                                   #:counts (node-counts video-node)))
                 (add-vertex! (current-render-graph) s-node)
                 (add-directed-edge! (current-render-graph) demuxed-node s-node 1)
@@ -96,7 +98,9 @@
                                                                    "end" end))
                                     'audio (mk-filter "atrim" (hash "start" start
                                                                     "end" end)))
-                              #:props (node-props scaled-node)
+                              #:props (dict-set* (node-props scaled-node)
+                                                 "start" start
+                                                 "end" end)
                               #:counts (node-counts scaled-node)))
             (add-vertex! (current-render-graph) node)
             (add-directed-edge! (current-render-graph) scaled-node node 1)

@@ -42,7 +42,7 @@
 (define DEFAULT-SAMPLE-FREQ 44100)
 (define DEFAULT-PIX-FMT 'yuv420p)
 (define DEFAULT-SAMPLE-FMT 'fltp)
-(define DEfAULT-CHANNEL-LAYOUT 'stereo)
+(define DEFAULT-CHANNEL-LAYOUT 'stereo)
 
 (struct stream-bundle (raw-streams
                        streams
@@ -350,6 +350,7 @@
   (set-avcodec-parameters-bit-rate! parameters 400000)
   (set-avcodec-parameters-width! parameters 1920)
   (set-avcodec-parameters-height! parameters 1080)
+  #;
   (when stream
     (set-avstream-time-base! stream 1/25))
   (define rest
@@ -365,13 +366,15 @@
   (set-avcodec-parameters-codec-id! parameters (av-output-format-audio-codec format))
   (set-avcodec-parameters-codec-type! parameters 'audio)
   (set-avcodec-parameters-bit-rate! parameters 64000)
-  (set-avcodec-parameters-sample-rate! parameters 44100)
-  (set-avcodec-parameters-channel-layout! parameters 'stereo)
-  (set-avcodec-parameters-channels! parameters (av-get-channel-layout-nb-channels 'stereo))
+  (set-avcodec-parameters-sample-rate! parameters DEFAULT-SAMPLE-FREQ)
+  (set-avcodec-parameters-channel-layout! parameters DEFAULT-CHANNEL-LAYOUT)
+  (set-avcodec-parameters-channels!
+   parameters (av-get-channel-layout-nb-channels DEFAULT-CHANNEL-LAYOUT))
+  #;
   (when stream
     (set-avstream-time-base! stream 1/44100))
   (define rest
-    (mk-extra-codec-parameters #:time-base 1/44100
+    (mk-extra-codec-parameters ;#:time-base 1/44100
                                #:sample-fmt 'fltp))
   (values parameters rest))
 
@@ -1111,6 +1114,8 @@
       [(struct* codec-obj ([codec-context ctx]
                            [buffer-context buff-ctx]))
        (match mode
+         ['open
+          (av-buffersink-set-frame-size buff-ctx (avcodec-context-frame-size ctx))]
          ['write
           (let loop ()
             (with-handlers ([exn:ffmpeg:again?

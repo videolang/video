@@ -71,6 +71,8 @@
 (define EAGAIN (lookup-errno 'EAGAIN))
 (define EINVAL (lookup-errno 'EINVAL))
 (define ENOMEM (lookup-errno 'ENOMEM))
+(define EDOM (lookup-errno 'EDOM))
+(define ERANGE (lookup-errno 'ERANGE))
 
 (define AV-NUM-DATA-POINTERS 8)
 (define MAX-REORDER-DELAY 16)
@@ -1752,7 +1754,7 @@
              [(= ret AVERROR-EOF)
               (raise (exn:ffmpeg:eof "send-frame" (current-continuation-marks)))]
              [else
-              (error 'send-frame "ERROR: ~a" (convert-err ret))])))
+              (error 'send-frame "ERROR: ~a : ~a" ret (convert-err ret))])))
 (define (avcodec-receive-frame ctxt [maybe-frame #f])
   (define-avcodec avcodec-receive-frame
     (_fun _avcodec-context-pointer
@@ -2046,6 +2048,7 @@
   (_fun _avfilter-context-pointer -> _int))
 (define-avfilter av-buffersink-get-hw-frames-ctx
   (_fun _avfilter-context-pointer -> _avbuffer-ref-pointer))
+(define-avfilter av-buffersink-set-frame-size (_fun _avfilter-context-pointer _uint -> _void))
 (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
 (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
 (define-avfilter av-buffersrc-parameters-alloc (_fun -> _av-buffersrc-parameters-pointer))
