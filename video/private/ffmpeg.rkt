@@ -2002,15 +2002,19 @@
 (define-avfilter avfilter-inout-free (_fun (_ptr i _avfilter-in-out-pointer/null) -> _void))
 (define (av-buffersink-get-frame ptr [out #f])
   (define-avfilter av-buffersink-get-frame
-    (_fun _avfilter-context-pointer [out : _av-frame-pointer]
+    (_fun _avfilter-context-pointer [out* : _av-frame-pointer]
           -> [ret : _int]
           -> (cond
-               [(>= ret 0) out]
-               [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks)))]
-               [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
-               [else (error 'buffersink-get-frame (convert-err ret))])))
+               [(>= ret 0) out*]
+               [else
+                (unless out
+                  (av-frame-free out*))
+                (cond
+                  [(= (- ret) EAGAIN)
+                   (raise (exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks)))]
+                  [(= ret AVERROR-EOF)
+                   (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
+                  [else (error 'buffersink-get-frame (convert-err ret))])])))
   (define o (or out (av-frame-alloc)))
   (av-buffersink-get-frame ptr o))
 (define (av-buffersink-get-frame-flags ptr flags/frame [maybe-flags #f])
@@ -2018,11 +2022,15 @@
     (_fun _avfilter-context-pointer [out : _av-frame-pointer] _av-buffer-sink-flags -> [ret : _int]
           -> (cond
                [(= ret 0) out]
-               [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
-               [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
-               [else (error 'buffersink-get-frame-flags (convert-err ret))])))
+               [else
+                (unless maybe-flags
+                  (av-frame-free out))
+                (cond
+                  [(= (- ret) EAGAIN)
+                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
+                  [(= ret AVERROR-EOF)
+                   (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
+                  [else (error 'buffersink-get-frame-flags (convert-err ret))])])))
   (define flags (or maybe-flags flags/frame))
   (define frame (if maybe-flags
                     flags/frame
@@ -2034,11 +2042,15 @@
           -> [ret : _int]
           -> (cond
                [(= ret 0) out]
-               [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
-               [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
-               [else (error 'buffersink-get-frame-flags (convert-err ret))])))
+               [else
+                (unless maybe-samples
+                  (av-frame-free out))
+                (cond
+                  [(= (- ret) EAGAIN)
+                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
+                  [(= ret AVERROR-EOF)
+                   (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
+                  [else (error 'buffersink-get-frame-flags (convert-err ret))])])))
   (define samples (or maybe-samples frame/nb-samples))
   (define frame (if maybe-samples
                     frame/nb-samples
