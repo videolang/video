@@ -2035,7 +2035,7 @@
   (define frame (if maybe-flags
                     flags/frame
                     (av-frame-alloc)))
-  (av-buffersink-get-frame-flags ptr flags frame))
+  (av-buffersink-get-frame-flags ptr frame flags))
 (define (av-buffersink-get-samples ptr frame/nb-samples [maybe-samples #f])
   (define-avfilter av-buffersink-get-samples
     (_fun _avfilter-context-pointer [out : _av-frame-pointer] _int

@@ -1095,8 +1095,9 @@
             (define in-frame (avcodec-receive-frame ctx))
             (set-av-frame-pts!
              in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-write-frame buff-ctx in-frame)
+            ;(av-buffersrc-write-frame buff-ctx in-frame)
             ;(av-buffersrc-add-frame buff-ctx in-frame)
+            ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
             (av-frame-free in-frame)
             (loop)))
         ]
@@ -1108,16 +1109,18 @@
             (set-av-frame-pts!
              in-frame (av-frame-get-best-effort-timestamp in-frame))
             (av-buffersrc-write-frame buff-ctx in-frame)
-            (av-frame-free in-frame)
             ;(av-buffersrc-add-frame buff-ctx in-frame)
+            ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
+            (av-frame-free in-frame)
             (loop)))
         (avcodec-flush-buffers ctx)
+        (av-buffersrc-write-frame buff-ctx #f)
         ;(av-buffersrc-add-frame buff-ctx #f)
-        (av-buffersrc-write-frame buff-ctx #f)]
+        ;(av-buffersrc-add-frame-flags buff-ctx #f '(push))
+        ]
        [_ (void)])]))
 
 (define (filtergraph-next-packet #:render-status [rs-box #f])
-  ;; Memory leak out-frame
   (λ (mode obj)
     (match obj
       [(struct* codec-obj ([codec-context ctx]
@@ -1140,6 +1143,7 @@
                                    (define pkt (avcodec-receive-packet ctx))
                                    (loop (cons pkt pkts)))))])
               (define out-frame (av-buffersink-get-frame buff-ctx))
+              ;(define out-frame (av-buffersink-get-frame-flags buff-ctx '(no-request)))
               (avcodec-send-frame ctx out-frame)
               (av-frame-free out-frame)
               (let loop ([pkts '()])
