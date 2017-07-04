@@ -1739,12 +1739,16 @@
           -> [ret : _int]
           -> (cond
                [(= ret 0) out]
-               [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "receive-packet/again" (current-continuation-marks)))]
-               [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "receive-packet/eof" (current-continuation-marks)))]
                [else
-                (error 'recev-packet (convert-err ret))])))
+                (unless maybe-packet
+                  (av-packet-free out))
+                (cond
+                  [(= (- ret) EAGAIN)
+                   (raise (exn:ffmpeg:again "receive-packet/again" (current-continuation-marks)))]
+                  [(= ret AVERROR-EOF)
+                   (raise (exn:ffmpeg:eof "receive-packet/eof" (current-continuation-marks)))]
+                  [else
+                   (error 'recev-packet (convert-err ret))])])))
   (define packet (or maybe-packet (av-packet-alloc)))
   (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame
@@ -1765,14 +1769,17 @@
           -> [ret : _int]
           -> (cond
                [(= ret 0) out]
-               [(= (- ret) EAGAIN)
-                (raise (exn:ffmpeg:again "receive-frame: eagain" (current-continuation-marks)))]
-               [(= ret AVERROR-EOF)
-                (raise (exn:ffmpeg:eof "receive-frame: eof" (current-continuation-marks)))]
                [else
-                (error 'recev-frame "Error: ~a" (convert-err ret))])))
-  (define frame (or maybe-frame
-                    (av-frame-alloc)))
+                (unless maybe-frame
+                  (av-frame-free out))
+                (cond
+                  [(= (- ret) EAGAIN)
+                   (raise (exn:ffmpeg:again "receive-frame: eagain" (current-continuation-marks)))]
+                  [(= ret AVERROR-EOF)
+                   (raise (exn:ffmpeg:eof "receive-frame: eof" (current-continuation-marks)))]
+                  [else
+                   (error 'recev-frame "Error: ~a" (convert-err ret))])])))
+  (define frame (or maybe-frame (av-frame-alloc)))
   (avcodec-receive-frame ctxt frame))
 (define-avcodec avcodec-flush-buffers (_fun _avcodec-context-pointer -> _void))
 

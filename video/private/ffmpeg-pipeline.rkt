@@ -1095,8 +1095,11 @@
             (define in-frame (avcodec-receive-frame ctx))
             (set-av-frame-pts!
              in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-add-frame buff-ctx in-frame)
-            (loop)))]
+            (av-buffersrc-write-frame buff-ctx in-frame)
+            ;(av-buffersrc-add-frame buff-ctx in-frame)
+            (av-frame-free in-frame)
+            (loop)))
+        ]
        ['close
         (avcodec-send-packet ctx #f)
         (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
@@ -1104,9 +1107,12 @@
             (define in-frame (avcodec-receive-frame ctx))
             (set-av-frame-pts!
              in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-add-frame buff-ctx in-frame)
+            (av-buffersrc-write-frame buff-ctx in-frame)
+            (av-frame-free in-frame)
+            ;(av-buffersrc-add-frame buff-ctx in-frame)
             (loop)))
         (avcodec-flush-buffers ctx)
+        ;(av-buffersrc-add-frame buff-ctx #f)
         (av-buffersrc-write-frame buff-ctx #f)]
        [_ (void)])]))
 
@@ -1122,7 +1128,7 @@
          ['write
           (let loop ()
             (with-handlers ([exn:ffmpeg:again?
-                             (λ (e) '())] ;(loop))]
+                             (λ (e) '())]
                             [exn:ffmpeg:eof?
                              (λ (e)
                                (avcodec-send-frame ctx #f)
