@@ -1543,8 +1543,7 @@
                                                (av-packet-unref out))
                                              #f]
                                             [else out])))
-  (define frame* (or frame
-                     (ptr-ref (av-malloc _avpacket) _avpacket)))
+  (define frame* (or frame (av-packet-alloc)))
   (av-read-frame ctx frame*))
 (define-avformat av-seek-frame
   (_fun _avformat-context-pointer _int _int64 _av-seek-flags -> [ret : _int]
@@ -1571,9 +1570,16 @@
                                             [else out])))
   (if src
       (av-packet-ref dst/src src)
-      (av-packet-ref (ptr-ref (av-malloc _avpacket) _avpacket) dst/src)))
+      (av-packet-ref (av-packet-alloc) dst/src)))
 (define-avformat av-packet-unref (_fun _avpacket-pointer
                                            -> _void))
+(define-avformat av-packet-alloc (_fun -> _avpacket-pointer))
+(define-avformat av-packet-free (_fun (_ptr io _avpacket-pointer/null) -> _void))
+(define-avformat av-new-packet (_fun _avpacket-pointer _size -> [ret : _int]
+                                     -> (cond
+                                          [(= ret 0) (void)]
+                                          [else (error "~a : ~a" ret (convert-err ret))])))
+(define-avformat av-init-packet (_fun _avpacket-pointer -> _void))
 (define-avformat av-dup-packet (_fun _avpacket-pointer
                                      -> [ret : _int]
                                      -> (unless (= ret 0)
@@ -1739,10 +1745,7 @@
                 (raise (exn:ffmpeg:eof "receive-packet/eof" (current-continuation-marks)))]
                [else
                 (error 'recev-packet (convert-err ret))])))
-  (define packet (or maybe-packet
-                     (let ([p (ptr-ref (av-malloc _avpacket) _avpacket)])
-                       (av-init-packet p)
-                       p)))
+  (define packet (or maybe-packet (av-packet-alloc)))
   (avcodec-receive-packet ctx packet))
 (define-avcodec avcodec-send-frame
   (_fun _avcodec-context-pointer _av-frame-pointer/null
@@ -1772,7 +1775,6 @@
                     (av-frame-alloc)))
   (avcodec-receive-frame ctxt frame))
 (define-avcodec avcodec-flush-buffers (_fun _avcodec-context-pointer -> _void))
-(define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
 
 (define-avutil av-frame-alloc (_fun -> _av-frame-pointer))
 (define (av-frame-ref src/dst [maybe-src #f])
@@ -1811,17 +1813,27 @@
 (define-avutil av-frame-set-color-range (_fun _av-frame-pointer _avcolor-range -> _void))
 (define-avutil av-frame-get-best-effort-timestamp (_fun _av-frame-pointer -> _int64))
 (define-avutil av-frame-set-best-effort-timestamp (_fun _av-frame-pointer _int -> _void))
-(define (av-malloc [a #f] [b #f])
-  (define type (cond
-                 [(ctype? a) a]
-                 [(ctype? b) b]
-                 [else _byte]))
-  (define size (cond
-                 [(integer? a) a]
-                 [(integer? b) b]
-                 [else 1]))
-  (define-avutil av-malloc (_fun _size -> _pointer));(_array type size)))
-  (av-malloc (* size (ctype-sizeof type))))
+(define-values (av-malloc av-mallocz)
+  (let ()
+    (define (malloc* proc [a #f] [b #f])
+      (define type (cond
+                     [(ctype? a) a]
+                     [(ctype? b) b]
+                     [else _byte]))
+      (define size (cond
+                     [(integer? a) a]
+                     [(integer? b) b]
+                     [else 1]))
+      (proc (* size (ctype-sizeof type))))
+    (define-avutil av-malloc (_fun _size -> _pointer))
+    (define-avutil av-mallocz (_fun _size -> _pointer))
+    (values (λ ([a #f] [b #f])
+              (malloc* av-malloc a b))
+            (λ ([a #f] [b #f])
+              (malloc* av-mallocz a b)))))
+(define-avutil av-fast-malloc
+  (_fun [data : (_ptr io _pointer)] [size : (_ptr io _uint)] _size -> _void
+        -> data))
 (define-avutil av-free (_fun _pointer -> _void))
 (define-avutil av-freep (_fun _pointer -> _void))
 (define-avutil av-strdup (_fun _string -> _pointer))

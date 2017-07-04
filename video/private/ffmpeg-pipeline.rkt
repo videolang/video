@@ -290,12 +290,15 @@
     (when packet
       (define index (avpacket-stream-index packet))
       (define obj (vector-ref streams index))
-      (cond [by-index-callback (by-index-callback 'loop obj packet)]
-            [else
-             (define type (codec-obj-type obj))
-             (cond [(eq? obj (hash-ref stream-table type))
-                    ((callback-ref callback-table type) 'loop obj packet)]
-                   [else (av-packet-unref packet)])])
+      (define delete-pkt?
+        (cond [by-index-callback (by-index-callback 'loop obj packet)]
+              [else
+               (define type (codec-obj-type obj))
+               (cond [(eq? obj (hash-ref stream-table type))
+                      ((callback-ref callback-table type) 'loop obj packet)]
+                     [else (av-packet-unref packet)])]))
+      (when delete-pkt?
+        (av-packet-free packet))
       (loop))))
 
 (define (demux-stream/close-bundle bundle
@@ -583,8 +586,13 @@
                                         (avstream-time-base stream))
                   (set-avpacket-stream-index!
                    next-packet (avstream-index (codec-obj-stream min-stream)))
-                  (av-interleaved-write-frame output-context next-packet)])]))
+                  (av-write-frame output-context next-packet)
+                  ;(av-packet-unref next-packet)
+                  ;(av-interleaved-write-frame output-context next-packet)
+                  (av-packet-free next-packet)
+                  ])]))
       (loop)))
+  ;(av-interleaved-write-frame output-context #f) ;; <- Maybe not needed?
   (av-write-trailer output-context))
 
 (define (mux-stream/close bundle
@@ -1075,40 +1083,35 @@
 
 ;; ===================================================================================================
 
-(define (filtergraph-insert-packet [in-frame* #f])
-  ;; Memory leak in-frame
-  (define in-frame (or in-frame* (av-frame-alloc)))
-  (λ (mode obj packet)
-    (match obj
-      [(struct* codec-obj ([codec-context ctx]
+(define ((filtergraph-insert-packet) mode obj packet)
+  (match obj
+    [(struct* codec-obj ([codec-context ctx]
                            [buffer-context buff-ctx]))
-       (match mode
-         ['loop
-          (avcodec-send-packet ctx packet)
-          (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
-            (let loop ()
-              (avcodec-receive-frame ctx in-frame)
-              (set-av-frame-pts!
-               in-frame (av-frame-get-best-effort-timestamp in-frame))
-              (av-buffersrc-write-frame buff-ctx in-frame)
-              (loop)))]
-         ['close
-          (avcodec-send-packet ctx #f)
-          (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
-            (let loop ()
-              (avcodec-receive-frame ctx in-frame)
-              (set-av-frame-pts!
-               in-frame (av-frame-get-best-effort-timestamp in-frame))
-              (av-buffersrc-write-frame buff-ctx in-frame)
-              (loop)))
-          (avcodec-flush-buffers ctx)
-          (av-buffersrc-write-frame buff-ctx #f)]
-         [_ (void)])])))
+     (match mode
+       ['loop
+        (avcodec-send-packet ctx packet)
+        (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
+          (let loop ()
+            (define in-frame (avcodec-receive-frame ctx))
+            (set-av-frame-pts!
+             in-frame (av-frame-get-best-effort-timestamp in-frame))
+            (av-buffersrc-add-frame buff-ctx in-frame)
+            (loop)))]
+       ['close
+        (avcodec-send-packet ctx #f)
+        (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
+          (let loop ()
+            (define in-frame (avcodec-receive-frame ctx))
+            (set-av-frame-pts!
+             in-frame (av-frame-get-best-effort-timestamp in-frame))
+            (av-buffersrc-add-frame buff-ctx in-frame)
+            (loop)))
+        (avcodec-flush-buffers ctx)
+        (av-buffersrc-write-frame buff-ctx #f)]
+       [_ (void)])]))
 
-(define (filtergraph-next-packet [out-frame* #f]
-                                 #:render-status [rs-box #f])
+(define (filtergraph-next-packet #:render-status [rs-box #f])
   ;; Memory leak out-frame
-  (define out-frame (or out-frame* (av-frame-alloc)))
   (λ (mode obj)
     (match obj
       [(struct* codec-obj ([codec-context ctx]
@@ -1130,8 +1133,9 @@
                                                     (reverse (cons eof pkts)))])
                                    (define pkt (avcodec-receive-packet ctx))
                                    (loop (cons pkt pkts)))))])
-              (av-buffersink-get-frame buff-ctx out-frame)
+              (define out-frame (av-buffersink-get-frame buff-ctx))
               (avcodec-send-frame ctx out-frame)
+              (av-frame-free out-frame)
               (let loop ([pkts '()])
                 (with-handlers ([exn:ffmpeg:again? (λ (e) (reverse pkts))])
                   (define pkt (avcodec-receive-packet ctx))
@@ -1140,23 +1144,20 @@
 
 (define (render g)
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))
-  (define out-frame (av-frame-alloc))
   (define in-threads
     (for/list ([bundle in-bundles]
                [index (in-naturals)])
       (thread
        (λ ()
-         (define in-frame (av-frame-alloc))
          (demux-stream
           bundle
-          #:by-index-callback (filtergraph-insert-packet in-frame))
-         (av-frame-free in-frame)))))
+          #:by-index-callback (filtergraph-insert-packet))))))
   (define out-thread
     (thread
      (λ ()
        (mux-stream
         out-bundle
-        #:by-index-callback (filtergraph-next-packet out-frame)))))
+        #:by-index-callback (filtergraph-next-packet)))))
   
   (map thread-wait in-threads)
   (thread-wait out-thread)

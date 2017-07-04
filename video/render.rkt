@@ -265,7 +265,7 @@
               (λ () (set! in-frame (av-frame-alloc)))
               (λ ()
                 (demux-stream bundle
-                              #:by-index-callback (filtergraph-insert-packet in-frame)))
+                              #:by-index-callback (filtergraph-insert-packet)))
               (λ () (av-frame-free in-frame)))))))
       (map thread-wait threads))
 
@@ -278,7 +278,7 @@
        (λ ()
          (mux-stream output-bundle
                      #:by-index-callback (filtergraph-next-packet
-                                          out-frame #:render-status current-render-status)))
+                                          #:render-status current-render-status)))
        (λ () (av-frame-free out-frame))))
 
     (define/public (rendering?)
