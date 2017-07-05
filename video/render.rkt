@@ -260,26 +260,16 @@
         (for/list ([bundle (in-list input-bundles)])
           (thread
            (λ ()
-             (define in-frame #f)
-             (dynamic-wind
-              (λ () (set! in-frame (av-frame-alloc)))
-              (λ ()
-                (demux-stream bundle
-                              #:by-index-callback (filtergraph-insert-packet)))
-              (λ () (av-frame-free in-frame)))))))
+             (demux-stream bundle
+                           #:by-index-callback (filtergraph-insert-packet))))))
       (map thread-wait threads))
 
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
     (define/public (write-output)
-      (define out-frame #f)
-      (dynamic-wind
-       (λ () (set! out-frame (av-frame-alloc)))
-       (λ ()
-         (mux-stream output-bundle
-                     #:by-index-callback (filtergraph-next-packet
-                                          #:render-status current-render-status)))
-       (λ () (av-frame-free out-frame))))
+      (mux-stream output-bundle
+                  #:by-index-callback (filtergraph-next-packet
+                                       #:render-status current-render-status)))
 
     (define/public (rendering?)
       (render-status-box-rendering? current-render-status))
