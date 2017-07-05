@@ -2011,10 +2011,10 @@
                   (av-frame-free out*))
                 (cond
                   [(= (- ret) EAGAIN)
-                   (raise (exn:ffmpeg:again "buffersink-get-frame" (current-continuation-marks)))]
+                   (raise (exn:ffmpeg:again "buffersink-get-frame/again" (current-continuation-marks)))]
                   [(= ret AVERROR-EOF)
-                   (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
-                  [else (error 'buffersink-get-frame (convert-err ret))])])))
+                   (raise (exn:ffmpeg:eof "buffersink-get-frame/eof" (current-continuation-marks)))]
+                  [else (error 'buffersink-get-frame/other (convert-err ret))])])))
   (define o (or out (av-frame-alloc)))
   (av-buffersink-get-frame ptr o))
 (define (av-buffersink-get-frame-flags ptr flags/frame [maybe-flags #f])
