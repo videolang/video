@@ -1095,7 +1095,7 @@
             (define in-frame (avcodec-receive-frame ctx))
             (set-av-frame-pts!
              in-frame (av-frame-get-best-effort-timestamp in-frame))
-            ;(av-buffersrc-write-frame buff-ctx in-frame)
+            (av-buffersrc-write-frame buff-ctx in-frame)
             ;(av-buffersrc-add-frame buff-ctx in-frame)
             ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
             (av-frame-free in-frame)
