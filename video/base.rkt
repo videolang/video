@@ -255,7 +255,7 @@
                            (hash 'video (mk-filter "color" (hash "color" "black"
                                                                  "size" (format "~ax~a" width height)
                                                                  "d" (exact->inexact t-length)))
-                                 'audio (mk-empty-audio-filter))
+                                 'audio (mk-empty-audio-filter #:duration len-a))
                            #:counts (node-counts node-a)))
                         (define pad-a
                           (mk-filter-node (hash 'video (mk-filter "scale" (hash "width" width
@@ -296,9 +296,6 @@
                         (define pts-b
                           (mk-filter-node
                            (hash 'video (mk-filter "setpts"
-                                                   (hash "expr" (format "PTS-STARTPTS+(~a/TB)"
-                                                                        (- len-a fade-length))))
-                                 'audio (mk-filter "asetpts"
                                                    (hash "expr" (format "PTS-STARTPTS+(~a/TB)"
                                                                         (- len-a fade-length)))))
                            #:counts (node-counts node-b)))

@@ -787,8 +787,10 @@
                                      (hash-set ret "duration" duration)
                                      ret)])
                        ret)))
-(define (mk-empty-audio-filter)
-  (mk-filter "aevalsrc" (hash "exprs" "0")))
+(define (mk-empty-audio-filter #:duration [d #f])
+  (mk-filter "aevalsrc" (let* ([ret (hash "exprs" "0")]
+                               [ret (if d (dict-set ret "d" d) ret)])
+                          ret)))
 (define (mk-empty-node #:width [width DEFAULT-WIDTH]
                        #:height [height DEFAULT-HEIGHT]
                        #:duration [duration 100]
