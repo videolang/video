@@ -1023,7 +1023,7 @@
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
   (displayln (graphviz g))
-  ;(displayln g-str)
+  (displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1076,7 +1076,7 @@
                            [buffer-context buff-ctx]
                            [type type]))
        (set-avcodec-context-time-base! ctx (av-buffersink-get-time-base buff-ctx))
-       ;(set-avcodec-context-frame-rate! ctx (/ 1 (av-buffersink-get-frame-rate buff-ctx)))
+       ;(set-avcodec-context-frame-rate! ctx (av-buffersink-get-frame-rate buff-ctx))
        (match type
          ['video (set-avcodec-context-pix-fmt! ctx (av-buffersink-get-format buff-ctx 'video))
                  (set-avcodec-context-width! ctx (av-buffersink-get-w buff-ctx))
