@@ -117,7 +117,7 @@
         #:fps fps)
   (define in-t (thread (λ () (send r feed-buffers))))
   (define out-t (thread (λ () (send r write-output))))
-  (thread-wait in-t)
+  ;(thread-wait in-t)
   (thread-wait out-t))
 
 (define (render/async video

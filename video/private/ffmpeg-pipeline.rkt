@@ -84,6 +84,7 @@
                    codec-context
                    stream
                    next-pts
+                   buffer
                    buffer-context
                    callback-data
                    extra-parameters
@@ -97,11 +98,12 @@
                       #:codec-context [codec-context #f]
                       #:stream [s #f]
                       #:next-pts [n 0]
+                      #:buffer [bf #f]
                       #:buffer-context [bc #f]
                       #:callback-data [cd #f]
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s n bc cd ep f))
+  (codec-obj occ t i id codec codec-context s n bf bc cd ep f))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
@@ -258,6 +260,20 @@
                     #:streams streams
                     #:stream-table stream-table))
 
+;; A busy loop, we can do better. >:(
+(define (wait-for-packet-need bundle)
+  (let loop ()
+    (unless (for/fold ([needed? #f])
+                      ([str (stream-bundle-streams bundle)])
+              (define buff-ctx (codec-obj-buffer-context str))
+              (cond
+                [needed? needed?]
+                [buff-ctx
+                 (> (av-buffersrc-get-nb-failed-requests buff-ctx) 0)]
+                [else #t]))
+      (sleep 0.01)
+      (loop))))
+
 (define (demux-stream/fill-bundle bundle
                                   #:callback-table [callback-table (hash)]
                                   #:by-index-callback [by-index-callback #f])
@@ -286,19 +302,17 @@
   (define streams (stream-bundle-streams bundle))
   (define stream-table (stream-bundle-stream-table bundle))
   (let loop ()
+    (wait-for-packet-need bundle)
     (define packet (av-read-frame avformat))
     (when packet
       (define index (avpacket-stream-index packet))
       (define obj (vector-ref streams index))
-      (define delete-pkt?
-        (cond [by-index-callback (by-index-callback 'loop obj packet)]
-              [else
-               (define type (codec-obj-type obj))
-               (cond [(eq? obj (hash-ref stream-table type))
-                      ((callback-ref callback-table type) 'loop obj packet)]
-                     [else (av-packet-unref packet)])]))
-      (when delete-pkt?
-        (av-packet-free packet))
+      (cond [by-index-callback (by-index-callback 'loop obj packet)]
+            [else
+             (define type (codec-obj-type obj))
+             (when (eq? obj (hash-ref stream-table type))
+               ((callback-ref callback-table type) 'loop obj packet))])
+      (av-packet-free packet)
       (loop))))
 
 (define (demux-stream/close-bundle bundle
@@ -329,9 +343,6 @@
                       #:callback-table [callback-table (hash)]
                       #:by-index-callback [by-index-callback #f])
   ;; Init Streams
-  (define avformat (stream-bundle-avformat-context bundle))
-  (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table bundle))
   (demux-stream/fill-bundle bundle
                             #:callback-table callback-table
                             #:by-index-callback by-index-callback)
@@ -587,7 +598,6 @@
                   (set-avpacket-stream-index!
                    next-packet (avstream-index (codec-obj-stream min-stream)))
                   (av-write-frame output-context next-packet)
-                  ;(av-packet-unref next-packet)
                   ;(av-interleaved-write-frame output-context next-packet)
                   (av-packet-free next-packet)
                   ])]))

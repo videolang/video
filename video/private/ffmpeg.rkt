@@ -2011,7 +2011,8 @@
                   (av-frame-free out*))
                 (cond
                   [(= (- ret) EAGAIN)
-                   (raise (exn:ffmpeg:again "buffersink-get-frame/again" (current-continuation-marks)))]
+                   (raise (exn:ffmpeg:again "buffersink-get-frame/again"
+                                            (current-continuation-marks)))]
                   [(= ret AVERROR-EOF)
                    (raise (exn:ffmpeg:eof "buffersink-get-frame/eof" (current-continuation-marks)))]
                   [else (error 'buffersink-get-frame/other (convert-err ret))])])))
@@ -2027,7 +2028,8 @@
                   (av-frame-free out))
                 (cond
                   [(= (- ret) EAGAIN)
-                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
+                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags"
+                                            (current-continuation-marks)))]
                   [(= ret AVERROR-EOF)
                    (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
                   [else (error 'buffersink-get-frame-flags (convert-err ret))])])))
@@ -2047,7 +2049,8 @@
                   (av-frame-free out))
                 (cond
                   [(= (- ret) EAGAIN)
-                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags" (current-continuation-marks)))]
+                   (raise (exn:ffmpeg:again "buffersink-get-frame-flags"
+                                            (current-continuation-marks)))]
                   [(= ret AVERROR-EOF)
                    (raise (exn:ffmpeg:eof "buffersink-get-frame" (current-continuation-marks)))]
                   [else (error 'buffersink-get-frame-flags (convert-err ret))])])))
@@ -2098,6 +2101,7 @@
         -> (cond
              [(= ret 0) (void)]
              [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
+(define-avfilter av-buffersrc-get-nb-failed-requests (_fun _avfilter-context-pointer -> _int))
 (define-avfilter avfilter-version (_fun -> _uint))
 (define-avfilter avfilter-configuration (_fun -> _string))
 (define-avfilter avfilter-license (_fun -> _string))
