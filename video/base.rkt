@@ -102,7 +102,11 @@
   
   [scale-filter (-> (and/c number? positive?) (and/c number? positive?) filter?)]
 
+  [color-channel-mixer-filter (-> (hash/c string? (between/c -2 2)) filter?)]
+
   [grayscale-filter (-> filter?)]
+
+  [sepia-filter (-> filter?)]
 
   ;; Set a property associated with a properties struct
   [set-property (-> properties? string? any/c properties?)]
@@ -387,8 +391,25 @@
                             [p (if end (dict-set p "end" end) p)])
                        p)))
 
+(define (color-channel-mixer-filter table)
+  (define color-channel-mixer-keys
+    (set "rr" "rg" "rb" "ra" "gr" "gg" "gb" "ga" "br" "bg" "bb" "ba" "ar" "ag" "ab" "aa"))
+  (for ([(k v) (in-dict table)])
+    (unless (set-member? color-channel-mixer-keys k)
+      (error 'color-channel-mixer-filter "Invalid key: ~a" k)))
+  (mk-filter-node (hash 'video (mk-filter "colorchannelmixer" table))))
+
 (define (grayscale-filter)
-  (error "TODO"))
+  (color-channel-mixer-filter (hash "rr" 0.3 "rg" 0.4 "rb" 0.3 "ra" 0
+                                    "gr" 0.3 "gg" 0.4 "gb" 0.3 "ga" 0
+                                    "br" 0.4 "bg" 0.4 "bb" 0.3 "ba" 0
+                                    "ar" 0   "ag" 0   "ab" 0   "aa" 0)))
+
+(define (sepia-filter)
+  (color-channel-mixer-filter (hash "rr" 0.393 "rg" 0.769 "rb" 0.189 "ra" 0
+                                    "gr" 0.349 "gg" 0.686 "gb" 0.168 "ga" 0
+                                    "br" 0.272 "bg" 0.534 "bb" 0.131 "ba" 0
+                                    "ar" 0     "ag" 0     "ab" 0     "aa" 0)))
 
 (define (envelope-filter #:direction direction
                          #:length length)
