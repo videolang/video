@@ -656,7 +656,7 @@
 
 (define _avcolor-primaries _fixint)
 
-(define _avpixel-format (_enum '(unknown = -1
+(define _avpixel-format (_enum `(unknown = -1
                                  yuv420p
                                  yuyv422
                                  rgb24
@@ -673,7 +673,7 @@
                                  yuvj422p
                                  yuvj444p
                                  xvmc-mpeg2-mc ;; DEP AVUTIL 56
-                                 xvmc-mpeg2-idct
+                                 xvmc-mpeg2-idct ;; DEP AVUTIL 56
                                  uyvy422
                                  uyyvyy411
                                  bgr8
@@ -693,32 +693,150 @@
                                  yuv440p
                                  yuvj440p
                                  yuva420p
-                                 ;vdpau-h264
-                                 ;vdpau-mpeg1
-                                 ;vdpau-mpeg2
-                                 ;vdpau-wmv3
-                                 ;vdpau-vc1
+                                 vdpau-h264 ;; DEP AVUTIL 56
+                                 vdpau-mpeg1 ;; DEP AVUTIL 56
+                                 vdpau-mpeg2 ;; DEP AVUTIL 56
+                                 vdpau-wmv3 ;; DEP AVUTIL 56
+                                 vdpau-vc1 ;; DEP AVUTIL 56
                                  rgb48be
                                  rgb48le
                                  rgb565be
                                  rgb565le
                                  rgb555be
                                  rgb555le
-                                 vaapi-moco
-                                 vaapi-idct
-                                 vaapi-vld
+                                 bgr565be
+                                 bgr565le
+                                 bgr555be
+                                 bgr555le
+                                 vaapi-moco ;; DEP AVUTIL 56
+                                 vaapi-idct ;; DEP AVUTIL 56
+                                 vaapi ;; NOT DEP!!!
                                  yuv420p16le
                                  yuv420p16be
                                  yuv422p16le
                                  yuv422p16be
-                                 ;vdpau-mp4
+                                 vdpau-mpeg4 ;; DEP AVUTIL 56
                                  dxva2-vld
                                  rgb444le
                                  rgb444be
                                  bgr444le
                                  bgr444be
                                  ya8
-                                 ))) ;; XXX And more! :)
+                                 bgr48be
+                                 bgr48le
+                                 yuv420p9be
+                                 yuv420p9le
+                                 yuv420p10be
+                                 yuv420p10le
+                                 yuv422p10be
+                                 yuv422p10le
+                                 yuv444p9be
+                                 yuv444p9le
+                                 yuv444p10be
+                                 yuv444p10le
+                                 yuv422p9be
+                                 yuv422p9le
+                                 vda-vld
+                                 gbrp
+                                 gbrp9be
+                                 gbrp9le
+                                 gbrp10be
+                                 gbrp10le
+                                 gbrp16be
+                                 gbrp16le
+                                 yuva422p
+                                 yuva444p
+                                 yuva420p9be
+                                 yuva420p9le
+                                 yuva422p9be
+                                 yuva422p9le
+                                 yuva444p9be
+                                 yuva444p9le
+                                 yuva420p10be
+                                 yuva420p10le
+                                 yuva444p10be
+                                 yuva444p10le
+                                 yuva420p16be
+                                 yuva420p16le
+                                 yuva422p16be
+                                 yuva422p16le
+                                 yuva444p16be
+                                 yuva444p16le
+                                 vdpau
+                                 xyz12le
+                                 xyz12be
+                                 nv16
+                                 nv20le
+                                 nv20be
+                                 rgba64be
+                                 rgba64le
+                                 bgra64be
+                                 bgra64le
+                                 yvyu422
+                                 vda
+                                 ya16be
+                                 ya16le
+                                 gbrap
+                                 gbrap16be
+                                 gbrap16le
+                                 qsv
+                                 mmal
+                                 d3d11va-vld
+                                 cuda
+                                 0rgb = ,(+ #x123 4)
+                                 rgb0
+                                 0bgr
+                                 bgr0
+                                 yuv420p12be
+                                 yuv420p12le
+                                 yuv420p14be
+                                 yuv420p14le
+                                 yuv422p12be
+                                 yuv422p12le
+                                 yuv422p14be
+                                 yuv422p14le
+                                 yuv444p12be
+                                 yuv444p12le
+                                 yuv444p14be
+                                 yuv444p14le
+                                 gbrp12be
+                                 gbrp12le
+                                 gbrp14be
+                                 gbrp14le
+                                 yuvj411p
+                                 bayer-bggr8
+                                 bayer-rggb8
+                                 bayer-gbrg8
+                                 bayer-grbg8
+                                 bayer-bggr16le
+                                 bayer-bggr16be
+                                 bayer-rggb16le
+                                 bayer-rggb16be
+                                 bayer-gbrg16le
+                                 bayer-gbrg16be
+                                 bayer-grbg16le
+                                 bayer-grbg16be
+                                 xvmc ;; DEP AVUTIL 56
+                                 yuv440p10le
+                                 yuv440p10be
+                                 yuv440p12le
+                                 yuv440p12be
+                                 ayuv64le
+                                 ayuv64be
+                                 videotoolbox
+                                 p010le
+                                 p010be
+                                 gbrap12be
+                                 gbrap12le
+                                 gbrap10be
+                                 gbrap10le
+                                 mediacodec
+                                 gray12be
+                                 gray12le
+                                 gray10be
+                                 gray10le
+                                 p016le
+                                 p016be)))
 (define-cpointer-type _avpixel-format-pointer)
 
 (define _avcolor-range
@@ -1142,7 +1260,6 @@
    [chroma-sample-location _avchroma-location]
    [slices _int]
    [field-order _avfield-order]
-   ;[padding _int] ;; XXX: ALMOST CERTAINLY MISSING SOMETHING
    [sample-rate _int]
    [channels _int]
    [sample-fmt _avsample-format]
