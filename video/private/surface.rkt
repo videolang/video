@@ -38,21 +38,20 @@
 (define-syntax (define-producer stx)
   (syntax-parse stx
     [(_ f:function-header
-        (~or (~optional (~seq #:type type) #:defaults ([type #'#f]))
-             (~optional (~seq #:source source) #:defaults ([source #'#f]))
-             (~optional (~seq #:properties properties) #:defaults ([properties #'properties])))
+        (~or (~optional (~seq #:subgraph subgraph) #:defaults ([subgraph #'#f]))
+             (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
+             (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop])))
         ...
         body ...)
      #`(define (f.name
-                #:properties [properties (hash)]
+                #:properties [user-prop (hash)]
                 #:filters [filters '()]
                 . f.args)
          body ...
          (make-producer
-          #:type type
-          #:source source
+          #:subgraph subgraph
           #:filters filters
-          #:prop properties))]))
+          #:prop (properties-proc user-prop)))]))
 
 (define-syntax (->producer stx)
   (syntax-parse stx
@@ -83,6 +82,7 @@
     [(_ f:function-header
         (~or (~optional (~seq #:direction direction))
              (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
+             (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc #'(λ (x) (make-video-subgraph))]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
@@ -98,7 +98,7 @@
      #`(define (f.name #,@(match (syntax-e (attribute direction))
                             [(or 't/b 'top/bottom) #'(#:top arg2 #:bottom arg1)]
                             [(or 's/e 'start/end _) #'(#:start arg2 #:end arg1)])
-                       #:properties [properties #f]
+                       #:properties [user-prop (hash)]
                        . f.args)
          body ...
          (define trans

@@ -89,4 +89,8 @@
          mk-fifo-video-filter
          mk-fifo-audio-filter
          mk-fifo-node
-         mk-filter)
+         mk-split-video-filter
+         mk-split-audio-filter
+         mk-split-node
+         mk-filter
+         color->string)

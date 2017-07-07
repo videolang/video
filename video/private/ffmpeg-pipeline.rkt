@@ -25,6 +25,9 @@
          racket/async-channel
          racket/function
          racket/struct
+         racket/draw
+         racket/class
+         racket/format
          (except-in racket/contract ->)
          (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
@@ -834,6 +837,28 @@
                         'audio (mk-split-audio-filter #:fan-out c))
                   #:counts counts
                   #:props props))
+
+(define (color->string color)
+  (define c*
+    (match color
+      [`(,r ,g ,b) (make-object color% r g b)]
+      [_ (make-object color% color)]))
+  (format "0x~a~a~a~a"
+          (number->2string (send c* red))
+          (number->2string (send c* green))
+          (number->2string (send c* blue))
+          (number->2string (inexact->exact (round (* 255 (send c* alpha)))))))
+
+;; Converts a number to a 2 character octal string
+;; Number -> String
+;; Given: 2 Expect: "02"
+;; Given: 255 Expect: "ff"
+(define (number->2string number)
+  (~a #:left-pad-string "0"
+      #:min-width 2
+      #:max-width 2
+      #:align 'right
+      (format "~x" number)))
 
 ;; ===================================================================================================
 

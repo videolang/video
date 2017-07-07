@@ -148,20 +148,21 @@
                #:properties [properties #f])
   (clip path #:filters filters #:properties properties))
 
-(define (color c
-               #:filters [filters #f]
-               #:properties [properties #f])
-  (define c*
-    (match c
-      [`(,r ,g ,b) (make-object color% r g b)]
-      [_ (make-object color% c)]))
-  (clip (format "color:0x~a~a~a~a"
-                (number->2string (send c* red))
-                (number->2string (send c* green))
-                (number->2string (send c* blue))
-                (number->2string (inexact->exact (round (* 255 (send c* alpha))))))
-        #:filters [filters #f]
-        #:properties [properties #f]))
+(define-producer (color c)
+  #:user-properties prop
+  #:subgraph (hash 'video
+                   (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
+                                             [ret (if length (hash-set ret "d" length) ret)]
+                                             [ret (if (and width height)
+                                                      (hash-set ret "size" (format "~ax~a" width height))
+                                                      ret)])
+                                        ret)))
+  (define length (or (dict-ref prop "length" #f)
+                     (and (dict-ref prop "start" #f)
+                          (dict-ref prop "end" #f)
+                          (- (dict-ref prop "end") (dict-ref prop "start")))))
+  (define width (dict-ref prop "width" #f))
+  (define height (dict-ref prop "height" #f)))
 
 (define (multitrack #:transitions [transitions '()]
                     #:properties [prop #f]
@@ -397,7 +398,7 @@
   (for ([(k v) (in-dict table)])
     (unless (set-member? color-channel-mixer-keys k)
       (error 'color-channel-mixer-filter "Invalid key: ~a" k)))
-  (make-filter #:table (hash 'video (mk-filter "colorchannelmixer" table))))
+  (make-filter #:subgraph (hash 'video (mk-filter "colorchannelmixer" table))))
 
 (define (grayscale-filter)
   (color-channel-mixer-filter (hash "rr" 0.3 "rg" 0.4 "rb" 0.3 "ra" 0
@@ -418,17 +419,6 @@
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)
 ;; ===================================================================================================
-
-;; Converts a number to a 2 character octal string
-;; Number -> String
-;; Given: 2 Expect: "02"
-;; Given: 255 Expect: "ff"
-(define (number->2string number)
-  (~a #:left-pad-string "0"
-      #:min-width 2
-      #:max-width 2
-      #:align 'right
-      (format "~x" number)))
 
 ;; Convert a path relative to a video file to
 ;; a string that is the absolute path.
