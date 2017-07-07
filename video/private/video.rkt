@@ -277,9 +277,13 @@
            #f]))
   (values r1 r2 rc))
 
-(define-constructor producer service ([type #f]
-                                      [source #f])
-  ())
+(define-constructor producer service ([table (hash)]) ()
+  (define node (mk-filter-node table
+                               #:counts (for/hash ([(k v) (in-dict table)])
+                                          (values k 1))
+                               #:props prop))
+  (add-vertex! (current-render-graph) node)
+  node)
 
 (define-constructor file producer ([path #f]) ()
   (when (not path)
