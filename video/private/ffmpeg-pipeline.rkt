@@ -823,6 +823,20 @@
                   #:counts counts
                   #:props props))
 
+(define (mk-split-video-filter #:fan-out [c 2])
+  (mk-filter "split" (hash "default" c)))
+(define (mk-split-audio-filter #:fan-out [c 2])
+  (mk-filter "asplit" (hash "default" c)))
+(define (mk-split-node #:fan-out [c 2]
+                       #:counts [counts (hash)]
+                       #:props [props (hash)])
+  (mk-filter-node (hash 'video (mk-split-video-filter #:fan-out c)
+                        'audio (mk-split-audio-filter #:fan-out c))
+                  #:counts counts
+                  #:props props))
+
+;; ===================================================================================================
+
 (define (mk-edge-counter [start 0])
   (define edge-counter start)
   (define edge-mapping (make-hash))

@@ -224,7 +224,58 @@
 (define-constructor transition service ([track1-subgraph #f]
                                         [track2-subgraph #f]
                                         [combined-subgraph #f])
-  ())
+  ([prev1 #f]
+   [prev2 #f])
+  (unless (and prev1 prev2)
+    (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
+  (define prev1-copy (mk-split-node #:fan-out 2
+                                    #:counts (node-counts prev1)
+                                    #:props (node-props prev1)))
+  (define prev2-copy (mk-split-node #:fan-out 2
+                                    #:counts (node-counts prev2)
+                                    #:props (node-props prev2)))
+  (add-vertex! (current-render-graph) prev1-copy)
+  (add-vertex! (current-render-graph) prev2-copy)
+  (add-directed-edge! (current-render-graph) prev1 prev1-copy 1)
+  (add-directed-edge! (current-render-graph) prev2 prev2-copy 1)
+  (define track1-sub (track1-subgraph prev1))
+  (define track2-sub (track2-subgraph prev2))
+  (define combined-sub (combined-sub prev1 prev2))
+  (define r1
+    (cond [track1-sub
+           (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
+           (add-directed-edge! (current-render-graph prev1-copy (video-subgraph-sources track1-sub)) 2)
+           (video-subgraph-sinks track1-sub)]
+          [else
+           (define sink-node (mk-empty-sink-node #:counts (node-counts prev1-copy)))
+           (add-vertex! (current-render-graph) sink-node)
+           (add-directed-edge! (current-render-graph) prev1-copy sink-node 2)
+           #f]))
+  (define r2
+    (cond [track2-sub
+           (graph-union! (current-render-graph) (video-subgraph-graph track2-sub))
+           (add-directed-edge! (current-render-graph prev2-copy (video-subgraph-sources track2-sub)) 1)
+           (video-subgraph-sinks track2-sub)]
+          [else
+           (define sink-node (mk-empty-sink-node #:counts (node-counts prev2-copy)))
+           (add-vertex! (current-render-graph) sink-node)
+           (add-directed-edge! (current-render-graph) prev2-copy sink-node 1)
+           #f]))
+  (define rc
+    (cond [combined-sub
+           (graph-union! (current-render-graph) (video-subgraph-graph combined-sub))
+           (add-directed-edge! (current-render-graph) prev1-copy (car (video-subgraph-sources combined-sub)) 1)
+           (add-directed-edge! (current-render-graph) prev2-copy (car (video-subgraph-sources combined-sub)) 2)
+           (video-subgraph-sinks combined-sub)]
+          [else
+           (define sink-node1 (mk-empty-sink-node #:counts (node-counts prev1-copy)))
+           (define sink-node2 (mk-empty-sink-node #:counts (node-counts prev2-copy)))
+           (add-vertex! (current-render-graph) sink-node1)
+           (add-vertex! (current-render-graph) sink-node2)
+           (add-directed-edge! (current-render-graph) prev1-copy sink-node1 1)
+           (add-directed-edge! (current-render-graph) prev2-copy sink-node2 2)
+           #f]))
+  (values r1 r2 rc))
 
 (define-constructor producer service ([type #f]
                                       [source #f])
