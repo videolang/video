@@ -397,7 +397,7 @@
   (for ([(k v) (in-dict table)])
     (unless (set-member? color-channel-mixer-keys k)
       (error 'color-channel-mixer-filter "Invalid key: ~a" k)))
-  (mk-filter-node (hash 'video (mk-filter "colorchannelmixer" table))))
+  (make-filter #:table (hash 'video (mk-filter "colorchannelmixer" table))))
 
 (define (grayscale-filter)
   (color-channel-mixer-filter (hash "rr" 0.3 "rg" 0.4 "rb" 0.3 "ra" 0

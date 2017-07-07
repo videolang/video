@@ -112,7 +112,7 @@
   (if (service? video-source)
       (for/fold ([ret vprop])
                 ([f (in-list (service-filters video-source))])
-        (define f* (convert f))
+        (define f* (convert-filter f ret))
         (add-directed-edge! (current-render-graph) ret f* 1)
         f*)
       vprop))
@@ -135,7 +135,7 @@
 (define-syntax (define-constructor stx)
   (syntax-parse stx
     [(_ name:id super* ([ids:id default] ...)
-        ([convert-args:id convert-default] ...) body ...)
+        ([convert-args:id convert-defaults] ...) body ...)
      #:with constructor (format-id stx "make-~a" #'name)
      #:with this (format-id stx "this")
      #:with new-supers (format-id stx "subclass-~a" #'name)
@@ -202,9 +202,13 @@
 
 (define-constructor service properties ([filters '()]) ())
 
-(define-constructor filter service ([type #f] [source #f])
-  ()
-  (error "TODO"))
+(define-constructor filter service ([table #f])
+  ([prev #f])
+  (define node (mk-filter-node table
+                               #:counts (if prev (node-counts prev) (hash))
+                               #:props (if prev (node-props prev) (hash))))
+  (add-vertex! (current-render-graph) node)
+  node)
 
 (define-constructor nullsink service ([source #f])
   ()
