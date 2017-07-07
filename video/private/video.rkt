@@ -202,13 +202,22 @@
 
 (define-constructor service properties ([filters '()]) ())
 
-(define-constructor filter service ([table #f])
+(define-constructor filter service ([subgraph #f])
   ([prev #f])
-  (define node (mk-filter-node table
-                               #:counts (if prev (node-counts prev) (hash))
-                               #:props (if prev (node-props prev) (hash))))
-  (add-vertex! (current-render-graph) node)
-  node)
+  (unless prev
+    (error 'filter "Prev node ~a not found" prev))
+  (cond
+    [(dict? subgraph)
+     (define node (mk-filter-node subgraph
+                                  #:counts (if prev (node-counts prev) (hash))
+                                  #:props (if prev (node-props prev) (hash))))
+     (add-vertex! (current-render-graph) node)
+     node]
+    [(procedure? subgraph)
+     (define rg (subgraph prev))
+     (graph-union! (current-render-graph) (video-subgraph-graph rg))
+     (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg) 1)
+     (video-subgraph-sinks rg)]))
 
 (define-constructor nullsink service ([source #f])
   ()
@@ -277,13 +286,25 @@
            #f]))
   (values r1 r2 rc))
 
-(define-constructor producer service ([table (hash)]) ()
-  (define node (mk-filter-node table
-                               #:counts (for/hash ([(k v) (in-dict table)])
-                                          (values k 1))
-                               #:props prop))
-  (add-vertex! (current-render-graph) node)
-  node)
+(define-constructor producer service ([subgraph (hash)])
+  ([prev #f])
+  (cond
+    [(dict? subgraph)
+     (define node (mk-filter-node subgraph
+                                  #:counts (for/hash ([(k v) (in-dict subgraph)])
+                                             (values k 1))
+                                  #:props prop))
+     (add-vertex! (current-render-graph) node)
+     (when prev
+       (add-directed-edge! (current-render-graph) prev node 1))
+     node]
+    [(procedure? subgraph)
+     (unless prev
+       (error 'producer "Undefined prev node ~a" prev))
+     (define rg (subgraph prev))
+     (graph-union! (current-render-graph) (video-subgraph-graph rg))
+     (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg))
+     (video-subgraph-sinks rg)]))
 
 (define-constructor file producer ([path #f]) ()
   (when (not path)
