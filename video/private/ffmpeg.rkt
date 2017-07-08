@@ -1915,6 +1915,9 @@
                           (current-continuation-marks)))]
                  [else (raise (convert-err ret))])))
 (define-avformat av-new-program (_fun _avformat-context-pointer _int -> _av-program-pointer))
+(define-avformat av-stream-get-end-pts (_fun _avstream-pointer -> _int64))
+(define-avformat av-stream-set-r-frame-rate (_fun _avstream-pointer _avrational -> _void))
+(define-avformat av-stream-get-r-frame-rate (_fun _avstream-pointer -> _avrational))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
@@ -2162,9 +2165,6 @@
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))
-(define-avutil av-stream-get-end-pts (_fun _avstream-pointer -> _int64))
-(define-avutil av-stream-set-r-frame-rate (_fun _avstream-pointer _avrational -> _void))
-(define-avutil av-stream-get-r-frame-rate (_fun _avstream-pointer -> _avrational))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
