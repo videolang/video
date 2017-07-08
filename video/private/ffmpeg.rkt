@@ -587,8 +587,20 @@
                              adpcm-aica
                              adpcm-ima-dat4
                              adpcm-mtaf
-                             
-                             ;; XXX MORE
+
+                             ;; AMR
+                             amr-nb = #x12000
+                             amr-wb
+
+                             ;; RealAudio
+                             ra-144 = #x13000
+                             ra-288
+
+                             ;; DPCM Codecs
+                             roq-dpcm = #x14000
+                             interplay-dpcm
+                             xan-dpcm
+                             sol-dpcm
 
                              ;; Audio
                              mp2 = #x15000
@@ -627,8 +639,56 @@
                              ape
                              nellymoser
                              musepack8
-                             speex ;; XXX MORE
+                             speex
+                             wmavoice
+                             wmapro
+                             wmalossless
+                             atrac3p
+                             eac3
+                             sipr
+                             mp1
+                             twinvq
+                             truehd
+                             mp4als
+                             atrac1
+                             binkaudio-rdft
+                             binkaudio-dct
+                             aac-latm
+                             qdmc
+                             celt
+                             g723-1
+                             g729
+                             8svx-exp
+                             8svx-fib
+                             bmv-audio
+                             ralf
+                             iac
+                             ilbc
+                             opus
+                             comfort-noise
+                             tak
+                             metasound
+                             paf-audio
+                             on2avc
+                             dss-sp
 
+                             ffwavesynth = #x15800
+                             sonic
+                             sonic-ls
+                             evrc
+                             smv
+                             dsd-lsbf
+                             dsd-msbf
+                             dsd-lsbf-planar
+                             dsd-msbf-planar
+                             4gv
+                             interplay-acm
+                             xma1
+                             xma2
+                             dst
+                             atrac3al
+                             atrac3pal  
+                             
                              ;; Subtitle
                              dvd-subtitle = #x17000
                              dvb-subtitle
@@ -638,12 +698,40 @@
                              mov-text
                              hdmv-pgs-subtitle
                              dvb-teletext
+                             srt
+
+                             microdvd = #x17800
+                             eta608
+                             jadosub
+                             sami
+                             realtext
+                             stl
+                             subviewer1
+                             subviewer
+                             subrip
+                             webvtt 
+                             mpl2
+                             vplayer
+                             pjs
+                             ass
+                             hdmv-text-subtitle
 
                              ;; Misc
                              ttf = #x18000
+                             scte-35
+                             bintext = #x18800
+                             xbin
+                             idf
+                             otf
+                             smpte-klv
+                             dvd-nav
+                             timer-id3
+                             bin-data
                              probe = #x19000
                              mpeg2ts = #x20000
-                             )))
+                             mpeg4systems
+                             ffmetadata = #x21000
+                             wrapped-avframe)))
 
 (define _av-duration-estimation-method _fixint)
 
