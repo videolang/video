@@ -156,7 +156,9 @@
                                              [ret (if (and width height)
                                                       (hash-set ret "size" (format "~ax~a" width height))
                                                       ret)])
-                                        ret)))
+                                        ret))
+                   'audio
+                   (mk-empty-audio-filter #:duration length))
   (define length (or (dict-ref prop "length" #f)
                      (and (dict-ref prop "start" #f)
                           (dict-ref prop "end" #f)

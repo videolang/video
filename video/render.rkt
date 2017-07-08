@@ -252,7 +252,7 @@
                                                [r (if start (hash-set r "start" start) r)]
                                                [r (if end (hash-set r "end" end) r)])
                                           r)))
-                  #:counts (hash 'video 1 'audio 1)))
+                  #:counts (node-counts video-sink)))
                (add-vertex! render-graph t-node)
                (add-directed-edge! render-graph video-sink t-node 1)
                t-node]
@@ -263,14 +263,14 @@
                                  (hash "width" width
                                        "height" height))
                'audio (mk-filter "anull"))
-         #:counts (hash 'video 1 'audio 1)))
+         #:counts (node-counts trim-node)))
       (add-vertex! render-graph pad-node)
       (add-directed-edge! render-graph trim-node pad-node 1)
       (define fps-node
         (mk-filter-node
          (hash 'video (mk-filter "fps"
                                  (hash "fps" fps)))
-         #:counts (hash 'video 1 'audio 1)))
+         #:counts (node-counts trim-node)))
       (add-vertex! render-graph fps-node)
       (add-directed-edge! render-graph pad-node fps-node 1)
       (define pix-fmt-node
@@ -279,14 +279,14 @@
                'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
                                                  "sample_rates" sample-rate
                                                  "channel_layouts" channel-layout)))
-         #:counts (hash 'video 1 'audio 1)))
+         #:counts (node-counts trim-node)))
       (add-vertex! render-graph pix-fmt-node)
       (add-directed-edge! render-graph fps-node pix-fmt-node 1)
       (define out-bundle (stream-bundle->file out-path 'vid+aud))
       (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
       (define sink-node
         (mk-sink-node out-bundle
-                      #:counts (hash 'video 1 'audio 1)))
+                      #:counts (node-counts trim-node)))
       (add-vertex! render-graph sink-node)
       (add-directed-edge! render-graph pix-fmt-node sink-node 1)
       (set! output-node pad-node)

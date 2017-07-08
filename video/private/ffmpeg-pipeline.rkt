@@ -1063,8 +1063,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  ;(displayln (graphviz g))
-  ;(displayln g-str)
+  (displayln (graphviz g))
+  (displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1209,7 +1209,8 @@
                 (with-handlers ([exn:ffmpeg:again? (λ (e)
                                                      (when (and rs-box (pair? pkts))
                                                        (set-render-status-box-position!
-                                                        rs-box (avpacket-pts (car pkts))))
+                                                        rs-box (* (avpacket-pts (car pkts))
+                                                                  (avcodec-context-time-base ctx))))
                                                      (reverse pkts))])
                   (define pkt (avcodec-receive-packet ctx))
                   (loop (cons pkt pkts))))))]
