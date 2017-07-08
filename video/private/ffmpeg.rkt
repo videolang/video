@@ -21,25 +21,36 @@
          ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/define/conventions
+         setup/dirs
          (for-syntax racket/base))
 
-(define avcodec-lib (ffi-lib "libavcodec" "57"))
+;; We want to use the _system_ install if there is one first.
+;;   if not there, then fall back to local install
+(define reverse-get-lib-search-dirs
+  (compose reverse get-lib-search-dirs))
+
+(define avcodec-lib
+  (ffi-lib "libavcodec" "57" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-avcodec avcodec-lib
   #:make-c-id convention:hyphen->underscore)
-(define avformat-lib (ffi-lib "libavformat" "57"))
+(define avformat-lib
+  (ffi-lib "libavformat" "57" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
-(define-for-syntax avformat-version 57)
-(define avutil-lib (ffi-lib "libavutil" "55"))
+(define avutil-lib
+  (ffi-lib "libavutil" "55" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-avutil avutil-lib
   #:make-c-id convention:hyphen->underscore)
-(define swscale-lib (ffi-lib "libswscale" "4"))
+(define swscale-lib
+  (ffi-lib "libswscale" "4" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-swscale swscale-lib
   #:make-c-id convention:hyphen->underscore)
-(define swresample-lib (ffi-lib "libswresample" "2"))
+(define swresample-lib
+  (ffi-lib "libswresample" "2" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
-(define avfilter-lib (ffi-lib "libavfilter" "6"))
+(define avfilter-lib
+  (ffi-lib "libavfilter" "6" #:get-lib-dirs reverse-get-lib-search-dirs))
 (define-ffi-definer define-avfilter avfilter-lib
   #:make-c-id convention:hyphen->underscore)
 
