@@ -261,7 +261,8 @@
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat
                     #:streams streams
-                    #:stream-table stream-table))
+                    #:stream-table stream-table
+                    #:file file))
 
 ;; A busy loop, we can do better. >:(
 (define (wait-for-packet-need bundle)

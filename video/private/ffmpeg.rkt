@@ -1712,9 +1712,21 @@
    [rects _pointer]
    [pts _int64]))
 
+(define-cstruct _av-program
+  ([id _int]
+   [flags _int]
+   [discard _avdiscard]
+   [stream-index _uintptr]
+   [nb-stream-indexes _int]
+   [metadata _av-dictionary-pointer]
+   [program-num _int]
+   [pmt-pid _int]
+   [pcr-pid _int]))
+
 (define-cpointer-type _avoption-pointer)
 
 ;; ===================================================================================================
+
 
 (define-avformat av-register-all (_fun -> _void))
 (define-avformat avformat-network-init (_fun -> _int -> (void)))
@@ -1868,6 +1880,7 @@
                           "find-best-stream"
                           (current-continuation-marks)))]
                  [else (raise (convert-err ret))])))
+(define-avformat av-new-program (_fun _avformat-context-pointer _int -> _av-program-pointer))
 
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
@@ -2115,6 +2128,9 @@
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))
+(define-avutil av-stream-get-end-pts (_fun _avstream-pointer -> _int64))
+(define-avutil av-stream-set-r-frame-rate (_fun _avstream-pointer _avrational -> _void))
+(define-avutil av-stream-get-r-frame-rate (_fun _avstream-pointer -> _avrational))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
@@ -2323,3 +2339,6 @@
              [else
               (error 'avfilter-init-str "~a : ~a" ret (convert-err ret))])))
 (define-avfilter avfilter-free (_fun _avfilter-context-pointer -> _void))
+(define-avfilter avfilter-pad-count (_fun _avfilter-pad-pointer -> _int))
+(define-avfilter avfilter-pad-get-name (_fun _avfilter-pad-pointer _int -> _string))
+(define-avfilter avfilter-pad-get-type (_fun _avfilter-pad-pointer _int -> _avmedia-type))
