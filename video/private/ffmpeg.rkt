@@ -963,11 +963,45 @@
            fltp
            dblp)))
 (define-cpointer-type _avsample-format-pointer)
+
+(define _avduration-estimation-method
+  (_enum '(from-pts
+           from-stream
+           from-bitrate)))
   
-(define _avaudio-service-type _fixint)
-(define _avdiscard _fixint)
-(define _avstream-parse-type _fixint)
-(define _avpicture-type _fixint)
+(define _avaudio-service-type (_enum '(main = 0
+                                       effects = 1
+                                       visually-impaired = 2
+                                       hearing-impaired = 3
+                                       dialogue = 4
+                                       commentary = 5
+                                       emergency = 6
+                                       voice-over = 7
+                                       karaoke = 8)))
+
+(define _avstream-parse-type (_enum `(none
+                                      full
+                                      headers
+                                      timestamps
+                                      full-once
+                                      full-raw = ,(MK-TAG 0 #\R #\A #\W))))
+
+(define _avdiscard (_enum '(none = -16
+                            default = 0
+                            nonref = 8
+                            bidir = 16
+                            nonintra = 24
+                            nonkey = 32
+                            all = 48)))
+
+(define _avpicture-type (_enum '(none = 0
+                                 I
+                                 P
+                                 B
+                                 S
+                                 SI
+                                 SP
+                                 BI)))
 
 (define _avsubtitle-type (_enum '(none
                                   bitmap
