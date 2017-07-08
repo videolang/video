@@ -125,7 +125,7 @@
 (struct render-status-box (position
                            rendering?)
   #:mutable)
-(define (mk-render-status-box #:position [p #f]
+(define (mk-render-status-box #:position [p 0]
                               #:rendering? [r? #f])
   (render-status-box p r?))
 
@@ -1063,8 +1063,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
-  (displayln g-str)
+  ;(displayln (graphviz g))
+  ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1181,6 +1181,10 @@
       [(struct* codec-obj ([codec-context ctx]
                            [buffer-context buff-ctx]))
        (match mode
+         ['init
+          (when rs-box
+            (set-render-status-box-position! rs-box 0)
+            (set-render-status-box-rendering?! rs-box #t))]
          ['open
           (av-buffersink-set-frame-size buff-ctx (avcodec-context-frame-size ctx))]
          ['write
@@ -1202,10 +1206,16 @@
               (avcodec-send-frame ctx out-frame)
               (av-frame-free out-frame)
               (let loop ([pkts '()])
-                (with-handlers ([exn:ffmpeg:again? (λ (e) (reverse pkts))])
+                (with-handlers ([exn:ffmpeg:again? (λ (e)
+                                                     (when (and rs-box (pair? pkts))
+                                                       (set-render-status-box-position!
+                                                        rs-box (avpacket-pts (car pkts))))
+                                                     (reverse pkts))])
                   (define pkt (avcodec-receive-packet ctx))
                   (loop (cons pkt pkts))))))]
-         [_ (void)])])))
+         ['close
+          (when rs-box
+            (set-render-status-box-rendering?! rs-box 'eof))])])))
 
 (define (render g)
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))

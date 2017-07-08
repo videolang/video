@@ -162,7 +162,8 @@
      (define in-t (thread (λ () (send r feed-buffers))))
      (define out-t (thread (λ () (send r write-output))))
      (let loop ()
-       (when (send r rendering?)
+       (unless (eq? (send r rendering?) 'eof)
+         ;(displayln "here")
          (async-channel-put channel (send r get-current-position))
          (sleep 0.01)
          (loop)))
@@ -189,13 +190,12 @@
                   #:start start
                   #:end end
                   #:fps fps))
-  (let loop ([pos (async-channel-get channel)])
+  (let loop ()
+    (define pos (async-channel-get channel))
     (unless (eof-object? pos)
       (fprintf port "\r~a" (real->decimal-string pos))
-      (loop))
-    (newline)))
-    
-
+      (loop)))
+  (newline port))
 
 (define render<%>
   (interface () copy setup feed-buffers write-output rendering? get-current-position))
@@ -314,6 +314,10 @@
                   #:by-index-callback (filtergraph-next-packet
                                        #:render-status current-render-status)))
 
+    ; Possible Results:
+    ; #t   : Rendering
+    ; #f   : Not Rendering
+    ; 'eof : Not Rendering and will not start up again
     (define/public (rendering?)
       (render-status-box-rendering? current-render-status))
 
