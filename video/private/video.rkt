@@ -558,11 +558,16 @@
         (add-vertex! (current-render-graph) node)
         (add-directed-edge! (current-render-graph) connect-node node 1)
         node)
-      (let* ([ret (coerce-clip (mk-filter "scale" (hash "width" width
-                                                      "height" height))
-                               node)]
-             [ret (coerce-clip (mk-filter "fps" (hash "fps" fps))
-                               ret)]
+      (let* ([ret (if (and (> width 0)
+                           (> height 0))
+                      (coerce-clip (mk-filter "scale" (hash "width" width
+                                                            "height" height))
+                                   node)
+                      node)]
+             [ret (if (> fps 0)
+                      (coerce-clip (mk-filter "fps" (hash "fps" fps))
+                                   ret)
+                      ret)]
              [ret (coerce-clip (mk-filter "format" (hash "pix_fmts" "yuv420p"))
                                ret)])
         ret)))

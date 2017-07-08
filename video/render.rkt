@@ -22,6 +22,7 @@
          racket/dict
          racket/class
          racket/file
+         racket/port
          graph
          (except-in ffi/unsafe ->)
          (prefix-in file: file/convertible)
@@ -67,7 +68,23 @@
                       #:fps number?
                       #:start (or/c nonnegative-integer? #f)
                       #:end (or/c nonnegative-integer? #f)]
-                     async-channel?)])
+                     async-channel?)]
+
+  ;; A hybrid of render and render/async. This version blocks until the
+  ;;   the video is finished rendering. However, it optionally takes an output
+  ;;   port that it writes to. This is useful for having an automatic progress bar
+  ;;   sent to the console.
+  [render/pretty (->* [any/c]
+                      [(or/c path-string? path? #f)
+                       #:render-mixin (or/c (-> (is-a?/c render<%>) (is-a?/c render<%>)) #f)
+                       #:width (and/c integer? positive?)
+                       #:height (and/c integer? positive?)
+                       #:fps number?
+                       #:start (or/c nonnegative-integer? #f)
+                       #:end (or/c nonnegative-integer? #f)
+                       #:port (or/c output-port? #f)]
+                      void?)])
+
 
  ;; The render% object is _NOT_ threadsafe. However, it is important ot use threads when calling
  ;;   certain methods. In particular, `feed-buffers` and `write-results` should be called
@@ -87,7 +104,7 @@
  ;; (thread (λ () (send r write-output)))
  ;; (let loop ()
  ;;    (when (send r rendering?)
- ;;      (displayln (send r get-position?))
+ ;;      (displayln (send r get-current-position?))
  ;;      (loop)))
  ;; 
  render%
@@ -146,13 +163,39 @@
      (define out-t (thread (λ () (send r write-output))))
      (let loop ()
        (when (send r rendering?)
-         (async-channel-put channel (send r get-position))
+         (async-channel-put channel (send r get-current-position))
          (sleep 0.01)
          (loop)))
-     (thread-wait in-t)
+     ;(thread-wait in-t)
      (thread-wait out-t)
      (async-channel-put channel eof)))
   channel)
+
+(define (render/pretty video
+                       [dest #f]
+                       #:render-mixin [render-mixin #f]
+                       #:width [width 1920]
+                       #:height [height 1080]
+                       #:start [start #f]
+                       #:end [end #f]
+                       #:fps [fps 25]
+                       #:port [port* (current-output-port)])
+  (define port (or port* (open-output-nowhere)))
+  (define channel
+    (render/async video dest
+                  #:render-mixin render-mixin
+                  #:width width
+                  #:height height
+                  #:start start
+                  #:end end
+                  #:fps fps))
+  (let loop ([pos (async-channel-get channel)])
+    (unless (eof-object? pos)
+      (fprintf port "\r~a" (real->decimal-string pos))
+      (loop))
+    (newline)))
+    
+
 
 (define render<%>
   (interface () copy setup feed-buffers write-output rendering? get-current-position))

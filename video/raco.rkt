@@ -27,13 +27,12 @@
          ;(prefix-in xml: "render/xml.rkt")
          #;"player.rkt")
 
+(define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
-(define output-width (make-parameter 720))
-(define output-height (make-parameter 576))
+(define output-width (make-parameter 1920))
+(define output-height (make-parameter 1080))
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
-(define output-timeout (make-parameter #f))
-(define output-speed (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -51,6 +50,9 @@
      [("-t" "--type") type
                       "Output type"
                       (output-type type)]
+     [("-o" "--out") file
+                     "Output File"
+                     (output-path (path->complete-path file))]
      [("-w" "--width") width
                        "Video width"
                        (output-width  (cmd-str->num "--width" width))]
@@ -63,18 +65,10 @@
      [("-e" "--end")  end
                       "Rendering end position"
                       (output-end (cmd-str->num "--end" end))]
-     [("--timeout")   timeout
-                      "Set a timeout for the renderer"
-                      (output-timeout (cmd-str->num "--timeout" timeout))]
-     [("--speed")     speed
-                      "Set the speed of the output video"
-                      (output-speed (cmd-str->num "--speed" speed))]
      #:args (video)
      video))
 
   (define video (dynamic-require video-file 'vid))
-  (define output-dir (or (path-only video-file) (current-directory)))
-  (define output-file (path-replace-extension (file-name-from-path video-file) ".mp4"))
 
   (define render-mixin
     #f
@@ -88,23 +82,12 @@
   
   (match (output-type)
     [_ ;(or "png" "jpg" "mp4" "xml")
-     (define t
-       (thread
-        (λ ()
-          (render video output-dir
-                  #:start (output-start)
-                  #:end (output-end)
-                  #:width (output-width)
-                  #:height (output-height)
-                  #:timeout (output-timeout)
-                  #:speed (output-speed)
-                  #:dest-filename output-file
-                  #:render-mixin render-mixin
-                  #:rendering-box rendering-box))))
-     (let loop ()
-       (sleep 1)
-       (when (thread-running? t)
-         (loop)))]))
+     (render/pretty video (output-path)
+                    #:start (output-start)
+                    #:end (output-end)
+                    #:width (output-width)
+                    #:height (output-height)
+                    #:render-mixin render-mixin)]))
      #|
      (newline)
      (let loop ()

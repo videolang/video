@@ -1109,7 +1109,11 @@
          (cons n outs)])))
   ;(avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
   (define-values (in-ret out-ret)
-    (avfilter-graph-parse-ptr graph g-str (car inputs) (car outputs) #f))
+    (avfilter-graph-parse-ptr graph
+                              g-str
+                              (if (null? inputs) #f (car inputs))
+                              (if (null? outputs) #f (car outputs))
+                              #f))
   (avfilter-graph-config graph #f)
   (for ([str (stream-bundle-streams out-bundle)])
     (match str
