@@ -106,7 +106,7 @@
             #:track1-subgraph track1-subgraph-proc
             #:track2-subgraph track2-subgraph-proc
             #:combined-subgraph combined-subgraph-proc
-            #:prop (properties-proc properties)))
+            #:prop (properties-proc user-prop)))
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
              trans))]))
