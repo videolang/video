@@ -416,7 +416,24 @@
 
 (define (envelope-filter #:direction direction
                          #:length length)
-  (error "TODO"))
+  (define (envelope-proc ctx prev)
+    (define start (get-property prev "start" 0))
+    (define end (get-property prev "end" 0))
+    (define fade-filter
+      (mk-filter "fade" (match direction
+                          ['in (hash "t" "in"
+                                     "ss" 0
+                                     "d" length)]
+                          ['out (hash "t" "out"
+                                      "ss" (- end length)
+                                      "d" length)])))
+    (define node
+      (mk-filter-node (hash 'audio fade-filter)
+                      #:counts (node-counts prev)
+                      #:props (node-props prev)))
+    (add-vertex! ctx node)
+    ctx)
+  (make-filter #:subgraph envelope-proc))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)

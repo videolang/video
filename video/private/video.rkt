@@ -52,9 +52,9 @@
 ;; DEBUG FUNCTION ONLY
 ;; Save a textual marshalization of a property's prop
 ;;  table to a file.
-;; Properties Path -> Void
-(define (debug/save-prop prop filepath)
-  (error "TODO"))
+;; avformat Path -> Void
+(define (debug/save-prop avformat path)
+  (av-dump-format avformat 0 path 0))
 
 (define (finish-video-object-init video-node video-source)
   ;; Set user properties
@@ -214,7 +214,7 @@
      (add-vertex! (current-render-graph) node)
      node]
     [(procedure? subgraph)
-     (define rg (subgraph prev))
+     (define rg (subgraph (weighted-graph/directed '()) prev))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
      (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg) 1)
      (video-subgraph-sinks rg)]))
