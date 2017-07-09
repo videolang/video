@@ -432,7 +432,10 @@
                       #:counts (node-counts prev)
                       #:props (node-props prev)))
     (add-vertex! ctx node)
-    ctx)
+    (make-video-subgraph #:subgraph ctx
+                         #:sources node
+                         #:sinks node
+                         #:props (node-props prev)))
   (make-filter #:subgraph envelope-proc))
 
 ;; ===================================================================================================
