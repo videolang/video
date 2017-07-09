@@ -6,6 +6,18 @@ language: c
 sudo: true
 dist: trusty
 
+addons:
+  apt:
+    packages:
+    - libmlt6
+    - libav-tools
+    - libavcodec-dev
+    - libavcodec-extra
+    - libavformat-dev
+    - libavutil-dev
+    - libswscale-dev
+    - ladspa-sdk
+
 env:
   global:
     # Supply a global RACKET_DIR environment variable. This is where
@@ -34,15 +46,7 @@ matrix:
 before_install:
   # libmlt6
   - sudo apt-get -qq update
-  - sudo apt-get install -y libmlt6
-  - sudo apt-get install -y libav-tools
-  - sudo apt-get install -y libavcodec-dev
-  - sudo apt-get install -y libavcodec-extra
-  - sudo apt-get install -y libavformat-dev
-  - sudo apt-get install -y libavutil-dev
-  - sudo apt-get install -y libswscale-dev
   #- sudo apt-get install -y ffmpeg
-  - sudo apt-get install -y ladspa-sdk
   - sudo apt-get install -y libgdk-pixbuf2.0-*
   - sudo apt-get install -y frei0r-plugins*
   - sudo apt-get install libdc1394-*
