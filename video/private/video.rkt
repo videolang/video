@@ -632,25 +632,47 @@
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()
   ;; Make the tracks
-  (define nodes (make-hash))
-  (for ([t (in-list tracks)]
-        [index (in-naturals)])
-    (dict-set! nodes t (cons (convert t) index)))
+  (define-values (raw-nodes start end)
+    (for/fold ([raw-nodes (hash)]
+               [start 0]
+               [end 0])
+              ([t (in-list tracks)]
+               [index (in-naturals)])
+      (define node (convert t))
+      (values (dict-set raw-nodes t (cons node index))
+              (min start (get-property node "start" 0))
+              (max end (get-property node "end" 0)))))
+  ;; Convert all clips to a compatible length
+  (define nodes
+    (hash-copy
+     (for/hash ([(k v) (in-dict raw-nodes)])
+       (define trimmed (mk-trim-node #:start start
+                                     #:end end))
+       (add-vertex! (current-render-graph) trimmed)
+       (add-directed-edge! (current-render-graph) (car v) trimmed 1)
+       (values k (cons trimmed (cdr v))))))
   ;; Start merging tracks together
+  ;; Prefer individual track if it exists, otherwise
+  ;;   merge combined one.
   (for ([f (in-list field)])
     (match f
       [(struct* field-element ([element element]
                                [track track]
                                [track-2 track-2]))
        (define bundle-pair (dict-ref nodes track))
+       (dict-remove! nodes track)
        (define bundle-pair-2 (dict-ref nodes track-2))
-       (define element-node (convert element))
-       (dict-set! bundle-pair nodes track (cons element-node (min (cdr bundle-pair)
-                                                                  (cdr bundle-pair-2))))
-       (dict-set! bundle-pair nodes track-2 (cons element-node (min (cdr bundle-pair)
-                                                                    (cdr bundle-pair-2))))
-       (add-directed-edge! (current-render-graph) (car bundle-pair) element-node 1)
-       (add-directed-edge! (current-render-graph) (car bundle-pair-2) element-node 2)]))
+       (dict-remove! nodes track-2)
+       (define-values (track1-out track2-out combined-out)
+         (convert-transition element (car bundle-pair) (car bundle-pair-2)))
+       (when combined-out
+         (define idx (min (cdr bundle-pair) (cdr bundle-pair-2)))
+         (dict-set! nodes track (cons combined-out idx))
+         (dict-set! nodes track-2 (cons combined-out idx)))
+       (when track1-out
+         (dict-set! nodes track (cons track1-out (cdr bundle-pair))))
+       (when track2-out
+         (dict-set! nodes track-2 (cons track2-out (cdr bundle-pair-2))))]))
   ;; Select top-most track from table
   (define-values (ret trash)
     (for/fold ([node #f]

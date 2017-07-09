@@ -838,6 +838,22 @@
                         'audio (mk-split-audio-filter #:fan-out c))
                   #:counts counts
                   #:props props))
+(define (mk-trim-video-filter #:start start
+                              #:end end)
+  (mk-filter "trim" (hash "start" start "end" end)))
+(define (mk-trim-audio-filter #:start start
+                              #:end end)
+  (mk-filter "atrim" (hash "start" start "end" end)))
+(define (mk-trim-node #:start start
+                      #:end end
+                      #:counts [counts (hash)]
+                      #:props [props (hash)])
+  (mk-filter-node (hash 'video (mk-trim-video-filter #:start start
+                                                     #:end end)
+                        'audio (mk-trim-audio-filter #:start start
+                                                     #:end end))
+                  #:counts counts
+                  #:props props))
 
 (define (color->string color)
   (define c*
