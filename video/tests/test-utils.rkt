@@ -34,7 +34,7 @@
          #,@(cond
               [(not (attribute len)) (list)]
               [else
-               (list (syntax/loc stx (check-equal? (producer-length p) len)))])))]))
+               (list (syntax/loc stx (check-equal? (get-property p "length") len)))])))]))
 
 (define-syntax (check-transition stx)
   (syntax-parse stx

@@ -33,8 +33,7 @@
                     video/core
                     video/render
                     video/player
-                    video/init
-                    video/lib]]
+                    video/init]]
 
 
 @title{Video API}

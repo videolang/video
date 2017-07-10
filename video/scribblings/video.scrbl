@@ -35,8 +35,7 @@
                     video/core
                     video/render
                     video/player
-                    video/init
-                    video/lib]]
+                    video/init]]
 
 @title{The Video Language Guide}
 @author{Leif Andersen}

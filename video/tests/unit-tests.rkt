@@ -20,7 +20,6 @@
          racket/path
          racket/file
          syntax/location
-         video/lib
          "test-utils.rkt"
          (prefix-in debug: "../private/video.rkt")
          "../private/utils.rkt")
@@ -56,12 +55,12 @@
 
 (check-producer b8 #:len 8)
 (check-producer
- (image circ-png #:length (/ (producer-length b8) 8))
+ (image circ-png #:length (/ (get-property b8 "length") 8))
    #:len 1)
 
 (check-producer
  (multitrack
-  (image circ-png #:length (/ (producer-length b8) 8))
+  (image circ-png #:length (/ (get-property b8 "length") 8))
   (composite-transition 0 0 3/4 3/4)
   b8
   #:length 5)
@@ -216,7 +215,7 @@ TODO: bug in mlt, should be 4
 (define (attach-audio v a o)
   (define cleaned-audio
     (cut-producer a #:end o))
-  (multitrack v cleaned-audio #:length (producer-length v)))
+  (multitrack v cleaned-audio #:length (get-property v "length")))
 (check-producer
  (attach-audio (color "red" #:length 100) (color "blue" #:length 100) 50)
  #:len 100)
@@ -237,25 +236,30 @@ TODO: bug in mlt, should be 4
 ;; Just test by running it
 (debug:debug/save-prop circ-img (make-temporary-file))
 
-(check-equal? (producer-length/unedited
-               (clip vid-mp4 #:start 50 #:end 75))
+(check-equal? (get-property
+               (clip vid-mp4 #:start 50 #:end 75)
+               "length/unedited")
               139)
 
-(check-equal? (playlist-clip-start
+;; TODO, rethink
+(check-equal? (get-property
                (playlist (color "red" #:length 100)
                          (color "blue" #:length 50))
+               "playlist-clip-start"
                1)
               100)
 
-(check-equal? (playlist-clip-length
+(check-equal? (get-property
                (playlist (color "red" #:length 100)
                          (color "blue" #:length 50))
+               "playlist-clip-length"
                1)
               50)
 
-(check-equal? (playlist-clip-count
+(check-equal? (get-property
                (playlist (color "red" #:length 100)
-                         (color "blue" #:length 50)))
+                         (color "blue" #:length 50))
+               "playlist-clip-count")
               2)
 
 (check-equal?
@@ -274,6 +278,6 @@ TODO: bug in mlt, should be 4
   (define props (debug:properties-prop r))
   (check-equal? (hash-ref props "start") 0)
   (check-equal? (hash-ref props "end") -1)
-  (check-equal? (producer-start r) #f)
-  (check-equal? (producer-end r) #f)
-  (check-equal? (producer-length r) #f))
+  (check-equal? (get-property r "start") #f)
+  (check-equal? (get-property r "end") #f)
+  (check-equal? (get-property r "length") #f))

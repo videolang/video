@@ -21,9 +21,9 @@
          "../private/video.rkt")
 
 (let ()
-  (define-constructor new-video #f ())
-  (define-constructor new-sub new-video ([hello #f]))
-  (define-constructor sub-sub new-sub ([world #f]))
+  (define-constructor new-video #f () ())
+  (define-constructor new-sub new-video ([hello #f]) ())
+  (define-constructor sub-sub new-sub ([world #f]) ())
   (define ss (make-sub-sub))
   (define ss2
     (make-sub-sub #:hello "HI"
@@ -40,16 +40,13 @@
   (check-not-equal? ss3 ss2))
 
 (let ()
-  (make-link)
   (make-properties)
-  (make-anim-property)
   (make-service)
   (make-filter)
   (make-transition)
   (make-producer)
   (make-blank)
   (make-playlist)
-  (make-playlist-producer)
   (make-multitrack)
   (make-field-element)
   (void))
