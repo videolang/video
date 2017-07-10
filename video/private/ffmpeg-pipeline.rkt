@@ -151,7 +151,9 @@
                           [(list? v) (string-join (map loop v) ";")]
                           [(interval? v) (interval->string v)]
                           [else v]))
-                      (format "~a=~a" k v*)))
+                      (if (string? k)
+                          (format "~a=~a" k v*)
+                          (format "~a" v*))))
                   ":")))
 (define (filter->avfilter f graph)
   (define filter (avfilter-get-by-name (filter-name f)))
@@ -727,6 +729,16 @@
 
 ;; ===================================================================================================
 
+(define (mk-render-graph)
+  (weighted-graph/directed '()))
+
+(define (racket->ffmpeg x)
+  (cond
+    [(string? x) x]
+    [(integer? x) x]
+    [(number? x) (exact->inexact x)]
+    [else x]))
+
 (struct node (props counts)
   #:methods gen:custom-write
   [(define write-proc
@@ -812,8 +824,8 @@
   (mk-filter "anullsink"))
 (define (mk-empty-sink-node #:counts [counts (hash)]
                             #:props (props (hash)))
-  (mk-filter-node (hash 'video (mk-empty-video-filter)
-                        'audio (mk-empty-audio-filter))
+  (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
+                        'audio (mk-empty-sink-audio-filter))
                   #:counts counts
                   #:props props))
 (define (mk-fifo-video-filter)
@@ -828,9 +840,9 @@
                   #:props props))
 
 (define (mk-split-video-filter #:fan-out [c 2])
-  (mk-filter "split" (hash "default" c)))
+  (mk-filter "split" (hash 0 c)))
 (define (mk-split-audio-filter #:fan-out [c 2])
-  (mk-filter "asplit" (hash "default" c)))
+  (mk-filter "asplit" (hash 0 c)))
 (define (mk-split-node #:fan-out [c 2]
                        #:counts [counts (hash)]
                        #:props [props (hash)])
@@ -840,10 +852,12 @@
                   #:props props))
 (define (mk-trim-video-filter #:start start
                               #:end end)
-  (mk-filter "trim" (hash "start" start "end" end)))
+  (mk-filter "trim" (hash "start" (racket->ffmpeg start)
+                          "end" (racket->ffmpeg end))))
 (define (mk-trim-audio-filter #:start start
                               #:end end)
-  (mk-filter "atrim" (hash "start" start "end" end)))
+  (mk-filter "atrim" (hash "start" (racket->ffmpeg start)
+                           "end" (racket->ffmpeg end))))
 (define (mk-trim-node #:start start
                       #:end end
                       #:counts [counts (hash)]

@@ -94,10 +94,10 @@
          (cond
            [(and start end)
             (define node
-              (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" start
-                                                                   "end" end))
-                                    'audio (mk-filter "atrim" (hash "start" start
-                                                                    "end" end)))
+              (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" (racket->ffmpeg start)
+                                                                   "end" (racket->ffmpeg end)))
+                                    'audio (mk-filter "atrim" (hash "start" (racket->ffmpeg start)
+                                                                    "end" (racket->ffmpeg end))))
                               #:props (dict-set* (node-props scaled-node)
                                                  "start" start
                                                  "end" end)
@@ -171,21 +171,30 @@
                       (convert-name v)
                       (hash-ref! memo-table v convert-name))]
                  [_ def]))))
-         (define (convert-name v [convert-args convert-defaults] ...)
-           (define ret
-             (let ([this v])
-               (let #,(for/list ([i (in-list all-structs)]
-                                 [j (in-list all-ids)])
-                        #`[#,(datum->syntax stx j)
-                           (#,(format-id stx "~a-~a" i j) v)])
-                 #f body ...)))
-           (finish-video-object-init ret v))
-         (define (constructor #,@(append*
-                                  (for/list ([i (in-list all-ids)]
-                                             [j (in-list all-defaults)])
-                                    `(,(datum->syntax stx (string->keyword (symbol->string i)))
-                                      [,(datum->syntax stx i) ,j]))))
-           (name #,@(map (curry datum->syntax stx) all-ids)))
+         #,(quasisyntax/loc stx
+             (define (convert-name v [convert-args convert-defaults] ...)
+               (define ret
+                 (call-with-values
+                  (λ ()
+                    (let ([this v])
+                      (let #,(for/list ([i (in-list all-structs)]
+                                        [j (in-list all-ids)])
+                               #`[#,(datum->syntax stx j)
+                                  (#,(format-id stx "~a-~a" i j) v)])
+                        #f body ...)))
+                  list))
+               (define finished
+                 (for/list ([i (in-list ret)])
+                   (and i
+                        (finish-video-object-init i v))))
+               (apply values finished)))
+         #,(quasisyntax/loc stx
+             (define (constructor #,@(append*
+                                      (for/list ([i (in-list all-ids)]
+                                                 [j (in-list all-defaults)])
+                                        `(,(datum->syntax stx (string->keyword (symbol->string i)))
+                                          [,(datum->syntax stx i) ,j]))))
+               (name #,@(map (curry datum->syntax stx) all-ids))))
          (define-syntax new-supers '#,(list all-structs all-ids all-defaults))))]))
 
 ;; Structs
@@ -247,9 +256,9 @@
   (add-vertex! (current-render-graph) prev2-copy)
   (add-directed-edge! (current-render-graph) prev1 prev1-copy 1)
   (add-directed-edge! (current-render-graph) prev2 prev2-copy 1)
-  (define track1-sub (track1-subgraph prev1))
-  (define track2-sub (track2-subgraph prev2))
-  (define combined-sub (combined-sub prev1 prev2))
+  (define track1-sub (track1-subgraph (weighted-graph/directed '()) prev1))
+  (define track2-sub (track2-subgraph (weighted-graph/directed '()) prev2))
+  (define combined-sub (combined-subgraph (weighted-graph/directed '()) prev1 prev2))
   (define r1
     (cond [track1-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
@@ -263,7 +272,8 @@
   (define r2
     (cond [track2-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track2-sub))
-           (add-directed-edge! (current-render-graph prev2-copy (video-subgraph-sources track2-sub)) 1)
+           (add-directed-edge! (current-render-graph)
+                               prev2-copy (video-subgraph-sources track2-sub) 1)
            (video-subgraph-sinks track2-sub)]
           [else
            (define sink-node (mk-empty-sink-node #:counts (node-counts prev2-copy)))
@@ -273,8 +283,10 @@
   (define rc
     (cond [combined-sub
            (graph-union! (current-render-graph) (video-subgraph-graph combined-sub))
-           (add-directed-edge! (current-render-graph) prev1-copy (car (video-subgraph-sources combined-sub)) 1)
-           (add-directed-edge! (current-render-graph) prev2-copy (car (video-subgraph-sources combined-sub)) 2)
+           (add-directed-edge! (current-render-graph)
+                               prev1-copy (car (video-subgraph-sources combined-sub)) 1)
+           (add-directed-edge! (current-render-graph)
+                               prev2-copy (cdr (video-subgraph-sources combined-sub)) 2)
            (video-subgraph-sinks combined-sub)]
           [else
            (define sink-node1 (mk-empty-sink-node #:counts (node-counts prev1-copy)))
@@ -647,7 +659,9 @@
     (hash-copy
      (for/hash ([(k v) (in-dict raw-nodes)])
        (define trimmed (mk-trim-node #:start start
-                                     #:end end))
+                                     #:end end
+                                     #:counts (node-counts (car v))
+                                     #:props (node-props (car v))))
        (add-vertex! (current-render-graph) trimmed)
        (add-directed-edge! (current-render-graph) (car v) trimmed 1)
        (values k (cons trimmed (cdr v))))))
@@ -685,7 +699,8 @@
   (for ([(track n-pair) (in-dict nodes)])
     (unless (equal? (car n-pair) ret)
       (define trash (convert (make-nullsink)))
-      (add-directed-edge! (cdr n-pair) trash 1)))
+      (add-vertex! (current-render-graph) trash)
+      (add-directed-edge! (current-render-graph) (cdr n-pair) trash 1)))
   ret)
 
 (define-constructor video-subgraph properties ([graph (mk-render-graph)]

@@ -367,10 +367,11 @@
                             [(and w h)
                              (define node
                                (mk-filter-node (hash 'video (mk-filter "scale" (hash "w" w
-                                                                                     "h" h))
-                                                     #:counts (node-counts t1))))
-                             (add-vertex! ctx scale-node2)
-                             (add-directed-edge! ctx zero-node2 node 1)]
+                                                                                     "h" h)))
+                                               #:counts (node-counts t1)))
+                             (add-vertex! ctx node)
+                             (add-directed-edge! ctx zero-node2 node 1)
+                             node]
                             [else zero-node2]))
                         (define overlay
                           (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" x
@@ -381,7 +382,7 @@
                         (add-vertex! ctx overlay)
                         (add-directed-edge! ctx zero-node1 overlay 1)
                         (add-directed-edge! ctx scale-node2 overlay 2)
-                        (make-video-subgraph #:subgraph ctx
+                        (make-video-subgraph #:graph ctx
                                              #:sources (cons zero-node1 zero-node2)
                                              #:sinks overlay)))
 
@@ -415,7 +416,7 @@
                         (add-vertex! ctx overlay)
                         (add-directed-edge! ctx zero-node1 overlay 1)
                         (add-directed-edge! ctx scale-node2 overlay 2)
-                        (make-video-subgraph #:subgraph ctx
+                        (make-video-subgraph #:graph ctx
                                              #:sources (cons zero-node1 zero-node2)
                                              #:sinks overlay)))
 
@@ -496,7 +497,7 @@
                       #:counts (node-counts prev)
                       #:props (node-props prev)))
     (add-vertex! ctx node)
-    (make-video-subgraph #:subgraph ctx
+    (make-video-subgraph #:graph ctx
                          #:sources node
                          #:sinks node
                          #:props (node-props prev)))
