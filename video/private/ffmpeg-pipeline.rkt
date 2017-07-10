@@ -1125,8 +1125,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
-  (displayln g-str)
+  ;(displayln (graphviz g))
+  ;(displayln g-str)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1312,27 +1312,35 @@
 ;;   user's path. This function must ONLY be used for internal
 ;;   Video development.
 (define (render/cmdline-ffmpeg g)
-  (define-values (graph in-bundles out-bundle) (init-filter-graph g))
-  (apply system*
-         (append
-          (list ffmpeg)
-          (append
-           (for/list ([b in-bundles])
-             (match b
-               [(struct* stream-bundle ([stream-table stream-table]
-                                        [file file]))
-                (list "-i" file "-filter_complex"
-                      (format "[0:v]copy[~a][0:a]anull[~a]"
-                              (codec-obj-callback-data (dict-ref stream-table 'video))
-                              (codec-obj-callback-data (dict-ref stream-table 'audio))))])))
-          (list
-           "-filter_complex"
-           graph
-           "-fv"
-           (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
-                                                             
-                                                             'video)))
-           "-fa"
-           (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
-                                                             'audio)))
-           (stream-bundle-file out-bundle)))))
+  (define-values (graph in-bundles out-bundle) (filter-graph->string g))
+  (define pre-str-list '())
+  (define cmd
+    (append
+     (list ffmpeg)
+     (append*
+      (for/list ([b in-bundles]
+                 [index (in-naturals)])
+        (match b
+          [(struct* stream-bundle ([stream-table stream-table]
+                                   [file file]))
+           (set! pre-str-list (cons
+                               (format "[~a:v]copy[~a];[~a:a]anull[~a];"
+                                       index
+                                       (codec-obj-callback-data (dict-ref stream-table 'video))
+                                       index
+                                       (codec-obj-callback-data (dict-ref stream-table 'audio)))
+                               pre-str-list))
+           (list "-i" file)])))
+     (list
+      "-filter_complex"
+      (string-append (string-join pre-str-list) graph)
+      "-map"
+      (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
+                                                        
+                                                        'video)))
+      "-map"
+      (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
+                                                        'audio)))
+      (stream-bundle-file out-bundle))))
+  (displayln cmd)
+  (apply system* cmd))

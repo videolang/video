@@ -25,6 +25,7 @@
          racket/port
          graph
          (except-in ffi/unsafe ->)
+         (prefix-in base: racket/base)
          (prefix-in file: file/convertible)
          (only-in pict pict? pict->bitmap)
          racket/async-channel
@@ -47,7 +48,7 @@
   ;; rendering progress using it.
   [render (->* [any/c]
                [(or/c path-string? path? #f)
-                #:render-mixin (or/c (-> (is-a?/c render<%>) (is-a?/c render<%>)) #f)
+                #:render-mixin (or/c (make-mixin-contract render<%>) #f)
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps number?
@@ -62,7 +63,7 @@
   ;;   placed on the channel.
   [render/async (->* [any/c]
                      [(or/c path-string? path? #f)
-                      #:render-mixin (or/c (-> (is-a?/c render<%>) (is-a?/c render<%>)) #f)
+                      #:render-mixin (or/c (make-mixin-contract render<%>) #f)
                       #:width (and/c integer? positive?)
                       #:height (and/c integer? positive?)
                       #:fps number?
@@ -76,7 +77,7 @@
   ;;   sent to the console.
   [render/pretty (->* [any/c]
                       [(or/c path-string? path? #f)
-                       #:render-mixin (or/c (-> (is-a?/c render<%>) (is-a?/c render<%>)) #f)
+                       #:render-mixin (or/c (make-mixin-contract render<%>) #f)
                        #:width (and/c integer? positive?)
                        #:height (and/c integer? positive?)
                        #:fps number?
@@ -126,7 +127,7 @@
     (new r%
          [source video]))
   (send r setup
-        #:destination dest
+        #:destination dest*
         #:width width
         #:height height
         #:start start
@@ -145,13 +146,14 @@
                       #:start [start #f]
                       #:end [end #f]
                       #:fps [fps 25])
+  (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define channel (make-async-channel))
   (define r% ((or render-mixin values) render%))
   (define r
     (new r%
          [source video]))
   (send r setup
-        #:destination dest
+        #:destination dest*
         #:width width
         #:height height
         #:start start
@@ -205,13 +207,12 @@
     (super-new)
     (init-field source)
 
-    (define video-graph (video:mk-render-graph))
-    (define video-sink (parameterize ([video:current-render-graph video-graph])
-                         (video:convert source)))
-
-    (define render-graph #f)
-    (define output-node #f)
-
+    (field [video-graph (video:mk-render-graph)])
+    (field [video-sink (parameterize ([video:current-render-graph video-graph])
+                         (video:convert source))]
+           [render-graph #f]
+           [output-node #f])
+    
     (define graph-obj #f)
     (define input-bundles #f)
     (define output-bundle #f)
@@ -329,3 +330,17 @@
     ;;   (like for a progress bar).
     (define/public (get-current-position)
       (render-status-box-position current-render-status))))
+
+;; This submodule stores the member names to the fields for the render% class.
+;; Requiring it allows classes to use those fields directly (i.e. for subclasses/mixins.)
+;; The exact fields are subject to change.
+(module render-fields racket/base
+  (require racket/class)
+  (provide (all-defined-out))
+
+  (define-local-member-name
+    video-graph
+    video-sink
+    render-graph
+    output-node))
+(require 'render-fields)
