@@ -855,6 +855,24 @@
                   #:counts counts
                   #:props props))
 
+(define (mk-reset-timestamp-video-filter [offset #f])
+  (mk-filter "setpts" (hash "expr" (format "PTS-STARTPTS~a"
+                                           (if offset
+                                               (format "+(~a/TB)" offset)
+                                               "")))))
+(define (mk-reset-timestamp-audio-filter [offset #f])
+  (mk-filter "asetpts" (hash "expr" (format "PTS-STARTPTS~a"
+                                            (if offset
+                                                (format "+(~a/TB)" offset)
+                                                "")))))
+(define (mk-reset-timestamp-node [offset #f]
+                                 #:counts [counts (hash)]
+                                 #:props [props (hash)])
+  (mk-filter-node (hash 'video (mk-reset-timestamp-video-filter offset)
+                        'audio (mk-reset-timestamp-audio-filter offset))
+                  #:props props
+                  #:counts counts))
+
 (define (color->string color)
   (define c*
     (match color

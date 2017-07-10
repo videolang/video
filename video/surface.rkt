@@ -92,5 +92,11 @@
          mk-split-video-filter
          mk-split-audio-filter
          mk-split-node
+         mk-trim-video-filter
+         mk-trim-audio-filter
+         mk-trim-node
+         mk-reset-timestamp-video-filter
+         mk-reset-timestamp-audio-filter
+         mk-reset-timestamp-node
          mk-filter
          color->string)

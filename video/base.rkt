@@ -83,12 +83,18 @@
                                  [(and/c number? positive?)]
                                  #:direction s/e)]
 
+  [overlay-transition (->transition [(and/c number? positive?)
+                                     (and/c number? positive?)]
+                                    [(or/c (and/c number? positive?) #f)
+                                     (or/c (and/c number? positive?) #f)]
+                                    #:direction t/b)]
+  
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  #;[composite-transition (->transition [(or/c (between/c 0 1) pixels?)
-                                       (or/c (between/c 0 1) pixels?)
-                                       (or/c (between/c 0 1) pixels?)
-                                       (or/c (between/c 0 1) pixels?)]
+  [composite-transition (->transition [(between/c 0 1)
+                                       (between/c 0 1)
+                                       (between/c 0 1)
+                                       (between/c 0 1)]
                                        []
                                        #:direction t/b)]
 
@@ -154,7 +160,9 @@
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
                                              [ret (if length (hash-set ret "d" length) ret)]
                                              [ret (if (and width height)
-                                                      (hash-set ret "size" (format "~ax~a" width height))
+                                                      (hash-set ret "size" (format "~ax~a"
+                                                                                   width
+                                                                                   height))
                                                       ret)])
                                         ret))
                    'audio
@@ -343,17 +351,73 @@
                                              #:sinks ovr-b
                                              #:prop (hash "length" t-length))))
 
-#; ;TODO
-(define-transition (composite-transition x y w h)
+(define-transition (overlay-transition x y [w #f] [h #f])
   #:direction t/b
-  #:type 'composite
-  #:prod-1 back
-  #:prod-2 front
-  #:source (format "~a%/~a%:~a%x~a%"
-                   (unit-dispatch back "width" x)
-                   (unit-dispatch back "height" y)
-                   (unit-dispatch front "width" w)
-                   (unit-dispatch front "height" h)))
+  #:track1-subgraph (λ (ctx t1) #f)
+  #:track2-subgraph (λ (ctx t2) #f)
+  #:combined-subgraph (λ (ctx t1 t2)
+                        (define zero-node1 (mk-reset-timestamp-node
+                                           #:counts (node-counts t1)))
+                        (define zero-node2 (mk-reset-timestamp-node
+                                           #:counts (node-counts t2)))
+                        (add-vertex! ctx zero-node1)
+                        (add-vertex! ctx zero-node2)
+                        (define scale-node2
+                          (cond
+                            [(and w h)
+                             (define node
+                               (mk-filter-node (hash 'video (mk-filter "scale" (hash "w" w
+                                                                                     "h" h))
+                                                     #:counts (node-counts t1))))
+                             (add-vertex! ctx scale-node2)
+                             (add-directed-edge! ctx zero-node2 node 1)]
+                            [else zero-node2]))
+                        (define overlay
+                          (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" x
+                                                                                  "y" y))
+                                                'audio (mk-filter "amix"))
+                                          #:counts (node-counts t1)
+                                          #:props (node-props t1)))
+                        (add-vertex! ctx overlay)
+                        (add-directed-edge! ctx zero-node1 overlay 1)
+                        (add-directed-edge! ctx scale-node2 overlay 2)
+                        (make-video-subgraph #:subgraph ctx
+                                             #:sources (cons zero-node1 zero-node2)
+                                             #:sinks overlay)))
+
+
+(define-transition (composite-transition x1 y1 x2 y2)
+  #:direction t/b
+  #:track1-subgraph (λ (ctx t1) #f)
+  #:track2-subgraph (λ (ctx t2) #f)
+  #:combined-subgraph (λ (ctx t1 t2)
+                        (define zero-node1 (mk-reset-timestamp-node
+                                            #:counts (node-counts t1)))
+                        (define zero-node2 (mk-reset-timestamp-node
+                                            #:counts (node-counts t2)))
+                        (add-vertex! ctx zero-node1)
+                        (add-vertex! ctx zero-node2)
+                        (define t1w (get-property t1 "width"))
+                        (define t1h (get-property t1 "height"))
+                        (define scale-node2
+                          (mk-filter-node (hash 'video (mk-filter "scale"
+                                                                  (hash "w" (* (- x2 x1) t1w)
+                                                                        "h" (* (- y2 y1) t1h))))
+                                          #:counts (node-counts t2)))
+                        (add-vertex! ctx scale-node2)
+                        (add-directed-edge! ctx zero-node2 scale-node2 1)
+                        (define overlay
+                          (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" (* t1w x1)
+                                                                                  "y" (* t1h y1)))
+                                                'audio (mk-filter "amix"))
+                                          #:counts (node-counts t1)
+                                          #:props (node-props t1)))
+                        (add-vertex! ctx overlay)
+                        (add-directed-edge! ctx zero-node1 overlay 1)
+                        (add-directed-edge! ctx scale-node2 overlay 2)
+                        (make-video-subgraph #:subgraph ctx
+                                             #:sources (cons zero-node1 zero-node2)
+                                             #:sinks overlay)))
 
 #; ; TODO
 (define-transition (swipe-transition #:direction dir)
