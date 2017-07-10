@@ -31,6 +31,7 @@
          (except-in racket/contract ->)
          (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
+         racket/system
          graph
          "init.rkt"
          "packetqueue.rkt"
@@ -46,6 +47,13 @@
 (define DEFAULT-PIX-FMT 'yuv420p)
 (define DEFAULT-SAMPLE-FMT 'fltp)
 (define DEFAULT-CHANNEL-LAYOUT 'stereo)
+
+;; This is the location of the ffmpeg path ONLY IF it
+;;  is installed on the computer. This must only be used
+;;  for debug purposes.
+(define ffmpeg (find-executable-path "ffmpeg"))
+
+;; ===================================================================================================
 
 (struct stream-bundle (raw-streams
                        streams
@@ -925,6 +933,11 @@
 (define current-graph (make-parameter #f))
 (define current-graph* (make-parameter #f))
 
+;; For debug purposes only. Print out the edges for sources and sinks.
+;; This makes it much easier to use the ffmpeg command line for debugging.
+(define debug/current-source-set (make-parameter (mutable-set)))
+(define debug/current-sink-set (make-parameter (mutable-set)))
+
 (define (demux-node->string vert)
   (error "TODO"))
 
@@ -1267,6 +1280,8 @@
           (when rs-box
             (set-render-status-box-rendering?! rs-box 'eof))])])))
 
+;; A useful simple rendering function. Only use when debugging, the
+;;  video/render module has a much better interface.
 (define (render g)
   (define-values (graph in-bundles out-bundle) (init-filter-graph g))
   (define in-threads
@@ -1276,7 +1291,7 @@
        (λ ()
          (demux-stream
           bundle
-          #:by-index-callback (filtergraph-insert-packet))))))
+          #:by-index-calleback (filtergraph-insert-packet))))))
   (define out-thread
     (thread
      (λ ()
@@ -1287,3 +1302,37 @@
   (map thread-wait in-threads)
   (thread-wait out-thread)
   (avfilter-graph-free graph))
+
+;; A proc to render the filtergraph from the command line.
+;;   This is useful for diagnosing if a problem is caused by
+;;   the encoder/decoder, or the filtergraph itself. Similar interface
+;;   to the `render` function above. The `video/render` module is strongly
+;;   prefered.
+;; WARNING!!!: This function will only work if fmpeg is installed and in the
+;;   user's path. This function must ONLY be used for internal
+;;   Video development.
+(define (render/cmdline-ffmpeg g)
+  (define-values (graph in-bundles out-bundle) (init-filter-graph g))
+  (apply system*
+         (append
+          (list ffmpeg)
+          (append
+           (for/list ([b in-bundles])
+             (match b
+               [(struct* stream-bundle ([stream-table stream-table]
+                                        [file file]))
+                (list "-i" file "-filter_complex"
+                      (format "[0:v]copy[~a][0:a]anull[~a]"
+                              (codec-obj-callback-data (dict-ref stream-table 'video))
+                              (codec-obj-callback-data (dict-ref stream-table 'audio))))])))
+          (list
+           "-filter_complex"
+           graph
+           "-fv"
+           (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
+                                                             
+                                                             'video)))
+           "-fa"
+           (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
+                                                             'audio)))
+           (stream-bundle-file out-bundle)))))
