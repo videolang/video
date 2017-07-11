@@ -1,8 +1,34 @@
+v0.2-alpha
+Date: 2017-07-11
+Commit#: 0dba5893097faef48b9e45900aefcd13137c27d3
+This is an alpha version of Video v0.2. The main update here is dropping MLT as a dependency, and bundling FFmpeg for Windows and Mac builds. As such, Video can be used out of the box on now, without the need to hunt down the more obscure MLT library separately. Linux machines must still download the correct version of FFmpeg themselves. However, this is much easier to do.
+
+Specifically, FFmpeg 3.2 is recommended, but the following specific library versions are also usable:
+
+* libavcodec v57
+* libavformat v57
+* libavutil v55
+* libswscale v4
+* libswresample v2
+* libavfilter v6
+
+Again, these are included for the mac/windows builds, and are all part of an FFmpeg 3.x installation.
+
+Some notes about why this is still alpha:
+
+* The video preview currently does not work. People needing access to this feature need to use v0.1.1.
+* Video has not been thoroughly tested
+
+Once the first one has been addressed we can move to beta, and once both have been addressed we can move to rc.
+
+
+
 v0.1.1:
 Date: 2017-06-12
 Commit#: ca7db7f85ab7f19f91e1f63907c275fecdc39349
  - Compatibility release for MLT. Development has shifted to the v0.2 line.
  - Initial support for FFMPEG.
+
 
 
 v0.1:
@@ -19,6 +45,7 @@ Commit#: f83e0b2e45361c9e188ddd4f6a5e4c8be3c2c006
 - This was the release associated with the ICFP 2017 Paper: Super 8 Languages for Making Movies (DRAFT)
 
 
+
 v0.0:
 Date: 2016-11-11
 Commit#: 39112ec3b7fbc6b611a67cc5f9ac3c988c50f16d
@@ -29,4 +56,3 @@ Commit#: 39112ec3b7fbc6b611a67cc5f9ac3c988c50f16d
 - Must manually convert video object to MLT ones with `convert-to-mlt!`
 - Preview player added.
 - This was the version used to build the RacketCon 2016 videos.
-
