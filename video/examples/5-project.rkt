@@ -1,7 +1,7 @@
 #lang video
 
-(color "red" #:length 75)
-(fade-transition #:length 25)
-(clip "vid.mp4" #:start 50 #:end 100)
-(fade-transition #:length 25)
-(color "blue" #:length 75)
+(color "red" #:properties (hash "length" 75))
+(fade-transition 25)
+(clip "vid.mp4" #:properties (hash "start" 50 "end" 100))
+(fade-transition 25)
+(color "blue" #:properties (hash "length" 75))

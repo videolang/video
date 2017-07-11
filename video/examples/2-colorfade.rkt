@@ -1,5 +1,5 @@
 #lang video
 
-(color "green" #:length 75)
-(fade-transition #:length 25)
-(color "blue" #:length 75)
+(color "green" #:properties (hash "length" 75))
+(fade-transition 25)
+(color "blue" #:properties (hash "length" 75))
