@@ -651,9 +651,11 @@
               ([t (in-list tracks)]
                [index (in-naturals)])
       (define node (convert t))
+      (define new-end (get-property node "end" +inf.0))
       (values (dict-set raw-nodes t (cons node index))
               (min start (get-property node "start" 0))
-              (max end (get-property node "end" 0)))))
+              (unless (= new-end +inf.0)
+                (max end new-end)))))
   ;; Convert all clips to a compatible length
   (define nodes
     (hash-copy

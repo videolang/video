@@ -362,6 +362,33 @@
                                            #:counts (node-counts t2)))
                         (add-vertex! ctx zero-node1)
                         (add-vertex! ctx zero-node2)
+                        (define length (min (- (get-property t1 "end" 0)
+                                               (get-property t1 "start" 0))
+                                            (- (get-property t2 "end" 0)
+                                               (get-property t2 "start" 0))))
+                        (define needs-clipping?
+                          (or (and (get-property t1 "start" #f)
+                                   (get-property t1 "end" #f))
+                              (and (get-property t2 "start" #f)
+                                   (get-property t2 "end" #f))))
+                        (define trim-node1
+                          (cond [needs-clipping?
+                                 (define node (mk-trim-node #:start 0
+                                                            #:end length
+                                                            #:counts (node-counts t1)))
+                                 (add-vertex! ctx node)
+                                 (add-directed-edge! ctx zero-node1 node 1)
+                                 node]
+                                [else zero-node1]))
+                        (define trim-node2
+                          (cond [needs-clipping?
+                                 (define node (mk-trim-node #:start 0
+                                                            #:end length
+                                                            #:counts (node-counts t2)))
+                                 (add-vertex! ctx node)
+                                 (add-directed-edge! ctx zero-node2 node 2)
+                                 node]
+                                [else zero-node2]))
                         (define scale-node2
                           (cond
                             [(and w h)
@@ -370,9 +397,9 @@
                                                                                      "h" h)))
                                                #:counts (node-counts t1)))
                              (add-vertex! ctx node)
-                             (add-directed-edge! ctx zero-node2 node 1)
+                             (add-directed-edge! ctx trim-node2 node 1)
                              node]
-                            [else zero-node2]))
+                            [else trim-node2]))
                         (define overlay
                           (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" x
                                                                                   "y" y))
@@ -380,7 +407,7 @@
                                           #:counts (node-counts t1)
                                           #:props (node-props t1)))
                         (add-vertex! ctx overlay)
-                        (add-directed-edge! ctx zero-node1 overlay 1)
+                        (add-directed-edge! ctx trim-node1 overlay 1)
                         (add-directed-edge! ctx scale-node2 overlay 2)
                         (make-video-subgraph #:graph ctx
                                              #:sources (cons zero-node1 zero-node2)
