@@ -31,4 +31,7 @@
   '("private/examples.rkt"
     "private/ffmpeg.rkt"
     "private/packetqueue.rkt"
-    "private/ffmpeg-stream.rkt"))
+    "private/ffmpeg-stream.rkt"
+    ;; This WILL need to be re-enabled before release.
+    "tests/unit-tests.rkt"
+    "tests/player.rkt"))
