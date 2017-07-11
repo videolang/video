@@ -260,7 +260,7 @@
               [else video-sink]))
       (define pad-node
         (mk-filter-node
-         (hash 'video (mk-filter "pad"
+         (hash 'video (mk-filter "scale"
                                  (hash "width" width
                                        "height" height))
                'audio (mk-filter "anull"))
