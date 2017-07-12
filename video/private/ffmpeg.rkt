@@ -116,6 +116,73 @@
 
 ;; ===================================================================================================
 
+(define frame-rates
+  (hash 'ntsc 30000/1001
+        'pal 25/1
+        'qntsc 30000/1001
+        'qpal 25/1
+        'sntsc 30000/1001
+        'spal 25/1
+        'film 24/1
+        'ntsc-film 24000/1001))
+
+(define frame-resolution
+  (hash 'ntsc (cons 720 480)
+        'pal (cons 720 576)
+        'qntsc (cons 352 240)
+        'qpal (cons 352 288)
+        'sntsc (cons 640 480)
+        'spal (cons 768 576)
+        'film (cons 352 240)
+        'ntsc-film (cons 352 240)
+        'sqcif (cons 128 96)
+        'qcif (cons 176 144)
+        'cif (cons 352 288)
+        '4cif (cons 704 576)
+        '16cif (cons 1408 1152)
+        'qqvga (cons 160 120)
+        'qvga (cons 320 240)
+        'vga (cons 640 480)
+        'svga (cons 800 600)
+        'xga (cons 1024 768)
+        'uxga (cons 1600 1200)
+        'qxga (cons 2048 1536)
+        'sxga (cons 1280 1024)
+        'qsxga (cons 2560 2048)
+        'hsxga (cons 5120 4096)
+        'wvga (cons 852 480)
+        'wxga (cons 1366 768)
+        'wsxga (cons 1600 1024)
+        'wuxga (cons 1920 1200)
+        'woxga (cons 2560 1600)
+        'wqsxga (cons 3200 2048)
+        'qsuxga (cons 3840 2400)
+        'whsxga (cons 6400 4096)
+        'whuxga (cons 7680 4800)
+        'cga (cons 320 200)
+        'ega (cons 640 350)
+        'hd480 (cons 852 480)
+        'hd720 (cons 1280 720)
+        'hd1080 (cons 1920 1080)
+        '2k (cons 2048 1080)
+        '2kflat (cons 1998 1080)
+        '2kscope (cons 2048 858)
+        '4k (cons 4096 2160)
+        '4kflat (cons 3996 2160)
+        '4kscope (cons 4096 1716)
+        'nhd (cons 640 360)
+        'hqvga (cons 240 160)
+        'wqvga (cons 400 240)
+        'fwqvga (cons 432 240)
+        'hvga (cons 480 320)
+        'qhd (cons 960 540)
+        '2kdci (cons 2048 1080)
+        '4kdci (cons 4096 2160)
+        'uhd2160 (cons 3840 2160)
+        'uhd4320 (cons 7680 4320)))
+
+;; ===================================================================================================
+
 (define _sws-flags
   (_bitmask `(fast-bilinear
               bilinear
