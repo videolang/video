@@ -1352,3 +1352,31 @@
       (stream-bundle-file out-bundle))))
   (displayln cmd)
   (apply system* cmd))
+
+;; ===================================================================================================
+
+;; Given a rendergraph, and an output seek point, find the location
+;;    each source node must seek to to result in that seek location
+;; Render-Graph Time-In-Seconds -> (Dictof Source-Node Time-In-Seconds)
+(define (get-seek-point graph seek-point)
+  (define g (graph-copy graph))
+  (define g* (transpose g))
+  (define-edge-property g* OFFSET 
+    #:for-each (- (dict-ref (node-props $from) "start")
+                  (dict-ref (node-props $to) "start")))
+  (define sink-node
+    (for/fold ([sink #f])
+              ([n (in-vertices g)])
+      #:break sink
+      (and (sink-node? n) n)))
+  (define-vertex-property g* DIST)
+  (do-bfs g* sink-node
+          #:visit: (DIST-set!
+                    $v
+                    (for/fold ([offset +inf.0])
+                              ([$from (in-neighbors $v)])
+                     (min offset (+ (DIST $from)
+                                    (OFFSET $v $from))))))
+  (for/hash ([n (in-vertices g)]
+             #:when (source-node? n))
+    (values n (DIST n))))
