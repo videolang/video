@@ -94,11 +94,15 @@
                    codec
                    codec-context
                    stream
+                   pts
                    next-pts
+                   dts
+                   next-dts
                    buffer
                    buffer-context
                    callback-data
                    extra-parameters
+                   start
                    flags)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -108,13 +112,17 @@
                       #:codec [codec #f]
                       #:codec-context [codec-context #f]
                       #:stream [s #f]
-                      #:next-pts [n 0]
+                      #:pts [p 0]
+                      #:next-pts [np 0]
+                      #:dts [d 0]
+                      #:next-dts [nd 0]
                       #:buffer [bf #f]
                       #:buffer-context [bc #f]
                       #:callback-data [cd #f]
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
+                      #:start [st (current-inexact-milliseconds)]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s n bf bc cd ep f))
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f))
 
 (struct extra-codec-parameters (time-base
                                 gop-size

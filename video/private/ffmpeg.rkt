@@ -2243,6 +2243,13 @@
 (define-avutil av-get-channel-layout-nb-channels (_fun _av-channel-layout -> _int))
 (define-avutil av-compare-ts (_fun _int64 _avrational _int64 _avrational
                                    -> _int))
+(define-avutil av-gettime (_fun -> _int64))
+(define-avutil av-gettime-relative (_fun -> _int64))
+(define-avutil av-gettime-relative-is-monotonic (_fun -> _bool))
+(define-avutil av-usleep (_fun _uint -> [ret : _int]
+                               -> (cond
+                                    [(= ret 0) (void)]
+                                    [else (error 'usleep "~a : ~a" ret (convert-err ret))])))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
