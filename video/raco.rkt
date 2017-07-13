@@ -33,6 +33,8 @@
 (define output-height (make-parameter 1080))
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
+(define output-verbose (make-parameter #f))
+(define output-silent (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -65,6 +67,10 @@
      [("-e" "--end")  end
                       "Rendering end position"
                       (output-end (cmd-str->num "--end" end))]
+     [("-v" "--verbose") "Output a copy of the graph used for rendering"
+                         (output-verbose #t)]
+     [("-q" "--silent") "Do not print any output, used for scripts"
+                        (output-silent #t)]
      #:args (video)
      video))
 
@@ -87,7 +93,11 @@
                     #:end (output-end)
                     #:width (output-width)
                     #:height (output-height)
-                    #:render-mixin render-mixin)]))
+                    #:render-mixin render-mixin
+                    #:mode (cond
+                             [(output-silent) 'silent]
+                             [(output-verbose) 'verbose]
+                             [else #f]))]))
      #|
      (newline)
      (let loop ()
