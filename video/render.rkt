@@ -48,10 +48,10 @@
   ;; rendering progress using it.
   [render (->* [any/c]
                [(or/c path-string? path? #f)
-                #:render-mixin (or/c (make-mixin-contract render<%>) #f)
+                #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
-                #:fps number?
+                #:fps real?
                 #:start (or/c nonnegative-integer? #f)
                 #:end (or/c nonnegative-integer? #f)]
                void?)]
@@ -63,10 +63,10 @@
   ;;   placed on the channel.
   [render/async (->* [any/c]
                      [(or/c path-string? path? #f)
-                      #:render-mixin (or/c (make-mixin-contract render<%>) #f)
+                      #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
                       #:width (and/c integer? positive?)
                       #:height (and/c integer? positive?)
-                      #:fps number?
+                      #:fps real?
                       #:start (or/c nonnegative-integer? #f)
                       #:end (or/c nonnegative-integer? #f)
                       #:mode (or/c 'verbose #f)]
@@ -78,15 +78,15 @@
   ;;   sent to the console.
   [render/pretty (->* [any/c]
                       [(or/c path-string? path? #f)
-                       #:render-mixin (or/c (make-mixin-contract render<%>) #f)
+                       #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
                        #:width (and/c integer? positive?)
                        #:height (and/c integer? positive?)
-                       #:fps number?
+                       #:fps real?
                        #:start (or/c nonnegative-integer? #f)
                        #:end (or/c nonnegative-integer? #f)
                        #:port (or/c output-port? #f)
                        #:mode (or/c 'verbose 'silent #f)]
-                      void?)])
+                      void?)]
 
  ;; The render% object is _NOT_ threadsafe. However, it is important ot use threads when calling
  ;;   certain methods. In particular, `feed-buffers` and `write-results` should be called
@@ -109,10 +109,11 @@
  ;;      (displayln (send r get-current-position?))
  ;;      (loop)))
  ;; 
- render%
+ [render% render<%>/c])
 
  ;; Interface for render%
- render<%>)
+ render<%>
+ render<%>/c)
 
 (define (render video
                 [dest #f]
@@ -312,7 +313,7 @@
            (λ ()
              (demux-stream bundle
                            #:by-index-callback (filtergraph-insert-packet))))))
-      (map thread-wait threads))
+      (for-each thread-wait threads))
 
     ;; Used for early termination of `feed-buffers`.
     ;; This is needed because trimmed outputs will
@@ -325,7 +326,8 @@
     (define/public (write-output)
       (mux-stream output-bundle
                   #:by-index-callback (filtergraph-next-packet
-                                       #:render-status current-render-status)))
+                                       #:render-status current-render-status))
+      (void))
 
     ;; Seek to a specific position (in seconds).
     ;; This method IS threadafe with respect to feed-buffers
@@ -368,24 +370,24 @@
   (class/c [copy (->m (instanceof/c (recursive-contract render<%>/c)))]
            [setup (->*m ()
                         (#:destination (or/c path? path-string? #f)
-                         #:width integer?
-                         #:height integer?
-                         #:start (or/c (and/c number? positive?) #f)
-                         #:end (or/c (and/c number? positive? #f))
-                         #:fps (and/c number? positive?)
+                         #:width (and/c integer? positive?)
+                         #:height (and/c integer? positive?)
+                         #:start (or/c (and/c real? positive?) #f)
+                         #:end (or/c (and/c real? positive?) #f)
+                         #:fps real?
                          #:pix-fmt symbol?
                          #:sample-fmt symbol?
-                         #:sample-rate (and/c number? positive?)
+                         #:sample-rate (and/c real? positive?)
                          #:channel-layout symbol?)
                         void?)]
            [feed-buffers (->m void?)]
-           [stop-inputs (->m void?)]
+           [stop-input (->m void?)]
            [write-output (->m void?)]
-           [seek (->m (and/c number? positive?) void?)]
+           [seek (->m (and/c real? positive?) void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m (or/c boolean? 'eof))]
-           [get-current-position (->m (and/c number? positive?))]))
+           [get-current-position (->m (and/c real? positive?))]))
 
 ;; This submodule stores the member names to the fields for the render% class.
 ;; Requiring it allows classes to use those fields directly (i.e. for subclasses/mixins.)
