@@ -285,91 +285,89 @@
                     #:stream-table stream-table
                     #:file file))
 
-;; A busy loop, we can do better. >:(
-(define (wait-for-packet-need bundle)
-  (let loop ()
-    (unless (for/fold ([needed? #f])
-                      ([str (stream-bundle-streams bundle)])
-              (define buff-ctx (codec-obj-buffer-context str))
-              (cond
-                [needed? needed?]
-                [buff-ctx
-                 (> (av-buffersrc-get-nb-failed-requests buff-ctx) 0)]
-                [else #t]))
-      (sleep 0.01)
-      (loop))))
+(define demux%
+  (class object%
+    (init-field bundle
+                [callback-table (hash)]
+                [by-index-callback #f])
+    (super-new)
+    
+    (define avformat (stream-bundle-avformat-context bundle))
+    (define streams (stream-bundle-streams bundle))
+    (define stream-table (stream-bundle-stream-table bundle))
+    
+    (define/public (dump-info [testfile #f])
+      (av-dump-format avformat 0 testfile 0))
 
-(define (demux-stream/fill-bundle bundle
-                                  #:callback-table [callback-table (hash)]
-                                  #:by-index-callback [by-index-callback #f])
-  ;; Open file
-  (define avformat (stream-bundle-avformat-context bundle))
-  (define streams (stream-bundle-streams bundle))
-  ;(av-dump-format avformat 0 testfile 0)
-  ;; Init Streams
-  (define stream-table (stream-bundle-stream-table bundle))
-  (for ([i streams])
-    (match i
-      [(struct* codec-obj ([type codec-name]))
-       (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
-         (error 'decoder-stream "Stream type ~a already present" codec-name))
-       (hash-set! stream-table codec-name i)
-       (when by-index-callback
-         (by-index-callback 'init i #f))]))
-  (unless by-index-callback
-    (for ([(k v) (in-hash stream-table)])
-      ((callback-ref callback-table k)) 'init v #f))
-  (for  ([i streams])
-    (match i
-      [(struct* codec-obj ([start-offset start-offset]
-                           [stream stream]
-                           [index index]))
-       (when start-offset
-         (av-seek-frame avformat
-                        index
-                        (exact-floor (/ (max 0 (- start-offset 1))
-                                        (avstream-time-base stream)))
-                        '()))])))
+    ;; A busy loop, we can do better. >:(
+    (define/public (wait-for-packet-need)
+      (let loop ()
+        (unless (for/fold ([needed? #f])
+                          ([str (stream-bundle-streams bundle)])
+                  (define buff-ctx (codec-obj-buffer-context str))
+                  (cond
+                    [needed? needed?]
+                    [buff-ctx
+                     (> (av-buffersrc-get-nb-failed-requests buff-ctx) 0)]
+                    [else #t]))
+          (sleep 0.01)
+          (loop))))
+    
+    (define/public (init)
+      (for ([i streams])
+        (match i
+          [(struct* codec-obj ([type codec-name]))
+           (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
+             (error 'decoder-stream "Stream type ~a already present" codec-name))
+           (hash-set! stream-table codec-name i)
+           (when by-index-callback
+             (by-index-callback 'init i #f))]))
+      (unless by-index-callback
+        (for ([(k v) (in-hash stream-table)])
+          ((callback-ref callback-table k)) 'init v #f))
+      (for  ([i streams])
+        (match i
+          [(struct* codec-obj ([start-offset start-offset]
+                               [stream stream]
+                               [index index]))
+           (when start-offset
+             (av-seek-frame avformat
+                            index
+                            (exact-floor (/ (max 0 (- start-offset 1))
+                                            (avstream-time-base stream)))
+                            '()))])))
 
-(define (demux-stream/loop bundle
-                           #:callback-table [callback-table (hash)]
-                           #:by-index-callback [by-index-callback #f])
-  (define avformat (stream-bundle-avformat-context bundle))
-  (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table bundle))
-  (let loop ()
-    (wait-for-packet-need bundle)
-    (define packet (av-read-frame avformat))
-    (when packet
-      (define index (avpacket-stream-index packet))
-      (define obj (vector-ref streams index))
-      (cond [by-index-callback (by-index-callback 'loop obj packet)]
-            [else
-             (define type (codec-obj-type obj))
-             (when (eq? obj (hash-ref stream-table type))
-               ((callback-ref callback-table type) 'loop obj packet))])
-      (av-packet-free packet)
-      (loop))))
-
-(define (demux-stream/close-bundle bundle
-                                   #:callback-table [callback-table (hash)]
-                                   #:by-index-callback [by-index-callback #f])
-  (define avformat (stream-bundle-avformat-context bundle))
-  (define streams (stream-bundle-streams bundle))
-  (define stream-table (stream-bundle-stream-table bundle))
-  (unless by-index-callback
-    (for ([(k v) (in-hash stream-table)])
-      ((callback-ref callback-table k)) 'close v #f))
-  (for ([i (in-vector streams)])
-    (match i
-      [(struct* codec-obj ([codec-parameters codec-parameters]
-                           [codec-context codec-context]
-                           [index index]))
-       (when by-index-callback
-         (by-index-callback 'close i #f))
-       (unless (set-member? (codec-obj-flags i) 'no-close-context)
-         (avcodec-close codec-context))]))
-  (avformat-close-input avformat))
+    ;; #t - More to read
+    ;; #f - Done reading
+    (define/public (read-packet)
+      (define packet (av-read-frame avformat))
+      (cond
+        [packet
+         (define index (avpacket-stream-index packet))
+         (define obj (vector-ref streams index))
+         (cond [by-index-callback (by-index-callback 'loop obj packet)]
+               [else
+                (define type (codec-obj-type obj))
+                (when (eq? obj (hash-ref stream-table type))
+                  ((callback-ref callback-table type) 'loop obj packet))])
+         (av-packet-free packet)
+         #t]
+        [else #f]))
+    
+    (define/public (close)
+      (unless by-index-callback
+        (for ([(k v) (in-hash stream-table)])
+          ((callback-ref callback-table k)) 'close v #f))
+      (for ([i (in-vector streams)])
+        (match i
+          [(struct* codec-obj ([codec-parameters codec-parameters]
+                               [codec-context codec-context]
+                               [index index]))
+           (when by-index-callback
+             (by-index-callback 'close i #f))
+           (unless (set-member? (codec-obj-flags i) 'no-close-context)
+             (avcodec-close codec-context))]))
+      (avformat-close-input avformat))))
 
 ;; Callback ops:
 ;;   'init
@@ -378,18 +376,17 @@
 (define (demux-stream bundle
                       #:callback-table [callback-table (hash)]
                       #:by-index-callback [by-index-callback #f])
-  ;; Init Streams
-  (demux-stream/fill-bundle bundle
-                            #:callback-table callback-table
-                            #:by-index-callback by-index-callback)
+  (define demux (new demux%
+                     [bundle bundle]
+                     [callback-table callback-table]
+                     [by-index-callback by-index-callback]))
+  (send demux init)
   ;; Main Loop
-  (demux-stream/loop bundle
-                     #:callback-table callback-table
-                     #:by-index-callback by-index-callback)
-  ;; Close Down
-  (demux-stream/close-bundle bundle
-                             #:callback-table callback-table
-                             #:by-index-callback by-index-callback))
+  (let loop ()
+    (send demux wait-for-packet-need)
+    (when (send demux read-packet)
+      (loop)))
+  (send demux close))
 
 ;; ===================================================================================================
 
@@ -536,130 +533,122 @@
                     #:raw-streams streams
                     #:stream-table stream-table))
 
-(define (mux-stream/init bundle
-                         #:callback-table callback-table
-                         #:by-index-callback by-index-callback)
-  (define output-context
-    (stream-bundle-avformat-context bundle))
-  (define options (convert-dict (stream-bundle-options-dict bundle)))
-  (define file (stream-bundle-file bundle))
-  (define format (avformat-context-oformat output-context))
-  ;; Get streams
-  (define stream-table (make-hash))
-  (define streams (stream-bundle-streams bundle))
-  ;; Get codec and other attributes of decoded video
-  (for ([i (in-vector streams)]
-        [index (in-naturals)])
-    (match i
-      [(struct* codec-obj ([id id]
-                           [type type]
-                           [codec-context ctx]))
-       (if by-index-callback
-           (by-index-callback 'init i)
-           ((dict-ref callback-table type empty-proc) 'init i))
-       (when (set-member? (avformat-context-flags output-context) 'globalheader)
-         (set-avcodec-context-flags!
-          ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
+(define mux%
+  (class object%
+    (init-field [bundle bundle]
+                [callback-table callback-table]
+                [by-index-callback by-index-callback])
+    (super-new)
+    
+    (define output-context
+      (stream-bundle-avformat-context bundle))
+    (define file (stream-bundle-file bundle))
+    (define format (avformat-context-oformat output-context))
+    (define streams (stream-bundle-streams bundle))
+    
+    (define/public (init)
+      (define options (convert-dict (stream-bundle-options-dict bundle)))
+      ;; Get streams
+      (define stream-table (make-hash))
+      ;; Get codec and other attributes of decoded video
+      (for ([i (in-vector streams)]
+            [index (in-naturals)])
+        (match i
+          [(struct* codec-obj ([id id]
+                               [type type]
+                               [codec-context ctx]))
+           (if by-index-callback
+               (by-index-callback 'init i)
+               ((dict-ref callback-table type empty-proc) 'init i))
+           (when (set-member? (avformat-context-flags output-context) 'globalheader)
+             (set-avcodec-context-flags!
+              ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
+    
+    (define/public (open)
+      (define output-context
+        (stream-bundle-avformat-context bundle))
+      (define options (convert-dict (stream-bundle-options-dict bundle)))
+      (for ([i (in-vector streams)])
+        (match i
+          [(struct* codec-obj ([type type]
+                               [codec codec]
+                               [codec-context ctx]
+                               [stream stream]))
+           (define str-opt (av-dict-copy options '()))
+           (avcodec-open2 ctx codec str-opt)
+           (av-dict-free str-opt)
+           ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
+           (if by-index-callback
+               (by-index-callback 'open i)
+               ((dict-ref callback-table empty-proc) 'open i))
+           (avcodec-parameters-from-context (avstream-codecpar stream) ctx)]))
+      ;; Create file.
+      ;(av-dump-format output-context 0 file 'output)
+      (unless (set-member? (av-output-format-flags format) 'nofile)
+        (set-avformat-context-pb!
+         output-context (avio-open (avformat-context-pb output-context) file 'write))))
+  
+    (define remaining-streams (mutable-set))
+    (define/public (write-header)
+      (avformat-write-header output-context #f)
+      (for ([i (in-vector streams)])
+        (set-add! remaining-streams i)))
+    
+    ;; #t - More packets to write
+    ;; #f - No more packets to write
+    (define/public (write-packet)
+      (cond [(set-empty? remaining-streams) #f]
+            [else
+             (define min-stream
+               (for/fold ([min-stream #f])
+                         ([i (in-set remaining-streams)])
+                 (if min-stream
+                     (match (av-compare-ts (codec-obj-next-pts min-stream)
+                                           (avstream-time-base (codec-obj-stream min-stream))
+                                           (codec-obj-next-pts i)
+                                           (avstream-time-base (codec-obj-stream i)))
+                       [(or -1 0) min-stream]
+                       [1 i])
+                     i)))
+             (define next-packet
+               (if by-index-callback
+                   (by-index-callback 'write min-stream)
+                   ((dict-ref callback-table (codec-obj-type min-stream) empty-proc) 'write min-stream)))
+             (let loop ([next-packet next-packet])
+               (cond [(eof-object? next-packet)
+                      (set-remove! remaining-streams min-stream)]
+                     [(list? next-packet)
+                      (map loop next-packet)]
+                     [else
+                      (match min-stream
+                        [(struct* codec-obj ([codec-context codec-context]
+                                             [stream stream]))
+                         (av-packet-rescale-ts next-packet
+                                               (avcodec-context-time-base codec-context)
+                                               (avstream-time-base stream))
+                         (set-avpacket-stream-index!
+                          next-packet (avstream-index (codec-obj-stream min-stream)))
+                         (av-write-frame output-context next-packet)
+                         ;(av-interleaved-write-frame output-context next-packet)
+                         (av-packet-free next-packet)])]))
+               #t]))
 
-(define (mux-stream/open bundle
-                         #:callback-table callback-table
-                         #:by-index-callback by-index-callback)
-  (define output-context
-    (stream-bundle-avformat-context bundle))
-  (define file (stream-bundle-file bundle))
-  (define format (avformat-context-oformat output-context))
-  (define streams (stream-bundle-streams bundle))
-  (define options (convert-dict (stream-bundle-options-dict bundle)))
-  (for ([i (in-vector streams)])
-    (match i
-      [(struct* codec-obj ([type type]
-                           [codec codec]
-                           [codec-context ctx]
-                           [stream stream]))
-       (define str-opt (av-dict-copy options '()))
-       (avcodec-open2 ctx codec str-opt)
-       (av-dict-free str-opt)
-       ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
-       (if by-index-callback
-           (by-index-callback 'open i)
-           ((dict-ref callback-table empty-proc) 'open i))
-       (avcodec-parameters-from-context (avstream-codecpar stream) ctx)]))
-  ;; Create file.
-  ;(av-dump-format output-context 0 file 'output)
-  (unless (set-member? (av-output-format-flags format) 'nofile)
-    (set-avformat-context-pb!
-     output-context (avio-open (avformat-context-pb output-context) file 'write))))
-
-(define (mux-stream/write bundle
-                          #:callback-table callback-table
-                          #:by-index-callback by-index-callback)
-  (define output-context
-    (stream-bundle-avformat-context bundle))
-  (define file (stream-bundle-file bundle))
-  (define format (avformat-context-oformat output-context))
-  (avformat-write-header output-context #f)
-  (define streams (stream-bundle-streams bundle))
-  (define remaining-streams (mutable-set))
-  (for ([i (in-vector streams)])
-    (set-add! remaining-streams i))
-  (let loop ()
-    (unless (set-empty? remaining-streams)
-      (define min-stream
-        (for/fold ([min-stream #f])
-                  ([i (in-set remaining-streams)])
-          (if min-stream
-              (match (av-compare-ts (codec-obj-next-pts min-stream)
-                                    (avstream-time-base (codec-obj-stream min-stream))
-                                    (codec-obj-next-pts i)
-                                    (avstream-time-base (codec-obj-stream i)))
-                [(or -1 0) min-stream]
-                [1 i])
-              i)))
-      (define next-packet
-        (if by-index-callback
-            (by-index-callback 'write min-stream)
-            ((dict-ref callback-table (codec-obj-type min-stream) empty-proc) 'write min-stream)))
-      (let loop ([next-packet next-packet])
-        (cond [(eof-object? next-packet)
-               (set-remove! remaining-streams min-stream)]
-              [(list? next-packet)
-               (map loop next-packet)]
-              [else
-               (match min-stream
-                 [(struct* codec-obj ([codec-context codec-context]
-                                      [stream stream]))
-                  (av-packet-rescale-ts next-packet
-                                        (avcodec-context-time-base codec-context)
-                                        (avstream-time-base stream))
-                  (set-avpacket-stream-index!
-                   next-packet (avstream-index (codec-obj-stream min-stream)))
-                  (av-write-frame output-context next-packet)
-                  ;(av-interleaved-write-frame output-context next-packet)
-                  (av-packet-free next-packet)
-                  ])]))
-      (loop)))
-  ;(av-interleaved-write-frame output-context #f) ;; <- Maybe not needed?
-  (av-write-trailer output-context))
-
-(define (mux-stream/close bundle
-                          #:callback-table callback-table
-                          #:by-index-callback by-index-callback)
-  (define output-context
-    (stream-bundle-avformat-context bundle))
-  (define file (stream-bundle-file bundle))
-  (define format (avformat-context-oformat output-context))
-  (define streams (stream-bundle-streams bundle))
-  (for ([i (in-vector streams)])
-    (match i
-      [(struct* codec-obj ([type type]
-                           [flags flags]))
-       (if by-index-callback
-           (by-index-callback 'close i)
-           ((dict-ref callback-table type empty-proc) 'close i))]))
-  (unless (set-member? (av-output-format-flags format) 'nofile)
-    (avio-close (avformat-context-pb output-context)))
-  (avformat-free-context output-context))
-
+    (define/public (write-trailer)
+      ;(av-interleaved-write-frame output-context #f) ;; <- Maybe not needed?
+      (av-write-trailer output-context))
+    
+    (define/public (close)
+      (for ([i (in-vector streams)])
+        (match i
+          [(struct* codec-obj ([type type]
+                               [flags flags]))
+           (if by-index-callback
+               (by-index-callback 'close i)
+               ((dict-ref callback-table type empty-proc) 'close i))]))
+      (unless (set-member? (av-output-format-flags format) 'nofile)
+        (avio-close (avformat-context-pb output-context)))
+      (avformat-free-context output-context))))
+  
 ;; Callback ops:
 ;;   'init
 ;;   'open
@@ -668,22 +657,19 @@
 (define (mux-stream bundle
                     #:callback-table [callback-table (hash)]
                     #:by-index-callback [by-index-callback #f])
-  ;; Initial Setup
-  (mux-stream/init bundle
-                   #:callback-table callback-table
-                   #:by-index-callback by-index-callback)
-  ;; Open Streams
-  (mux-stream/open bundle
-                   #:callback-table callback-table
-                   #:by-index-callback by-index-callback)
-  ;; Write the stream
-  (mux-stream/write bundle
-                    #:callback-table callback-table
-                    #:by-index-callback by-index-callback)
-  ;; Clean Up
-  (mux-stream/close bundle
-                    #:callback-table callback-table
-                    #:by-index-callback by-index-callback))
+  (define mux (new mux%
+                   [bundle bundle]
+                   [callback-table callback-table]
+                   [by-index-callback by-index-callback]))
+  (send mux init)
+  (send mux open)
+  (send mux write-header)
+  (let loop ()
+    (when (send mux write-packet)
+      (loop)))
+  (send mux write-trailer)
+  (displayln "got here?")
+  (send mux close))
 
 ;; ===================================================================================================
 
