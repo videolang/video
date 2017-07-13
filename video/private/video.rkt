@@ -593,12 +593,15 @@
       (define end (dict-ref props "end"))
       (define offset (mk-filter "setpts" (hash "expr" "PTS-STARTPTS")))
       (define aoffset (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+      (define props* (dict-copy props))
+      (dict-set*! props*
+                  "start" 0
+                  "end" (+ end time))
+
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)
-                        #:props (dict-set*! (dict-copy props)
-                                            "start" (+ start time)
-                                            "end" (+ end time))
+                        #:props props*
                         #:counts counts))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)

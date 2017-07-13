@@ -196,7 +196,7 @@
               lanczos
               spline)))
 
-(define _av-seek-flags
+(define _avseek-flags
   (_bitmask `(backwards
               byte
               any
@@ -1875,7 +1875,7 @@
   (define frame* (or frame (av-packet-alloc)))
   (av-read-frame ctx frame*))
 (define-avformat av-seek-frame
-  (_fun _avformat-context-pointer _int _int64 _av-seek-flags -> [ret : _int]
+  (_fun _avformat-context-pointer _int _int64 _avseek-flags -> [ret : _int]
         -> (when (< ret 0)
              (error 'av-seek-frame "~a : ~a" ret (convert-err ret)))))
 (define-avformat avformat-seek-file

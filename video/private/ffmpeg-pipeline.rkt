@@ -32,6 +32,7 @@
          (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
          racket/system
+         racket/math
          graph
          "init.rkt"
          "packetqueue.rkt"
@@ -102,7 +103,8 @@
                    buffer-context
                    callback-data
                    extra-parameters
-                   start
+                   start-time
+                   start-offset
                    flags)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -120,9 +122,10 @@
                       #:buffer-context [bc #f]
                       #:callback-data [cd #f]
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
-                      #:start [st (current-inexact-milliseconds)]
+                      #:start-time [st (current-inexact-milliseconds)]
+                      #:start-offset [so #f]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f))
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st #f f))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
@@ -315,7 +318,18 @@
          (by-index-callback 'init i #f))]))
   (unless by-index-callback
     (for ([(k v) (in-hash stream-table)])
-      ((callback-ref callback-table k)) 'init v #f)))
+      ((callback-ref callback-table k)) 'init v #f))
+  (for  ([i streams])
+    (match i
+      [(struct* codec-obj ([start-offset start-offset]
+                           [stream stream]
+                           [index index]))
+       (when start-offset
+         (av-seek-frame avformat
+                        index
+                        (exact-floor (/ (max 0 (- start-offset 1))
+                                        (avstream-time-base stream)))
+                        '()))])))
 
 (define (demux-stream/loop bundle
                            #:callback-table [callback-table (hash)]
@@ -1133,8 +1147,9 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
-  (displayln g-str)
+  ;(displayln (graphviz g))
+  ;(displayln g-str)
+  (define seek-points (get-seek-point g 0))
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
@@ -1164,6 +1179,7 @@
                                (avcodec-context-sample-rate ctx))]))
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
+           (set-codec-obj-start-offset! str (dict-ref seek-points bundle))
            (cons n ins)]))))
   (define inputs
     (for/fold ([outs '()])
@@ -1211,7 +1227,7 @@
 (define ((filtergraph-insert-packet) mode obj packet)
   (match obj
     [(struct* codec-obj ([codec-context ctx]
-                           [buffer-context buff-ctx]))
+                         [buffer-context buff-ctx]))
      (match mode
        ['loop
         (avcodec-send-packet ctx packet)
@@ -1362,8 +1378,9 @@
   (define g (graph-copy graph))
   (define g* (transpose g))
   (define-edge-property g* OFFSET 
-    #:for-each (- (dict-ref (node-props $from) "start")
-                  (dict-ref (node-props $to) "start")))
+    #:for-each (OFFSET-set! $from $to
+                            (max 0 (- (dict-ref (node-props $from) "start" 0)
+                                      (dict-ref (node-props $to) "start" 0)))))
   (define sink-node
     (for/fold ([sink #f])
               ([n (in-vertices g)])
@@ -1373,10 +1390,12 @@
   (do-bfs g* sink-node
           #:visit: (DIST-set!
                     $v
-                    (for/fold ([offset +inf.0])
-                              ([$from (in-neighbors $v)])
-                     (min offset (+ (DIST $from)
-                                    (OFFSET $v $from))))))
+                    (if (sink-node? $v)
+                        seek-point
+                        (for/fold ([offset +inf.0])
+                                  ([$from (in-neighbors g $v)])
+                          (min offset (+ (DIST $from)
+                                         (OFFSET $from $v)))))))
   (for/hash ([n (in-vertices g)]
              #:when (source-node? n))
-    (values n (DIST n))))
+    (values (source-node-bundle n) (DIST n))))
