@@ -507,7 +507,7 @@
                          #:channel-layout symbol?)
                         void?)]
            [start-rendering (->*m () (boolean?) void?)]
-           [wait-for-rendering? (->m void?)]
+           [wait-for-rendering (->m void?)]
            [stop-rendering (->m void?)]
            [seek (->m (and/c real? positive?) void?)]
            [get-video-graph (->m graph?)]
