@@ -523,6 +523,16 @@
                           [start (get-current-position)]))
       (start-rendering))
 
+    ;; Convience method to change speed. 0 is paused, 1 is normal, -1 is normal reversed
+    ;;     (0, 1) is slow, (-1, 0) is slow reverse, (1, ∞) is fast
+    ;;     (-∞, -1) is fast reverse
+    (define/public (set-speed speed)
+      (stop-rendering)
+      (setup (struct-copy render-settings current-render-settings
+                          [speed speed]
+                          [start (get-current-position)]))
+      (start-rendering))
+
     ;; Return a copy of the video-graph. That is, the resulting graph from the given video
     ;;   object. Mutations to this graph will NOT affect the renderer's copy of the graph.
     (define/public (get-video-graph)
@@ -576,6 +586,7 @@
            [stop-rendering (->m void?)]
            [seek (->m (and/c real? positive?) void?)]
            [resize (->m (and/c real? positive?) (and/c real? positive?) void?)]
+           [set-speed (->m real? void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m boolean?)]
