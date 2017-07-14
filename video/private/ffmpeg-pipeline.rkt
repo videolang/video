@@ -544,8 +544,8 @@
 (define mux%
   (class object%
     (init-field [bundle bundle]
-                [callback-table callback-table]
-                [by-index-callback by-index-callback])
+                [callback-table (hash)]
+                [by-index-callback #f])
     (super-new)
     
     (define output-context
@@ -573,8 +573,6 @@
               ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
     
     (define/public (open)
-      (define output-context
-        (stream-bundle-avformat-context bundle))
       (define options (convert-dict (stream-bundle-options-dict bundle)))
       (for ([i (in-vector streams)])
         (match i

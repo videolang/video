@@ -234,12 +234,13 @@
                               #:height [h 1080]
                               #:start [s #f]
                               #:end [e #f]
+                              #:fps [f 25]
                               #:pix-fmt [pf 'yuv420p]
                               #:sample-fmt [sf 'fltp]
                               #:sample-rate [sr 44100]
                               #:channel-layout [cl 'stereo]
                               #:speed [sp 1])
-  (render-settings d w h s e pf sf sr cl sp))
+  (render-settings d w h s e f pf sf sr cl sp))
 
 (define render%
   (class object%
@@ -361,7 +362,7 @@
                      'audio (mk-filter "asetrate"
                                        (hash "r" (exact->inexact (* sample-rate speed)))))))
             (add-vertex! render-graph speed-node)
-            (add-directed-edge! render-graph pix-fmt-node speed-node)
+            (add-directed-edge! render-graph pix-fmt-node speed-node 1)
             (define sink-node
               (mk-sink-node out-bundle
                             #:counts (node-counts trim-node)))
