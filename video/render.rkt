@@ -352,17 +352,17 @@
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph pix-fmt-node)
             (add-directed-edge! render-graph fps-node pix-fmt-node 1)
-            (define out-bundle (stream-bundle->file out-path 'vid+aud))
-            (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
             (define speed-node
               (mk-filter-node
                (hash 'video (mk-filter "setpts"
                                        (hash "expr" (format "(PTS-STARTPTS)*~a"
                                                             (exact->inexact speed))))
                      'audio (mk-filter "asetrate"
-                                       (hash "r" (exact->inexact (* sample-rate speed)))))))
+                                       (hash "r" (exact->inexact (* sample-rate speed)))))
+               #:counts (node-counts trim-node)))
             (add-vertex! render-graph speed-node)
             (add-directed-edge! render-graph pix-fmt-node speed-node 1)
+            (define out-bundle (stream-bundle->file out-path 'vid+aud))
             (define sink-node
               (mk-sink-node out-bundle
                             #:counts (node-counts trim-node)))

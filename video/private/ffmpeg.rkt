@@ -1039,7 +1039,9 @@
            s16p
            s32p
            fltp
-           dblp)))
+           dblp
+           s64
+           s64p)))
 (define-cpointer-type _avsample-format-pointer)
 
 (define _avduration-estimation-method

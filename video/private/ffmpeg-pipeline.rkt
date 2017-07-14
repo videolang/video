@@ -674,7 +674,6 @@
     (when (send mux write-packet)
       (loop)))
   (send mux write-trailer)
-  (displayln "got here?")
   (send mux close))
 
 ;; ===================================================================================================
