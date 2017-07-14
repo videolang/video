@@ -299,19 +299,27 @@
     (define/public (dump-info [testfile #f])
       (av-dump-format avformat 0 testfile 0))
 
-    ;; A busy loop, we can do better. >:(
-    (define/public (wait-for-packet-need)
+    ;; Takes an optional timeout in seconds. Returns true if data is found
+    ;;   or false if timed out (if timeout provided).
+    ;; (U Number #f) -> Boolean
+    (define/public (wait-for-packet-need [timeout #f])
+      (define start-time (current-inexact-milliseconds))
       (let loop ()
-        (unless (for/fold ([needed? #f])
-                          ([str (stream-bundle-streams bundle)])
-                  (define buff-ctx (codec-obj-buffer-context str))
-                  (cond
-                    [needed? needed?]
-                    [buff-ctx
-                     (> (av-buffersrc-get-nb-failed-requests buff-ctx) 0)]
-                    [else #t]))
-          (sleep 0.01)
-          (loop))))
+        (define needed?
+          (for/fold ([needed? #f])
+                    ([str (stream-bundle-streams bundle)])
+            (define buff-ctx (codec-obj-buffer-context str))
+            (cond
+              [needed? needed?]
+              [buff-ctx
+               (> (av-buffersrc-get-nb-failed-requests buff-ctx) 0)]
+              [else #t])))
+        (define run-time (- (current-inexact-milliseconds) start-time))
+        (define timed-out? (and timeout (> (/ run-time 1000) timeout)))
+        (cond [(or needed? timed-out?)
+               (sleep 0.01)
+               (loop)]
+              [else (not timed-out?)])))
     
     (define/public (init)
       (for ([i streams])

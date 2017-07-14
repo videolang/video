@@ -226,6 +226,18 @@
 
     (define current-render-status (mk-render-status-box))
 
+    ;; Flag states:
+    ;;   - running : Actively reading/writing
+    ;;   - stopping : Actively reading/writing, requested to stop asap
+    ;;   - stopped : No longer reading/writing
+    ;; Must always use call-with-semaphore before modifying the status flag.
+    (define stop-reading-flag 'stopped)
+    (define reading-stopped-signal (make-async-channel))
+    (define stop-reading-semaphore (make-semaphore 1))
+    (define stop-writing-flag 'stopped)
+    (define writing-stopped-signal (make-async-channel))
+    (define stop-writing-semaphore (make-semaphore 1))
+
     ;; Copy this renderer, that way it can be
     ;; setup to multiple profiles
     (define/public (copy)
@@ -307,26 +319,99 @@
     ;; Send all of the input pads into the render graph.
     ;; This method sould be run in its own thread
     (define/public (feed-buffers)
+      (define currently-stopped?
+        (call-with-semaphore
+         stop-reading-semaphore
+         (λ ()
+           (define ret (eq? stop-reading-flag 'stopped))
+           (set! stop-reading-flag 'running)
+           ret)))
+      (unless currently-stopped?
+        (error 'feed-buffers "Reader already running"))
       (define threads
         (for/list ([bundle (in-list input-bundles)])
           (thread
            (λ ()
-             (demux-stream bundle
-                           #:by-index-callback (filtergraph-insert-packet))))))
-      (for-each thread-wait threads))
+             (define proc (filtergraph-insert-packet))
+             (define demux (new demux%
+                                [bundle bundle]
+                                [by-index-callback proc]))
+             (send demux init)
+             (let loop ()
+               (when (call-with-semaphore
+                      stop-reading-semaphore
+                      (λ () (eq? stop-reading-flag 'stopping)))
+                 (define got-data?
+                   (send demux wait-for-packet-need 1))
+                 (cond [(not got-data?) (loop)]
+                       [(send demux read-packet) (loop)]
+                       [else (void)])))
+             (send demux close)))))
+      (for-each thread-wait threads)
+      (call-with-semaphore
+       stop-reading-semaphore
+       (λ ()
+         (when (eq? stop-reading-flag 'stopping)
+           (async-channel-put reading-stopped-signal 'stopped)
+           (set! stop-reading-flag 'stopped))))
+      (void))
 
     ;; Used for early termination of `feed-buffers`.
     ;; This is needed because trimmed outputs will
     ;;   NEVER finish reading from the inputs.
     (define/public (stop-input)
-      (error "TODO"))
+      (define currently-running?
+        (call-with-semaphore
+         stop-writing-semaphore
+         (λ ()
+           (define ret (eq? stop-writing-flag 'running))
+           (set! stop-writing-flag 'stopping)
+           ret)))
+      (when currently-running?
+        (error 'stop-input "Already stopping!"))
+      (async-channel-get writing-stopped-signal))
 
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
     (define/public (write-output)
-      (mux-stream output-bundle
-                  #:by-index-callback (filtergraph-next-packet
-                                       #:render-status current-render-status))
+      (define currently-stopped?
+        (call-with-semaphore
+         stop-writing-semaphore
+         (λ ()
+           (define ret (eq? stop-writing-flag 'stopped))
+           (set! stop-writing-flag 'running)
+           ret)))
+      (unless currently-stopped?
+        (error 'write-output "Already writing output"))
+      (define proc (filtergraph-next-packet #:render-status current-render-status))
+      (define mux (new mux%
+                       [bundle output-bundle]
+                       [by-index-callback proc]))
+      (send mux init)
+      (send mux open)
+      (send mux write-header)
+      (let loop ()
+        (when (and (call-with-semaphore stop-writing-semaphore
+                                        (λ () (not stop-writing-flag)))
+                   (send mux write-packet))
+          (loop)))
+      (send mux write-trailer)
+      (send mux close)
+      (define wait-for-reading?
+        (call-with-semaphore
+         stop-reading-semaphore
+         (λ ()
+           (define reading? (eq? stop-reading-flag 'running))
+           (set! stop-reading-flag 'stopping)
+           reading?)))
+      (when wait-for-reading?
+        (async-channel-get reading-stopped-signal))
+      (call-with-semaphore
+       stop-writing-semaphore
+       (λ ()
+         (when (eq? stop-writing-flag 'stopping)
+           (async-channel-put writing-stopped-signal 'stopped)
+           (set! stop-writing-flag 'stopped))))
       (void))
 
     ;; Seek to a specific position (in seconds).
