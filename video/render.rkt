@@ -109,7 +109,22 @@
  ;;      (displayln (send r get-current-position?))
  ;;      (loop)))
  ;; 
- [render% render<%>/c])
+ [render% render<%>/c]
+
+ [render-settings? (-> any/c void?)]
+
+ [make-render-settings (->* ()
+                            (#:destination (or/c path? path-string? #f)
+                             #:width (and/c integer? positive?)
+                             #:height (and/c integer? positive?)
+                             #:start (or/c (and/c real? positive?) #f)
+                             #:end (or/c (and/c real? positive?) #f)
+                             #:fps real?
+                             #:pix-fmt symbol?
+                             #:sample-fmt symbol?
+                             #:sample-rate (and/c real? positive?)
+                             #:channel-layout symbol?)
+                            render-settings?)])
 
  ;; Interface for render%
  render<%>
@@ -202,6 +217,27 @@
       (loop)))
   (newline port))
 
+(struct render-settings (destination
+                         width
+                         height
+                         start
+                         end
+                         fps
+                         pix-fmt
+                         sample-fmt
+                         sample-rate
+                         channel-layout))
+(define (make-render-settings #:destination [d #f]
+                              #:width [w 1920]
+                              #:height [h 1080]
+                              #:start [s #f]
+                              #:end [e #f]
+                              #:pix-fmt [pf 'yuv420p]
+                              #:sample-fmt [sf 'fltp]
+                              #:sample-rate [sr 44100]
+                              #:channel-layout [cl 'stereo])
+  (render-settings d w h s e pf sf sr cl))
+
 (define render%
   (class object%
     (super-new)
@@ -212,6 +248,8 @@
                          (video:convert source))]
            [render-graph #f]
            [output-node #f])
+    (field [video-start (video:get-property video-sink "start")]
+           [video-end (video:get-property video-sink "end")])
     
     (define graph-obj #f)
     (define input-bundles #f)
@@ -222,6 +260,10 @@
     (field [running-lock (make-semaphore 1)]
            [reading-thread #f]
            [writing-thread #f])
+
+
+    (define current-render-settings-lock (make-semaphore 1))
+    (define current-render-settings (make-render-settings))
 
     ;; Flag states:
     ;;   - running : Actively reading/writing
@@ -243,75 +285,81 @@
     ;; Setup the renderer to a specific output context.
     ;; This method can be called multiple times, but it is
     ;; NOT THREADSAFE!
-    (define/public (setup #:destination [dest #f]
-                          #:width [width 1920]
-                          #:height [height 1080]
-                          #:start [start #f]
-                          #:end [end #f]
-                          #:fps [fps 25]
-                          #:pix-fmt [pix-fmt 'yuv420p]
-                          #:sample-fmt [sample-fmt 'fltp]
-                          #:sample-rate [sample-rate 44100]
-                          #:channel-layout [channel-layout  'stereo])
-      (define out-path (path->complete-path (or dest "out.mp4")))
-      (set! render-graph (graph-copy video-graph))
-      (define trim-node
-        (cond [(or start end)
-               (define t-node
-                 (mk-filter-node
-                  (hash 'video (mk-filter
-                                "trim" (let* ([r (hash)]
-                                              [r (if start (hash-set r "start" start) r)]
-                                              [r (if end (hash-set r "end" end) r)])
-                                         r))
-                        'audio (mk-filter
-                                "atrim" (let* ([r (hash)]
-                                               [r (if start (hash-set r "start" start) r)]
-                                               [r (if end (hash-set r "end" end) r)])
-                                          r)))
-                  #:counts (node-counts video-sink)))
-               (add-vertex! render-graph t-node)
-               (add-directed-edge! render-graph video-sink t-node 1)
-               t-node]
-              [else video-sink]))
-      (define pad-node
-        (mk-filter-node
-         (hash 'video (mk-filter "scale"
-                                 (hash "width" width
-                                       "height" height))
-               'audio (mk-filter "anull"))
-         #:counts (node-counts trim-node)))
-      (add-vertex! render-graph pad-node)
-      (add-directed-edge! render-graph trim-node pad-node 1)
-      (define fps-node
-        (mk-filter-node
-         (hash 'video (mk-filter "fps"
-                                 (hash "fps" fps)))
-         #:counts (node-counts trim-node)))
-      (add-vertex! render-graph fps-node)
-      (add-directed-edge! render-graph pad-node fps-node 1)
-      (define pix-fmt-node
-        (mk-filter-node
-         (hash 'video (mk-filter "format" (hash "pix_fmts" pix-fmt))
-               'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
-                                                 "sample_rates" sample-rate
-                                                 "channel_layouts" channel-layout)))
-         #:counts (node-counts trim-node)))
-      (add-vertex! render-graph pix-fmt-node)
-      (add-directed-edge! render-graph fps-node pix-fmt-node 1)
-      (define out-bundle (stream-bundle->file out-path 'vid+aud))
-      (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
-      (define sink-node
-        (mk-sink-node out-bundle
-                      #:counts (node-counts trim-node)))
-      (add-vertex! render-graph sink-node)
-      (add-directed-edge! render-graph pix-fmt-node sink-node 1)
-      (set! output-node pad-node)
-      ;(displayln (graphviz render-graph))
-      (let-values ([(g i o) (init-filter-graph render-graph)])
-        (set! graph-obj g)
-        (set! input-bundles i)
-        (set! output-bundle o)))
+    (define/public (setup settings)
+      (call-with-semaphore
+       current-render-settings-lock
+       (λ ()
+         (set! current-render-settings render-settings)
+         (match settings
+           [(struct* render-settings ([destination dest]
+                                      [width width]
+                                      [height height]
+                                      [start start]
+                                      [end end]
+                                      [fps fps]
+                                      [pix-fmt pix-fmt]
+                                      [sample-fmt sample-fmt]
+                                      [sample-rate sample-rate]
+                                      [channel-layout channel-layout]))
+            (define out-path (path->complete-path (or dest "out.mp4")))
+            (set! render-graph (graph-copy video-graph))
+            (define trim-node
+              (cond [(or start end)
+                     (define t-node
+                       (mk-filter-node
+                        (hash 'video (mk-filter
+                                      "trim" (let* ([r (hash)]
+                                                    [r (if start (hash-set r "start" start) r)]
+                                                    [r (if end (hash-set r "end" end) r)])
+                                               r))
+                              'audio (mk-filter
+                                      "atrim" (let* ([r (hash)]
+                                                     [r (if start (hash-set r "start" start) r)]
+                                                     [r (if end (hash-set r "end" end) r)])
+                                                r)))
+                        #:counts (node-counts video-sink)))
+                     (add-vertex! render-graph t-node)
+                     (add-directed-edge! render-graph video-sink t-node 1)
+                     t-node]
+                    [else video-sink]))
+            (define pad-node
+              (mk-filter-node
+               (hash 'video (mk-filter "scale"
+                                       (hash "width" width
+                                             "height" height))
+                     'audio (mk-filter "anull"))
+               #:counts (node-counts trim-node)))
+            (add-vertex! render-graph pad-node)
+            (add-directed-edge! render-graph trim-node pad-node 1)
+            (define fps-node
+              (mk-filter-node
+               (hash 'video (mk-filter "fps"
+                                       (hash "fps" fps)))
+               #:counts (node-counts trim-node)))
+            (add-vertex! render-graph fps-node)
+            (add-directed-edge! render-graph pad-node fps-node 1)
+            (define pix-fmt-node
+              (mk-filter-node
+               (hash 'video (mk-filter "format" (hash "pix_fmts" pix-fmt))
+                     'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
+                                                       "sample_rates" sample-rate
+                                                       "channel_layouts" channel-layout)))
+               #:counts (node-counts trim-node)))
+            (add-vertex! render-graph pix-fmt-node)
+            (add-directed-edge! render-graph fps-node pix-fmt-node 1)
+            (define out-bundle (stream-bundle->file out-path 'vid+aud))
+            (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
+            (define sink-node
+              (mk-sink-node out-bundle
+                            #:counts (node-counts trim-node)))
+            (add-vertex! render-graph sink-node)
+            (add-directed-edge! render-graph pix-fmt-node sink-node 1)
+            (set! output-node pad-node)
+            ;(displayln (graphviz render-graph))
+            (let-values ([(g i o) (init-filter-graph render-graph)])
+              (set! graph-obj g)
+              (set! input-bundles i)
+              (set! output-bundle o))]))))
 
     ;; Send all of the input pads into the render graph.
     ;; This method sould be run in its own thread
@@ -444,12 +492,13 @@
            (set! stop-writing-flag 'stopped))))
       (void))
 
-    ;; Seek to a specific position (in seconds).
-    ;; This method must NOT be run while feed-buffers and write-output
-    ;;   are running. Stop them with `stop-rendering` first.
-    ;; Once complete, it is safe to start again.
+    ;; Seek to a specific position (in seconds). Convience method
+    ;;    whose functionality can be duplicated entirely from other methods.
     (define/public (seek position)
-      (error "TODO"))
+      (stop-rendering)
+      (setup (struct-copy render-settings current-render-settings
+                          [start position]))
+      (start-rendering))
 
     ;; Return a copy of the video-graph. That is, the resulting graph from the given video
     ;;   object. Mutations to this graph will NOT affect the renderer's copy of the graph.
@@ -486,7 +535,11 @@
     ;; Basically, treat this result as something that will occasionally be wrong
     ;;   (like for a progress bar).
     (define/public (get-current-position)
-      (render-status-box-position current-render-status))))
+      (render-status-box-position current-render-status))
+
+    ;; Return the length of the internal video (not the setup length) in seconds
+    (define/public (get-length)
+      (- video-end video-start))))
 
 (define render<%>
   (class->interface render%))
@@ -494,18 +547,7 @@
 ;; Prototype contract for render% classes.
 (define render<%>/c
   (class/c [copy (->m (instanceof/c (recursive-contract render<%>/c)))]
-           [setup (->*m ()
-                        (#:destination (or/c path? path-string? #f)
-                         #:width (and/c integer? positive?)
-                         #:height (and/c integer? positive?)
-                         #:start (or/c (and/c real? positive?) #f)
-                         #:end (or/c (and/c real? positive?) #f)
-                         #:fps real?
-                         #:pix-fmt symbol?
-                         #:sample-fmt symbol?
-                         #:sample-rate (and/c real? positive?)
-                         #:channel-layout symbol?)
-                        void?)]
+           [setup (->m render-settings? void?)]
            [start-rendering (->*m () (boolean?) void?)]
            [wait-for-rendering (->m void?)]
            [stop-rendering (->m void?)]
@@ -513,7 +555,8 @@
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m boolean?)]
-           [get-current-position (->m (and/c real? positive?))]))
+           [get-current-position (->m (and/c real? positive?))]
+           [get-length (->m (and/c real? positive?))]))
 
 ;; This submodule stores the member names to the fields for the render% class.
 ;; Requiring it allows classes to use those fields directly (i.e. for subclasses/mixins.)
@@ -525,11 +568,15 @@
   (define-local-member-name
     video-graph
     video-sink
+    video-start
+    video-end
     render-graph
     output-node
     running-lock
     reading-thread
     writing-thread
+    current-render-settings-lock
+    current-render-settings
 
     feed-buffers
     write-output))
