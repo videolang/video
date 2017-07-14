@@ -123,7 +123,8 @@
                              #:pix-fmt symbol?
                              #:sample-fmt symbol?
                              #:sample-rate (and/c real? positive?)
-                             #:channel-layout symbol?)
+                             #:channel-layout symbol?
+                             #:speed real?)
                             render-settings?)])
 
  ;; Interface for render%
@@ -144,12 +145,12 @@
     (new r%
          [source video]))
   (send r setup
-        #:destination dest*
-        #:width width
-        #:height height
-        #:start start
-        #:end end
-        #:fps fps)
+        (make-render-settings #:destination dest*
+                              #:width width
+                              #:height height
+                              #:start start
+                              #:end end
+                              #:fps fps))
   (send r start-rendering #t))
 
 (define (render/async video
@@ -168,12 +169,12 @@
     (new r%
          [source video]))
   (send r setup
-        #:destination dest*
-        #:width width
-        #:height height
-        #:start start
-        #:end end
-        #:fps fps)
+        (make-render-settings #:destination dest*
+                              #:width width
+                              #:height height
+                              #:start start
+                              #:end end
+                              #:fps fps))
   (when (eq? mode 'verbose)
     (async-channel-put channel (send r get-render-graph)))
   (thread
@@ -226,7 +227,8 @@
                          pix-fmt
                          sample-fmt
                          sample-rate
-                         channel-layout))
+                         channel-layout
+                         speed))
 (define (make-render-settings #:destination [d #f]
                               #:width [w 1920]
                               #:height [h 1080]
@@ -235,8 +237,9 @@
                               #:pix-fmt [pf 'yuv420p]
                               #:sample-fmt [sf 'fltp]
                               #:sample-rate [sr 44100]
-                              #:channel-layout [cl 'stereo])
-  (render-settings d w h s e pf sf sr cl))
+                              #:channel-layout [cl 'stereo]
+                              #:speed [sp 1])
+  (render-settings d w h s e pf sf sr cl sp))
 
 (define render%
   (class object%
@@ -300,7 +303,8 @@
                                       [pix-fmt pix-fmt]
                                       [sample-fmt sample-fmt]
                                       [sample-rate sample-rate]
-                                      [channel-layout channel-layout]))
+                                      [channel-layout channel-layout]
+                                      [speed speed]))
             (define out-path (path->complete-path (or dest "out.mp4")))
             (set! render-graph (graph-copy video-graph))
             (define trim-node
@@ -349,11 +353,20 @@
             (add-directed-edge! render-graph fps-node pix-fmt-node 1)
             (define out-bundle (stream-bundle->file out-path 'vid+aud))
             (define audio-str (dict-ref (stream-bundle-stream-table out-bundle) 'audio))
+            (define speed-node
+              (mk-filter-node
+               (hash 'video (mk-filter "setpts"
+                                       (hash "expr" (format "(PTS-STARTPTS)*~a"
+                                                            (exact->inexact speed))))
+                     'audio (mk-filter "asetrate"
+                                       (hash "r" (exact->inexact (* sample-rate speed)))))))
+            (add-vertex! render-graph speed-node)
+            (add-directed-edge! render-graph pix-fmt-node speed-node)
             (define sink-node
               (mk-sink-node out-bundle
                             #:counts (node-counts trim-node)))
             (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph pix-fmt-node sink-node 1)
+            (add-directed-edge! render-graph speed-node sink-node 1)
             (set! output-node pad-node)
             ;(displayln (graphviz render-graph))
             (let-values ([(g i o) (init-filter-graph render-graph)])
@@ -500,6 +513,16 @@
                           [start position]))
       (start-rendering))
 
+    ;; Convience method to resize (in pixels) the video. Can be duplicated
+    ;;   with external method calls.
+    (define/public (resize w h)
+      (stop-rendering)
+      (setup (struct-copy render-settings current-render-settings
+                          [width w]
+                          [height h]
+                          [start (get-current-position)]))
+      (start-rendering))
+
     ;; Return a copy of the video-graph. That is, the resulting graph from the given video
     ;;   object. Mutations to this graph will NOT affect the renderer's copy of the graph.
     (define/public (get-video-graph)
@@ -552,6 +575,7 @@
            [wait-for-rendering (->m void?)]
            [stop-rendering (->m void?)]
            [seek (->m (and/c real? positive?) void?)]
+           [resize (->m (and/c real? positive?) (and/c real? positive?) void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m boolean?)]
