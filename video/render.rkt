@@ -135,10 +135,7 @@
         #:start start
         #:end end
         #:fps fps)
-  (define in-t (thread (λ () (send r feed-buffers))))
-  (define out-t (thread (λ () (send r write-output))))
-  ;(thread-wait in-t) <-- Trimed inputs will never finish. Really should kill...
-  (thread-wait out-t))
+  (send r start-rendering #t))
 
 (define (render/async video
                       [dest #f]
@@ -166,16 +163,12 @@
     (async-channel-put channel (send r get-render-graph)))
   (thread
    (λ ()
-     (define in-t (thread (λ () (send r feed-buffers))))
-     (define out-t (thread (λ () (send r write-output))))
+     (send r start-rendering)
      (let loop ()
-       (unless (eq? (send r rendering?) 'eof)
-         ;(displayln "here")
+       (when (send r rendering?)
          (async-channel-put channel (send r get-current-position))
          (sleep 0.01)
          (loop)))
-     ;(thread-wait in-t)
-     (thread-wait out-t)
      (async-channel-put channel eof)))
   channel)
 
@@ -225,6 +218,10 @@
     (define output-bundle #f)
 
     (define current-render-status (mk-render-status-box))
+
+    (field [running-lock (make-semaphore 1)]
+           [reading-thread #f]
+           [writing-thread #f])
 
     ;; Flag states:
     ;;   - running : Actively reading/writing
@@ -356,20 +353,53 @@
            (set! stop-reading-flag 'stopped))))
       (void))
 
+    ;; Asynchronous thread to start-rendering.
+    ;; Simply calls `feed-buffers` and `write-output` (protected
+    ;;   methods) in different threads. The `rendering` method
+    ;;   determines when those threads stop.
+    ;; When wait is true, equivalent to calling `wait-for-rendering`
+    ;; after this method concludes.
+    ;; Boolean -> Void
+    (define/public (start-rendering [wait? #f])
+      (call-with-semaphore
+       running-lock
+       (λ ()
+         (set! reading-thread (thread (λ () (feed-buffers))))
+         (set! writing-thread (thread (λ () (write-output))))))
+      (when wait?
+        (wait-for-rendering)))
+
+    ;; Wait for rendering to finish, then return.
+    (define/public (wait-for-rendering)
+      (call-with-semaphore
+       running-lock
+       (λ ()
+         (and writing-thread (thread-wait writing-thread))
+         (and reading-thread (thread-wait reading-thread)))))
+
     ;; Used for early termination of `feed-buffers`.
     ;; This is needed because trimmed outputs will
     ;;   NEVER finish reading from the inputs.
-    (define/public (stop-input)
-      (define currently-running?
-        (call-with-semaphore
-         stop-writing-semaphore
-         (λ ()
-           (define ret (eq? stop-writing-flag 'running))
-           (set! stop-writing-flag 'stopping)
-           ret)))
-      (when currently-running?
-        (error 'stop-input "Already stopping!"))
-      (async-channel-get writing-stopped-signal))
+    ;; Will not return until program is in a stopped state.
+    ;;
+    ;;
+    ;; WARNING: While this method _is_ threadsafe, it is
+    ;;   possible to start re-running before thread begins again, depending
+    ;;   on your use of the other methods.
+    (define/public (stop-rendering)
+      (let loop ()
+        (define prev-status
+          (call-with-semaphore
+           stop-writing-semaphore
+           (λ ()
+             (define ret stop-writing-flag)
+             (when (eq? stop-writing-flag 'running)
+               (set! stop-writing-flag 'stopping))
+             ret)))
+        (match prev-status
+          ['stopped (void)]
+          ['stopping (sleep 1) (loop)]
+          ['running (async-channel-get writing-stopped-signal)])))
 
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
@@ -415,8 +445,9 @@
       (void))
 
     ;; Seek to a specific position (in seconds).
-    ;; This method IS threadafe with respect to feed-buffers
-    ;;   and write-output. It _will_ flush their buffers.
+    ;; This method must NOT be run while feed-buffers and write-output
+    ;;   are running. Stop them with `stop-rendering` first.
+    ;; Once complete, it is safe to start again.
     (define/public (seek position)
       (error "TODO"))
 
@@ -431,11 +462,21 @@
     (define/public (get-render-graph)
       (and render-graph (graph-copy render-graph)))
 
+    ;; Determines whether or not the object is rendering.
+    ;; Remember that, depending on how you call these methods, it could
+    ;;    start rendering after it returns `#f`
+    (define/public (rendering?)
+      (call-with-semaphore
+       running-lock
+       (λ ()
+         (or (and reading-thread (thread-running? reading-thread))
+             (and writing-thread (thread-running? writing-thread))))))
+       
     ;; Possible Results:
     ;; #t   : Rendering
     ;; #f   : Not Rendering
     ;; 'eof : Not Rendering and will not start up again
-    (define/public (rendering?)
+    (define (internal-status)
       (render-status-box-rendering? current-render-status))
 
     ;; Get the absolute value of current position of the output stream
@@ -465,13 +506,13 @@
                          #:sample-rate (and/c real? positive?)
                          #:channel-layout symbol?)
                         void?)]
-           [feed-buffers (->m void?)]
-           [stop-input (->m void?)]
-           [write-output (->m void?)]
+           [start-rendering (->*m () (boolean?) void?)]
+           [wait-for-rendering? (->m void?)]
+           [stop-rendering (->m void?)]
            [seek (->m (and/c real? positive?) void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
-           [rendering? (->m (or/c boolean? 'eof))]
+           [rendering? (->m boolean?)]
            [get-current-position (->m (and/c real? positive?))]))
 
 ;; This submodule stores the member names to the fields for the render% class.
@@ -485,5 +526,11 @@
     video-graph
     video-sink
     render-graph
-    output-node))
+    output-node
+    running-lock
+    reading-thread
+    writing-thread
+
+    feed-buffers
+    write-output))
 (require 'render-fields)
