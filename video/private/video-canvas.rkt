@@ -16,14 +16,24 @@
    limitations under the License.
 |#
 
-(provide video-canvas%)
+(provide video-canvas%
+         video-canvas-render-mixin)
 (require opengl
          opengl/util
          racket/class
          racket/gui/base
          racket/format
          ffi/unsafe
-         ffi/vector)
+         ffi/vector
+         "../render.rkt")
+
+;; These fields are private to this module.
+(define-local-member-name
+  buff
+  uv-buff
+  tex-buff
+  tex-id
+  prog)
 
 (define video-canvas%
   (class canvas%
@@ -147,14 +157,6 @@
     (will-register video-canvas%-executor this video-canvas%-final)
     ))
 
-;; These fields are private to this module.
-(define-local-member-name
-  buff
-  uv-buff
-  tex-buff
-  tex-id
-  prog)
-
 (define (video-canvas%-final this)
   (send this with-gl-context
         (λ ()
@@ -171,3 +173,9 @@
     (let loop ()
       (will-execute video-canvas%-executor)
       (loop)))))
+
+(define video-canvas-render-mixin
+  (mixin (render<%>) (render<%>)
+    (define/override (setup render-settings)
+      (error "TODO"))
+    ))
