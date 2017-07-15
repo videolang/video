@@ -64,11 +64,11 @@
   color = texture(myTextureSampler, UV).rgb;
  }})
 
-    (define buff #f)
-    (define uv-buff #f)
-    (define tex-buff #f)
-    (define tex-id #f)
-    (define prog #f)
+    (field [buff #f]
+           [uv-buff #f]
+           [tex-buff #f]
+           [tex-id #f]
+           [prog #f])
     (send this with-gl-context
           (λ ()
             ;; Setup the VAO
@@ -144,5 +144,30 @@
               (glDisableVertexAttribArray 1)))
       (send this swap-gl-buffers))
 
-    ;; XXX NEEDS TO FINALIZE BUFFERS BEFORE GC!!!
+    (will-register video-canvas%-executor this video-canvas%-final)
     ))
+
+;; These fields are private to this module.
+(define-local-member-name
+  buff
+  uv-buff
+  tex-buff
+  tex-id
+  prog)
+
+(define (video-canvas%-final this)
+  (send this with-gl-context
+        (λ ()
+          (glDeleteBuffers 1 (get-field buff this))
+          (glDeleteBuffers 1 (get-field uv-buff this))
+          (glDeleteBuffers 1 (get-field tex-buff this))
+          (glDeleteTextures (get-field tex-id this))
+          (glDeleteProgram (get-field prog this)))))
+
+(define video-canvas%-executor (make-will-executor))
+(void
+ (thread
+  (λ ()
+    (let loop ()
+      (will-execute video-canvas%-executor)
+      (loop)))))

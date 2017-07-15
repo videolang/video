@@ -25,10 +25,16 @@
          ffi/unsafe/atomic
          graph
          racket/file
+         video/render
          "private/video-canvas.rkt"
-         "private/ffmpeg.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))
+
+;; Constants for the window. These 'should' be setable by whoever
+;; is previewing the video.
+(define WIDTH 640)
+(define HEIGHT 480)
+(define FPS 25)
 
 ;; Probably not threadsafe when changing videos?
 ;; Sadly not entirely sure.
@@ -39,85 +45,41 @@
                [spacing 10]
                [stretchable-width #f]
                [stretchable-height #f]
-               [min-width 500]
-               [min-height 100])
+               [min-width 1000]
+               [min-height 1000])
 
     ;; Internal State
-    (define internal-video-graph #f)
-    (define internal-video #f)
-    (define graph #f)
-    (define in-bundles #f)
-    (define out-bundle #f)
-    (define position 0) ;; in timebase
-    (define speed 1) ;; in percent of timebase
-    (define (convert source)
-      (parameterize ([video:current-render-graph internal-video-graph])
-        (video:convert source)))
+    (define render-settings (make-render-settings #:start 0
+                                                  #:width WIDTH
+                                                  #:height HEIGHT
+                                                  #:fps FPS))
+    (define render #f)
     (define/public (set-video v)
-      (call-as-atomic
-       (λ ()
-         ;(stop)
-         (set! video v)
-         (set! internal-video-graph (video:mk-render-graph))
-         (set! internal-video (convert v))
-         (define scale-node
-           (ffmpeg:mk-filter-node (hash 'video (ffmpeg:mk-filter "scale" (hash "width" 640
-                                                                               "height" 480)))
-                                  #:counts (ffmpeg:node-counts internal-video)))
-         (define pix-node
-           (ffmpeg:mk-filter-node (hash 'video (ffmpeg:mk-filter "format" (hash "pix_fmts" 'rgb24))
-                                        'audio (ffmpeg:mk-filter "aformat"
-                                                                 (hash "sample_fmts" 's16
-                                                                       "channel_layouts" 'stereo)))
-                                  #:counts (ffmpeg:node-counts internal-video)))
-         (define sink-node
-           (ffmpeg:mk-sink-node (ffmpeg:fill-stream-bundle
-                                 (ffmpeg:mk-stream-bundle
-                                  #:streams (list (ffmpeg:mk-codec-obj
-                                                   #:type 'video
-                                                   #:id 'rawvideo)
-                                                  (ffmpeg:mk-codec-obj
-                                                   #:type 'audio
-                                                   #:id 'pcm-s16be))))
-                                #:counts (ffmpeg:node-counts internal-video)))
-         (add-vertex! internal-video-graph scale-node)
-         (add-vertex! internal-video-graph pix-node)
-         (add-vertex! internal-video-graph sink-node)
-         (add-directed-edge! internal-video-graph internal-video scale-node 1)
-         (add-directed-edge! internal-video-graph scale-node pix-node 1)
-         (add-directed-edge! internal-video-graph pix-node sink-node 1)
-         (let-values ([(g i o) (ffmpeg:init-filter-graph internal-video-graph)])
-           (set! internal-video-graph g)
-           (set! in-bundles i)
-           (set! out-bundle o))
-         ;(seek 0)
-         ;(set-speed 1)
-         (update-seek-bar-and-labels))))
-    
+      (set! render (make-object render% video))
+      (send render setup render-settings))
     ;; Player Backend
     (define/public (get-video-length)
-      (or (video:get-property internal-video "length")
-          99999))
+      (send render get-length))
     (define/public (play)
-      (error "TODO"))
+      (send render start-rendering))
     (define/public (is-stopped?)
-      (error "TODO"))
+      (send render rendering?))
     (define/public (pause)
-      (error "TODO"))
+      (send render set-speed 0))
     (define/public (stop)
-      (error "TODO"))
-    (define/public (seek frame)
-      (error "TODO"))
+      (send render stop-rendering))
+    (define/public (seek position)
+      (send render seek position))
     (define/public (set-speed speed)
-      (error "TODO"))
+      (send render set-speed speed))
     (define/public (rewind)
       (set-speed -5))
     (define/public (fast-forward)
       (set-speed 5))
     (define/public (get-position)
-      (error "TODO"))
+      (send render get-current-position))
     (define/public (get-fps)
-      (video:get-property internal-video "fps" 0))
+      FPS)
     (define/override (show show?)
       (unless show?
         (send seek-bar-updater stop)
@@ -137,8 +99,8 @@
     (define screen
       (new video-canvas%
            [parent screen-row]
-           [width 640]
-           [height 480]))
+           [width WIDTH] 
+           [height HEIGHT]))
     (define top-row
       (new horizontal-pane%
            [parent this]

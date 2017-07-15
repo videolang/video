@@ -52,8 +52,8 @@
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps real?
-                #:start (or/c nonnegative-integer? #f)
-                #:end (or/c nonnegative-integer? #f)]
+                #:start (or/c (and/c real? (>=/c 0)) #f)
+                #:end (or/c (and/c real? (>=/c 0)) #f)]
                void?)]
  
   ;; Similar to render, however non-blocking.
@@ -67,8 +67,8 @@
                       #:width (and/c integer? positive?)
                       #:height (and/c integer? positive?)
                       #:fps real?
-                      #:start (or/c nonnegative-integer? #f)
-                      #:end (or/c nonnegative-integer? #f)
+                      #:start (or/c (and/c real? (>=/c 0)) #f)
+                      #:end (or/c (and/c real? (>=/c 0)) #f)
                       #:mode (or/c 'verbose #f)]
                      async-channel?)]
 
@@ -82,8 +82,8 @@
                        #:width (and/c integer? positive?)
                        #:height (and/c integer? positive?)
                        #:fps real?
-                       #:start (or/c nonnegative-integer? #f)
-                       #:end (or/c nonnegative-integer? #f)
+                       #:start (or/c (and/c real? (>=/c 0)) #f)
+                       #:end (or/c (and/c real? (>=/c 0)) #f)
                        #:port (or/c output-port? #f)
                        #:mode (or/c 'verbose 'silent #f)]
                       void?)]
@@ -117,8 +117,8 @@
                             (#:destination (or/c path? path-string? #f)
                              #:width (and/c integer? positive?)
                              #:height (and/c integer? positive?)
-                             #:start (or/c (and/c real? positive?) #f)
-                             #:end (or/c (and/c real? positive?) #f)
+                             #:start (or/c (and/c real? (>=/c 0)) #f)
+                             #:end (or/c (and/c real? (>=/c 0)) #f)
                              #:fps real?
                              #:pix-fmt symbol?
                              #:sample-fmt symbol?
@@ -378,14 +378,14 @@
     ;; Send all of the input pads into the render graph.
     ;; This method sould be run in its own thread
     (define/public (feed-buffers)
-      (define currently-stopped?
+      (define currently-running?
         (call-with-semaphore
          stop-reading-semaphore
          (λ ()
-           (define ret (eq? stop-reading-flag 'stopped))
+           (define ret (eq? stop-reading-flag 'running))
            (set! stop-reading-flag 'running)
            ret)))
-      (unless currently-stopped?
+      (when currently-running?
         (error 'feed-buffers "Reader already running"))
       (define threads
         (for/list ([bundle (in-list input-bundles)])
@@ -399,7 +399,7 @@
              (let loop ()
                (when (call-with-semaphore
                       stop-reading-semaphore
-                      (λ () (eq? stop-reading-flag 'stopping)))
+                      (λ () (eq? stop-reading-flag 'running)))
                  (define got-data?
                    (send demux wait-for-packet-need 1))
                  (cond [(not got-data?) (loop)]
@@ -484,7 +484,7 @@
       (send mux write-header)
       (let loop ()
         (when (and (call-with-semaphore stop-writing-semaphore
-                                        (λ () (not stop-writing-flag)))
+                                        (λ () (eq? stop-writing-flag 'running)))
                    (send mux write-packet))
           (loop)))
       (send mux write-trailer)
@@ -585,13 +585,13 @@
            [start-rendering (->*m () (boolean?) void?)]
            [wait-for-rendering (->m void?)]
            [stop-rendering (->m void?)]
-           [seek (->m (and/c real? positive?) void?)]
+           [seek (->m (and/c real? (>=/c 0)) void?)]
            [resize (->m (and/c real? positive?) (and/c real? positive?) void?)]
            [set-speed (->m real? void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m boolean?)]
-           [get-current-position (->m (and/c real? positive?))]
+           [get-current-position (->m (and/c real? (>=/c 0)))]
            [get-length (->m (and/c real? positive?))]))
 
 ;; This submodule stores the member names to the fields for the render% class.
