@@ -41,7 +41,11 @@
     (define glconf (new gl-config%))
     (send glconf set-legacy? #f)
     (super-new [gl-config glconf]
-               [style '(gl no-autoclear)])
+               [style '(gl no-autoclear)]
+               [min-width width]
+               [min-height height]
+               [stretchable-width #f]
+               [stretchable-height #f])
 
     (define vert-coords
       (f32vector -1.0 1.0 0.0
@@ -174,8 +178,14 @@
       (will-execute video-canvas%-executor)
       (loop)))))
 
+;; Similar to the Video Renderer, however adds `set-canvas` method for Video
+;; to render to a canvas rather than a file.
 (define video-canvas-render-mixin
-  (mixin (render<%>) (render<%>)
-    (define/override (setup render-settings)
-      (error "TODO"))
-    ))
+  (mixin (render<%>) ()
+    (super-new)
+    (define canvas #f)
+    (define/public (set-canvas c)
+      (set! canvas c))
+    (define/override (start-rendering)
+      (super start-rendering)
+      (send canvas draw-frame (λ _ (void))))))

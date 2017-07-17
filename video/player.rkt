@@ -45,8 +45,8 @@
                [spacing 10]
                [stretchable-width #f]
                [stretchable-height #f]
-               [min-width 1000]
-               [min-height 1000])
+               [min-width 700]
+               [min-height 600])
 
     ;; Internal State
     (define render-settings (make-render-settings #:start 0
@@ -55,8 +55,9 @@
                                                   #:fps FPS))
     (define render #f)
     (define/public (set-video v)
-      (set! render (make-object render% video))
-      (send render setup render-settings))
+      (set! render (make-object (video-canvas-render-mixin render%) video))
+      (send render setup render-settings)
+      (send render set-canvas screen))
     ;; Player Backend
     (define/public (get-video-length)
       (send render get-length))
