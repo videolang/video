@@ -25,7 +25,7 @@
          (for-syntax racket/base))
 
 (define lib-prefix
-  (match system-type
+  (match (system-type 'os)
     ['windows ""]
     [_ "lib"]))
 
@@ -50,7 +50,7 @@
 (define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
 (define avfilter-lib
-  (ffi-lib (string-append "avfilter") "6"))
+  (ffi-lib (string-append lib-prefix "avfilter") "6"))
 (define-ffi-definer define-avfilter avfilter-lib
   #:make-c-id convention:hyphen->underscore)
 
