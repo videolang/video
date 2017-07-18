@@ -79,7 +79,10 @@
          
          node-counts
          node-props
+         filter-node?
          mk-filter-node
+         mux-node?
+         mk-mux-node
          mk-empty-sink-video-filter
          mk-empty-sink-audio-filter
          mk-empty-sink-node

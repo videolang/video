@@ -510,9 +510,9 @@
 (define (mux-filter #:type t
                     #:index index)
   (define (mux-proc ctx prev)
-    (define (match type
-              [(or 'v 'video) 'video]
-              [(or 'a 'audio) 'audio]))
+    (define type (match t
+                   [(or 'v 'video) 'video]
+                   [(or 'a 'audio) 'audio]))
     (define mux
       (mk-mux-node type index
                    #:counts (hash type 1)))
