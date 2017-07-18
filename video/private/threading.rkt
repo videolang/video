@@ -107,11 +107,11 @@
 (define cond-wait
   (if enabled?
       (get-ffi-obj 'mzrt_cond_wait #f (_fun _cond _mutex -> _int))
-      (error "Implement me")))
+      (λ () (error "Implement me"))))
 (define cond-signal
   (if enabled?
       (get-ffi-obj 'mzrt_cond_signal #f (_fun _cond -> _int))
-      (error "Implement me")))
+      (λ () (error "Implement me"))))
 (define cond-destroy
   (if enabled?
       (get-ffi-obj 'mzrt_cond_destroy #f (_fun _cond -> _int))
