@@ -375,6 +375,9 @@
               (set! input-bundles i)
               (set! output-bundle o))]))))
 
+    (define/public (feed-buffers-callback-constructor)
+      (filtergraph-insert-packet))
+
     ;; Send all of the input pads into the render graph.
     ;; This method sould be run in its own thread
     (define/public (feed-buffers)
@@ -391,10 +394,10 @@
         (for/list ([bundle (in-list input-bundles)])
           (thread
            (λ ()
-             (define proc (filtergraph-insert-packet))
+             (define callback (feed-buffers-callback-constructor))
              (define demux (new demux%
                                 [bundle bundle]
-                                [by-index-callback proc]))
+                                [by-index-callback callback]))
              (send demux init)
              (let loop ()
                (when (call-with-semaphore
@@ -463,6 +466,9 @@
           ['stopping (sleep 1) (loop)]
           ['running (async-channel-get writing-stopped-signal)])))
 
+    (define/public (write-output-callback-constructor #:render-status render-status)
+      (filtergraph-next-packet #:render-status render-status))
+
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
     (define/public (write-output)
@@ -475,7 +481,7 @@
            ret)))
       (unless currently-stopped?
         (error 'write-output "Already writing output"))
-      (define proc (filtergraph-next-packet #:render-status current-render-status))
+      (define proc (write-output-callback-constructor #:render-status current-render-status))
       (define mux (new mux%
                        [bundle output-bundle]
                        [by-index-callback proc]))
@@ -614,6 +620,8 @@
     current-render-settings-lock
     current-render-settings
 
+    feed-buffers-callback-constructor
     feed-buffers
+    write-output-callback-constructor
     write-output))
 (require 'render-fields)

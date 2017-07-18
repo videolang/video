@@ -23,9 +23,12 @@
          racket/class
          racket/gui/base
          racket/format
+         racket/match
          ffi/unsafe
          ffi/vector
-         "../render.rkt")
+         "../render.rkt"
+         "ffmpeg.rkt"
+         (except-in "ffmpeg-pipeline.rkt" render))
 
 ;; These fields are private to this module.
 (define-local-member-name
@@ -164,10 +167,10 @@
 (define (video-canvas%-final this)
   (send this with-gl-context
         (λ ()
-          (glDeleteBuffers 1 (get-field buff this))
-          (glDeleteBuffers 1 (get-field uv-buff this))
-          (glDeleteBuffers 1 (get-field tex-buff this))
-          (glDeleteTextures (get-field tex-id this))
+          (glDeleteBuffers 3 (u32vector (get-field buff this)
+                                        (get-field uv-buff this)
+                                        (get-field tex-buff this)))
+          (glDeleteTextures 1 (u32vector (get-field tex-id this)))
           (glDeleteProgram (get-field prog this)))))
 
 (define video-canvas%-executor (make-will-executor))
@@ -186,6 +189,18 @@
     (define canvas #f)
     (define/public (set-canvas c)
       (set! canvas c))
-    (define/override (start-rendering)
-      (super start-rendering)
-      (send canvas draw-frame (λ _ (void))))))
+    (define/override (write-callback-constructorf #:render-status render-status)
+      (λ (mode obj)
+        (match obj
+          [(struct* codec-obj ([codec-context ctx]
+                               [buffer-context buff-ctx]))
+           (match mode
+             ['write
+              (let loop ()
+                (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
+                                [exn:ffmpeg:eof? (λ (e) eof)])
+                  (define out-frame (av-buffersink-get-frame buff-ctx))
+                  (send canvas draw-frame
+                        (λ ()
+                          (void)))))]
+             [_ (void)])])))))
