@@ -1900,34 +1900,7 @@
                                   (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))
 (define-avformat av-read-play (_fun _avformat-context-pointer -> [ret : _int]))
 (define-avformat av-read-pause (_fun _avformat-context-pointer -> [ret : _int]))
-(define (av-packet-ref dst/src [src #f])
-  (define-avformat av-packet-ref (_fun [out : _avpacket-pointer]
-                                       _avpacket-pointer
-                                       -> [ret : _int]
-                                       -> (cond
-                                            [(< ret 0)
-                                             (unless src
-                                               (av-packet-unref out))
-                                             #f]
-                                            [else out])))
-  (if src
-      (av-packet-ref dst/src src)
-      (av-packet-ref (av-packet-alloc) dst/src)))
-(define-avformat av-packet-unref (_fun _avpacket-pointer
-                                           -> _void))
-(define-avformat av-packet-alloc (_fun -> _avpacket-pointer))
-(define-avformat av-packet-free (_fun (_ptr io _avpacket-pointer/null) -> _void))
-(define-avformat av-new-packet (_fun _avpacket-pointer _size -> [ret : _int]
-                                     -> (cond
-                                          [(= ret 0) (void)]
-                                          [else (error "~a : ~a" ret (convert-err ret))])))
-(define-avformat av-init-packet (_fun _avpacket-pointer -> _void))
-(define-avformat av-dup-packet (_fun _avpacket-pointer
-                                     -> [ret : _int]
-                                     -> (unless (= ret 0)
-                                          (error "dup-packet?"))))
-(define-avformat av-packet-rescale-ts (_fun _avpacket-pointer _avrational _avrational
-                                            -> _void))
+
 (define-avformat av-guess-format (_fun _string _string _string -> _av-output-format-pointer))
 (define-avformat av-guess-frame-rate
   (_fun _avformat-context-pointer _avstream-pointer _av-frame-pointer/null -> [ret : _avrational]
@@ -2010,6 +1983,34 @@
 (define-avformat av-stream-set-r-frame-rate (_fun _avstream-pointer _avrational -> _void))
 (define-avformat av-stream-get-r-frame-rate (_fun _avstream-pointer -> _avrational))
 
+(define (av-packet-ref dst/src [src #f])
+  (define-avcodec av-packet-ref (_fun [out : _avpacket-pointer]
+                                       _avpacket-pointer
+                                       -> [ret : _int]
+                                       -> (cond
+                                            [(< ret 0)
+                                             (unless src
+                                               (av-packet-unref out))
+                                             #f]
+                                            [else out])))
+  (if src
+      (av-packet-ref dst/src src)
+      (av-packet-ref (av-packet-alloc) dst/src)))
+(define-avcodec av-packet-unref (_fun _avpacket-pointer
+                                           -> _void))
+(define-avcodec av-packet-alloc (_fun -> _avpacket-pointer))
+(define-avcodec av-packet-free (_fun (_ptr io _avpacket-pointer/null) -> _void))
+(define-avcodec av-new-packet (_fun _avpacket-pointer _size -> [ret : _int]
+                                     -> (cond
+                                          [(= ret 0) (void)]
+                                          [else (error "~a : ~a" ret (convert-err ret))])))
+(define-avcodec av-init-packet (_fun _avpacket-pointer -> _void))
+(define-avcodec av-dup-packet (_fun _avpacket-pointer
+                                     -> [ret : _int]
+                                     -> (unless (= ret 0)
+                                          (error "dup-packet?"))))
+(define-avcodec av-packet-rescale-ts (_fun _avpacket-pointer _avrational _avrational
+                                            -> _void))
 (define-avcodec avcodec-find-encoder (_fun _avcodec-id
                                            -> _avcodec-pointer))
 (define-avcodec avcodec-find-decoder (_fun _avcodec-id
