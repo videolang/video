@@ -27,6 +27,7 @@
          ffi/unsafe
          ffi/vector
          "../render.rkt"
+         (submod "../render.rkt" render-fields)
          "ffmpeg.rkt"
          (except-in "ffmpeg-pipeline.rkt" render))
 
@@ -189,7 +190,7 @@
     (define canvas #f)
     (define/public (set-canvas c)
       (set! canvas c))
-    (define/override (write-callback-constructorf #:render-status render-status)
+    (define/override (write-callback-constructor #:render-status render-status)
       (λ (mode obj)
         (match obj
           [(struct* codec-obj ([codec-context ctx]
