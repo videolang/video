@@ -29,6 +29,21 @@
     ['windows ""]
     [_ "lib"]))
 
+;; The ordering of these libraries matters.
+;; This is the order of dependencies so that Racket can
+;; resolve it.
+(define avutil-lib
+  (ffi-lib (string-append lib-prefix "avutil") "55"))
+(define-ffi-definer define-avutil avutil-lib
+  #:make-c-id convention:hyphen->underscore)
+(define swresample-lib
+  (ffi-lib (string-append lib-prefix "swresample") "2"))
+(define-ffi-definer define-swresample swresample-lib
+  #:make-c-id convention:hyphen->underscore)
+(define swscale-lib
+  (ffi-lib (string-append lib-prefix "swscale") "4"))
+(define-ffi-definer define-swscale swscale-lib
+  #:make-c-id convention:hyphen->underscore)
 (define avcodec-lib
   (ffi-lib (string-append lib-prefix "avcodec") "57"))
 (define-ffi-definer define-avcodec avcodec-lib
@@ -36,18 +51,6 @@
 (define avformat-lib
   (ffi-lib (string-append lib-prefix "avformat") "57"))
 (define-ffi-definer define-avformat avformat-lib
-  #:make-c-id convention:hyphen->underscore)
-(define avutil-lib
-  (ffi-lib (string-append lib-prefix "avutil") "55"))
-(define-ffi-definer define-avutil avutil-lib
-  #:make-c-id convention:hyphen->underscore)
-(define swscale-lib
-  (ffi-lib (string-append lib-prefix "swscale") "4"))
-(define-ffi-definer define-swscale swscale-lib
-  #:make-c-id convention:hyphen->underscore)
-(define swresample-lib
-  (ffi-lib (string-append lib-prefix "swresample") "2"))
-(define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
 (define avfilter-lib
   (ffi-lib (string-append lib-prefix "avfilter") "6"))
