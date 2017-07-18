@@ -52,6 +52,14 @@
   (ffi-lib (string-append lib-prefix "avformat") "57"))
 (define-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
+(match (system-type 'os)
+  ['windows
+   (define postproc-lib
+     (ffi-lib (string-append lib-prefix "postproc") "54"))
+   (define-ffi-definer define-postproc postproc-lib
+     #:make-c-id convention:hyphen->underscore)
+   (void)]
+  [_ (void)])
 (define avfilter-lib
   (ffi-lib (string-append lib-prefix "avfilter") "6"))
 (define-ffi-definer define-avfilter avfilter-lib
