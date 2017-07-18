@@ -1,3 +1,10 @@
+v0.2-alpha.1
+Date: 2017-07-18
+Commit#: d93040922586b9d29d07236bf727d2f90484cb31
+* Fix a few minor bugs preventing Video from running on Windows and Linux. We have now tested it on all three platforms.
+* Initial work on live preview. The player has now been updated to show the video in the player window. Additionally Video can now seek video outputs (as well as inputs).
+
+
 v0.2-alpha
 Date: 2017-07-11
 Commit#: 0dba5893097faef48b9e45900aefcd13137c27d3
