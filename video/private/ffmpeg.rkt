@@ -2057,18 +2057,6 @@
                    [else (error 'vcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
   (avcodec-open2 ctx codec dict))
 (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
-(define-avcodec av-image-fill-arrays (_fun (_array _pointer 4)
-                                           (_array _int 4)
-                                           _pointer ;; XXX FIXME
-                                           _avpixel-format
-                                           _int
-                                           _int
-                                           _int
-                                           -> [ret : _int]
-                                           -> (let ()
-                                                (when (< ret 0)
-                                                  (error "av-image"))
-                                                ret)))
 (define-avcodec avcodec-send-packet
   (_fun _avcodec-context-pointer _avpacket-pointer/null
         -> [ret : _int]
@@ -2264,6 +2252,19 @@
                                -> (cond
                                     [(= ret 0) (void)]
                                     [else (error 'usleep "~a : ~a" ret (convert-err ret))])))
+(define-avutil av-image-fill-arrays (_fun (_array _pointer 4)
+                                           (_array _int 4)
+                                           _pointer ;; XXX FIXME
+                                           _avpixel-format
+                                           _int
+                                           _int
+                                           _int
+                                           -> [ret : _int]
+                                           -> (let ()
+                                                (when (< ret 0)
+                                                  (error "av-image"))
+                                                ret)))
+
 
 (define-swscale sws-getContext (_fun _int
                                      _int
