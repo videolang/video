@@ -114,6 +114,10 @@
 
   [sepia-filter (-> filter?)]
 
+  [mux-filter (-> #:type (or/c 'video 'v 'audio 'a)
+                  #:index nonnegative-integer?
+                  filter?)]
+
   ;; Set a property associated with a properties struct
   [set-property (-> properties? string? any/c properties?)]
 
@@ -453,10 +457,7 @@
   (error "TODO"))
 
 (define (scale-filter w h)
-  (make-filter #:type 'frei0r.scale0tilt
-               #:prop (hash "4" w "5" h)))
-
-;(define audio-fade-filter
+  (error "TODO"))
 
 (define-syntax (external-video stx)
   (syntax-parse stx
@@ -505,6 +506,22 @@
                                     "gr" 0.349 "gg" 0.686 "gb" 0.168 "ga" 0
                                     "br" 0.272 "bg" 0.534 "bb" 0.131 "ba" 0
                                     "ar" 0     "ag" 0     "ab" 0     "aa" 0)))
+
+(define (mux-filter #:type t
+                    #:index index)
+  (define (mux-proc ctx prev)
+    (define (match type
+              [(or 'v 'video) 'video]
+              [(or 'a 'audio) 'audio]))
+    (define mux
+      (mk-mux-node type index
+                   #:counts (hash type 1)))
+    (add-vertex! cx mux)
+    (make-video-subgraph #:graph ctx
+                         #:sources mux
+                         #:sinks mux
+                         #:props (node-props prev)))
+  (make-filter #:subgraph mux-filter))
 
 (define (envelope-filter #:direction direction
                          #:length length)
