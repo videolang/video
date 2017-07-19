@@ -333,9 +333,16 @@
   (define fsample-fmt #f)
   (define fsample-rate #f)
   (define count-tab (make-hash))
+  (define error-when-mismatch? #f) ;; For debugging
   (define-syntax-rule (set!/error var val comp)
-    (cond [var (unless (comp var val)
-                 (error 'file "Incompatible stream values ~a and ~a" var val))]
+    (cond [(and var error-when-mismatch? (comp var val))
+           (error 'file "Incompatible stream values ~a and ~a" var val)]
+          #|
+          [(pair? var)
+           (set! var (cons val var))]
+          [var
+           (set! var (list val var))]
+|#
           [else (set! var val)]))
   (for ([str (stream-bundle-streams bundle)])
     (match str

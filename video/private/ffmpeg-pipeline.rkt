@@ -802,7 +802,16 @@
                         #:counts [c (hash)]
                         #:props [props (hash)])
   (filter-node props c table))
-(struct mux-node node (out-type out-index))
+(struct mux-node node (out-type out-index)
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ _ 'mux-node)
+      (λ (x) (list '#:type (mux-node-out-type x)
+                   '#:index (mux-node-out-index x)
+                   '#:props (node-props x)
+                   '#:counts (node-counts x)))))])
+
 (define (mk-mux-node out-type out-index
                      #:counts [c (hash)]
                      #:props [props (hash)])
@@ -964,19 +973,20 @@
      (for/list ([n (get-sorted-neighbors (current-graph) vert)])
        (format "[~a]" ((current-edge-mapping-ref!) vert n out-type 0)))))
   (define in-str
-    (append*
-     (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-       (for/list ([i (in-range (dict-ref counts vert 0))])
-         (format "[~a]" ((current-edge-mapping-ref!) n vert out-type i))))))
+    (string-append*
+     (append*
+      (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+        (for/list ([i (in-range (dict-ref counts vert 0))])
+          (format "[~a]" ((current-edge-mapping-ref!) n vert out-type i)))))))
   ;; Otput main node and nodes for other types to null
-  (append*
+  (cons
    (format "~a~a~a"
            in-str
            (filter->string
             (mk-filter (match out-type
                          ['video "streamselect"]
                          ['audio "astreamselect"])
-                       (hash "inputs" (dict-ref counts vert)
+                       (hash "inputs" (dict-ref counts out-type)
                              "map" out-index)))
            out-str)
    (append*
@@ -1138,7 +1148,7 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  ;(displayln (graphviz g))
+  (displayln (graphviz g))
   ;(displayln g-str)
   (define seek-points (get-seek-point g 0))
   (define graph (avfilter-graph-alloc))

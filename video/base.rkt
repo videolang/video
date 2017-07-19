@@ -515,13 +515,14 @@
                    [(or 'a 'audio) 'audio]))
     (define mux
       (mk-mux-node type index
+                   #:props (node-props prev)
                    #:counts (hash type 1)))
     (add-vertex! ctx mux)
     (make-video-subgraph #:graph ctx
                          #:sources mux
                          #:sinks mux
-                         #:props (node-props prev)))
-  (make-filter #:subgraph mux-filter))
+                         #:prop (node-props prev)))
+  (make-filter #:subgraph mux-proc))
 
 (define (envelope-filter #:direction direction
                          #:length length)
@@ -544,7 +545,7 @@
     (make-video-subgraph #:graph ctx
                          #:sources node
                          #:sinks node
-                         #:props (node-props prev)))
+                         #:prop (node-props prev)))
   (make-filter #:subgraph envelope-proc))
 
 ;; ===================================================================================================
