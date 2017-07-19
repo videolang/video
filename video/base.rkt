@@ -516,7 +516,7 @@
     (define mux
       (mk-mux-node type index
                    #:props (node-props prev)
-                   #:counts (hash type 1)))
+                   #:counts (node-counts prev)));(hash type 1)))
     (add-vertex! ctx mux)
     (make-video-subgraph #:graph ctx
                          #:sources mux

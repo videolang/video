@@ -976,7 +976,7 @@
     (string-append*
      (append*
       (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-        (for/list ([i (in-range (dict-ref counts vert 0))])
+        (for/list ([i (in-range (dict-ref counts out-type 0))])
           (format "[~a]" ((current-edge-mapping-ref!) n vert out-type i)))))))
   ;; Otput main node and nodes for other types to null
   (cons
@@ -986,7 +986,7 @@
             (mk-filter (match out-type
                          ['video "streamselect"]
                          ['audio "astreamselect"])
-                       (hash "inputs" (dict-ref counts out-type)
+                       (hash "inputs" (dict-ref counts out-type 0)
                              "map" out-index)))
            out-str)
    (append*
@@ -995,7 +995,7 @@
        (for/list ([(type count) (in-dict counts)]
                   #:unless (eq? type out-type))
          (for/list ([i (in-range count)])
-           (format "~a~a"
+           (format "[~a]~a"
                    ((current-edge-mapping-ref!) n vert type i)
                    (filter->string
                     (match type
@@ -1148,7 +1148,7 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundle) (filter-graph->string g))
-  (displayln (graphviz g))
+  ;(displayln (graphviz g))
   ;(displayln g-str)
   (define seek-points (get-seek-point g 0))
   (define graph (avfilter-graph-alloc))
