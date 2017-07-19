@@ -308,6 +308,12 @@
                                       [speed speed]))
             (define out-path (path->complete-path (or dest "out.mp4")))
             (set! render-graph (graph-copy video-graph))
+            (define start-node
+              (mk-fifo-node
+               #:props (node-props video-sink)
+               #:counts (hash 'video 1 'audio 1)))
+            (add-vertex! render-graph start-node)
+            (add-directed-edge! render-graph video-sink start-node 1)
             (define trim-node
               (cond [(or start end)
                      (define t-node
@@ -322,11 +328,11 @@
                                                      [r (if start (hash-set r "start" start) r)]
                                                      [r (if end (hash-set r "end" end) r)])
                                                 r)))
-                        #:counts (node-counts video-sink)))
+                        #:counts (node-counts start-node)))
                      (add-vertex! render-graph t-node)
-                     (add-directed-edge! render-graph video-sink t-node 1)
+                     (add-directed-edge! render-graph start-node t-node 1)
                      t-node]
-                    [else video-sink]))
+                    [else start-node]))
             (define pad-node
               (mk-filter-node
                (hash 'video (mk-filter "scale"

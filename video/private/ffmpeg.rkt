@@ -1704,7 +1704,7 @@
 (define-cpointer-type _avfilter-pad-pointer)
 
 (define-cstruct _avfilter
-  ([name _pointer]
+  ([name _string]
    [description _string]
    [inputs _avfilter-pad-pointer/null]
    [outputs _avfilter-pad-pointer/null]

@@ -514,9 +514,9 @@
                    [(or 'v 'video) 'video]
                    [(or 'a 'audio) 'audio]))
     (define mux
-      (mk-mux-node type index
+      (mk-mux-node type index (node-counts prev)
                    #:props (node-props prev)
-                   #:counts (node-counts prev)));(hash type 1)))
+                   #:counts (hash type 1)))
     (add-vertex! ctx mux)
     (make-video-subgraph #:graph ctx
                          #:sources mux

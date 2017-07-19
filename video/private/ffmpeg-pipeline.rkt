@@ -84,7 +84,9 @@
        (set-codec-obj-codec! s codec)
        (set-codec-obj-index! s index)
        (set-codec-obj-codec-context! s (avcodec-alloc-context3 codec))
-       (dict-set! table type s)]))
+       (dict-update! table type
+                     (λ (rst) (append rst (list s)))
+                     (λ () '()))]))
   (set-stream-bundle-stream-table! bundle table)
   bundle)
 
@@ -277,7 +279,9 @@
                                 #:id codec-id
                                 #:codec codec
                                 #:codec-context codec-ctx))
-      (dict-set! stream-table codec-name obj)
+      (dict-update! stream-table codec-name
+                    (λ (rst) (append rst (list obj)))
+                    (λ () '()))
       obj))
   (mk-stream-bundle #:raw-streams raw-strs
                     #:avformat-context avformat
@@ -325,14 +329,12 @@
       (for ([i streams])
         (match i
           [(struct* codec-obj ([type codec-name]))
-           (when (and (not by-index-callback) (hash-ref stream-table codec-name #f))
-             (error 'decoder-stream "Stream type ~a already present" codec-name))
-           (hash-set! stream-table codec-name i)
            (when by-index-callback
              (by-index-callback 'init i #f))]))
       (unless by-index-callback
-        (for ([(k v) (in-hash stream-table)])
-          ((callback-ref callback-table k)) 'init v #f))
+        (for ([(k vs) (in-hash stream-table)])
+          (for ([v vs])
+            ((callback-ref callback-table k)) 'init v #f)))
       (for  ([i streams])
         (match i
           [(struct* codec-obj ([start-offset start-offset]
@@ -356,7 +358,7 @@
          (cond [by-index-callback (by-index-callback 'loop obj packet)]
                [else
                 (define type (codec-obj-type obj))
-                (when (eq? obj (hash-ref stream-table type))
+                (when (set-member? (hash-ref stream-table type) obj)
                   ((callback-ref callback-table type) 'loop obj packet))])
          (av-packet-free packet)
          #t]
@@ -364,8 +366,9 @@
     
     (define/public (close)
       (unless by-index-callback
-        (for ([(k v) (in-hash stream-table)])
-          ((callback-ref callback-table k)) 'close v #f))
+        (for ([(k vs) (in-hash stream-table)])
+          (for ([v vs])
+            ((callback-ref callback-table k)) 'close v #f)))
       (for ([i (in-vector streams)])
         (match i
           [(struct* codec-obj ([codec-parameters codec-parameters]
@@ -459,29 +462,31 @@
                             #:callback-data callback-data)]
              [x (mk-codec-obj #:type x
                               #:index index)]))
-         (dict-set! stream-table (codec-obj-type ret) ret)
+         (dict-update! stream-table (codec-obj-type ret)
+                       (λ (rst) (append rst (list ret)))
+                       (λ () '()))
          ret)]
       [(or 'vid 'video)
        (define video
          (mk-codec-obj #:type 'video
                        #:index 0))
-       (dict-set! stream-table 'video video)
+       (dict-set! stream-table 'video (list video))
        (vector video)]
       [(or 'aud 'audio)
        (define audio
          (mk-codec-obj #:type 'audio
                        #:index 0))
-       (dict-set! stream-table 'audio audio)
+       (dict-set! stream-table 'audio (list audio))
        (vector audio)]
       [(or 'vid+aud 'video+audio 'movie)
        (define video
          (mk-codec-obj #:type 'video
                        #:index 0))
-       (dict-set! stream-table 'video video)
+       (dict-set! stream-table 'video (list video))
        (define audio
          (mk-codec-obj #:type 'audio
                        #:index 1))
-       (dict-set! stream-table 'audio audio)
+       (dict-set! stream-table 'audio (list audio))
        (vector video audio)]))
   (define output-context
     (avformat-alloc-output-context2 output-format format-name file))
@@ -619,7 +624,8 @@
              (define next-packet
                (if by-index-callback
                    (by-index-callback 'write min-stream)
-                   ((dict-ref callback-table (codec-obj-type min-stream) empty-proc) 'write min-stream)))
+                   ((dict-ref callback-table (codec-obj-type min-stream) empty-proc)
+                    'write min-stream)))
              (let loop ([next-packet next-packet])
                (cond [(eof-object? next-packet)
                       (set-remove! remaining-streams min-stream)]
@@ -802,20 +808,21 @@
                         #:counts [c (hash)]
                         #:props [props (hash)])
   (filter-node props c table))
-(struct mux-node node (out-type out-index)
+(struct mux-node node (out-type out-index in-counts)
   #:methods gen:custom-write
   [(define write-proc
      (make-constructor-style-printer
       (λ _ 'mux-node)
       (λ (x) (list '#:type (mux-node-out-type x)
                    '#:index (mux-node-out-index x)
+                   '#:in-counts (mux-node-in-counts x)
                    '#:props (node-props x)
                    '#:counts (node-counts x)))))])
 
-(define (mk-mux-node out-type out-index
+(define (mk-mux-node out-type out-index in-counts
                      #:counts [c (hash)]
                      #:props [props (hash)])
-  (mux-node props c out-type out-index))
+  (mux-node props c out-type out-index in-counts))
 (struct demux-node node (in-counts))
 (define (mk-demux-node in-counts
                        #:counts [c (hash)]
@@ -967,34 +974,31 @@
 (define (mux-node->string vert)
   (define out-type (mux-node-out-type vert))
   (define out-index (mux-node-out-index vert))
-  (define counts (node-counts vert))
+  (define counts (mux-node-in-counts vert))
   (define out-str
     (string-append*
      (for/list ([n (get-sorted-neighbors (current-graph) vert)])
        (format "[~a]" ((current-edge-mapping-ref!) vert n out-type 0)))))
   (define in-str
     (string-append*
-     (append*
-      (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
-        (for/list ([i (in-range (dict-ref counts out-type 0))])
-          (format "[~a]" ((current-edge-mapping-ref!) n vert out-type i)))))))
+     (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+       (format "[~a]" ((current-edge-mapping-ref!) n vert out-type out-index)))))
   ;; Otput main node and nodes for other types to null
   (cons
    (format "~a~a~a"
            in-str
            (filter->string
             (mk-filter (match out-type
-                         ['video "streamselect"]
-                         ['audio "astreamselect"])
-                       (hash "inputs" (dict-ref counts out-type 0)
-                             "map" out-index)))
+                         ['video "copy"]
+                         ['audio "anull"])))
            out-str)
    (append*
     (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
       (append*
-       (for/list ([(type count) (in-dict counts)]
-                  #:unless (eq? type out-type))
-         (for/list ([i (in-range count)])
+       (for/list ([(type count) (in-dict counts)])
+         (for/list ([i (in-range count)]
+                    #:unless (and (eq? type out-type)
+                                  (eq? i out-index)))
            (format "[~a]~a"
                    ((current-edge-mapping-ref!) n vert type i)
                    (filter->string
@@ -1031,26 +1035,81 @@
 
 ;; Source-Node -> (Listof String)
 (define (source-node->string vert)
+  (define bundle (source-node-bundle vert))
+  (define table (stream-bundle-stream-table (source-node-bundle vert)))
   (append*
-   (for/list ([(type count) (in-dict (node-counts vert))])
+   (for/list ([(type objs) (in-dict table)])
+     (define count/bundle (length objs))
+     (define count/vert (dict-ref (node-counts vert) type 0))
+     (define count (max count/bundle count/vert))
      (for/list ([i (in-range count)])
-       (define in-str
-         (let ()
-           (define name ((current-edge-mapping-ref!) #f vert type i))
-           (define table
-             (stream-bundle-stream-table (source-node-bundle vert)))
-           (set-codec-obj-callback-data! (dict-ref table type) name)
-           (format "[~a]" name)))
-       (define out-str
-         (string-append*
-          (for/list ([n (get-sorted-neighbors (current-graph) vert)])
-            (format "[~a]" ((current-edge-mapping-ref!) vert n type i)))))
-       (format "~a~a~a"
-               in-str
-               (match type
-                 ['video "fifo"]
-                 ['audio "afifo"])
-               out-str)))))
+       (cond
+         [(and (< i count/vert) (< i count/bundle))
+          (define in-str
+            (let ()
+              (define name ((current-edge-mapping-ref!) #f vert type i))
+              (set-codec-obj-callback-data! (list-ref (dict-ref table type) i) name)
+              (format "[~a]" name)))
+          (define out-str
+            (string-append*
+             (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+               (format "[~a]" ((current-edge-mapping-ref!) vert n type i)))))
+          (format "~a~a~a"
+                  in-str
+                  (match type
+                    ['video "fifo"]
+                    ['audio "afifo"])
+                  out-str)]
+         [(< i count/vert)
+          (format "~a[~a]"
+                  (match type
+                    ['video (filter->string (mk-empty-video-filter))]
+                    ['audio (filter->string (mk-empty-audio-filter))])
+                  (string-append*
+                   (for/list ([n (get-sorted-neighbors (current-graph) vert)])
+                     ((current-edge-mapping-ref!) vert n type i))))]
+         [else
+          (format "[~a]~a"
+                  (let ()
+                    (define name ((current-edge-mapping-ref!) #f vert type i))
+                    (set-codec-obj-callback-data! (list-ref (dict-ref table type) i) name)
+                    name)
+                  (match type
+                    ['video (filter->string (mk-empty-sink-video-filter))]
+                    ['audio (filter->string (mk-empty-sink-audio-filter))]))])))))
+
+;; Sink Node -> (Listof String)
+(define (sink-node->string vert)
+  (define bundle (sink-node-bundle vert))
+  (define table (stream-bundle-stream-table bundle))
+  (append*
+   (for/list ([(type objs) (in-dict table)])
+     (define count/bundle (length objs))
+     (define count/vert (dict-ref (node-counts vert) type 0))
+     (define count (max count/bundle count/vert))
+     (append*
+      (for/list ([i (in-range count)])
+        (define name
+          (string-append*
+           (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+             (define name ((current-edge-mapping-ref!) n vert type i))
+             (set-codec-obj-callback-data! (list-ref (dict-ref table type) i)
+                                           name)
+             name)))
+        (cond
+          [(and (< i count/bundle) (< i count/vert))
+           '()]
+          [(< i count/vert)
+           (list (format "[~a]~a"
+                         name
+                         (match type
+                           ['video (filter->string (mk-empty-sink-video-filter))]
+                           ['audio (filter->string (mk-empty-sink-audio-filter))])))]
+          [else (list (format "~a[~a]"
+                              (match type
+                                ['video (filter->string (mk-empty-video-filter))]
+                                ['audio (filter->string (mk-empty-audio-filter))])
+                              name))]))))))
 
 ;; Because `in-neighbors` returns neighbors in
 ;; an unspecified order, we need them sorted based
@@ -1089,14 +1148,7 @@
            [(source-node? vert)
             (source-node->string vert)]
            [(sink-node? vert)
-            (for ([(type count) (in-dict (node-counts vert))])
-              (for ([i (in-range count)])
-                (for ([n (get-sorted-neighbors g* vert)])
-                  (define table
-                    (stream-bundle-stream-table (sink-node-bundle vert)))
-                  (set-codec-obj-callback-data! (dict-ref table type)
-                                                ((current-edge-mapping-ref!) n vert type i)))))
-            '()]
+            (sink-node->string vert)]
            [else '()]))))
     ;; Different nodes have different stream counts.
     ;; Need to make empty (null) nodes for mismatching
@@ -1106,7 +1158,7 @@
        (for/list ([(edge name) (in-dict (current-edge-mapping))])
          (match edge
            [(vector src dst type i)
-            #:when (and src dst)
+            #:when (and src dst (not (mux-node? dst)))
             (define src-count (dict-ref (node-counts src) type 0))
             (define dst-count (dict-ref (node-counts dst) type 0))
             (append
@@ -1348,24 +1400,24 @@
         (match b
           [(struct* stream-bundle ([stream-table stream-table]
                                    [file file]))
-           (set! pre-str-list (cons
-                               (format "[~a:v]copy[~a];[~a:a]anull[~a];"
-                                       index
-                                       (codec-obj-callback-data (dict-ref stream-table 'video))
-                                       index
-                                       (codec-obj-callback-data (dict-ref stream-table 'audio)))
-                               pre-str-list))
+           (set! pre-str-list
+                 (cons (format "[~a:v]copy[~a];[~a:a]anull[~a];"
+                               index
+                               (codec-obj-callback-data (first (dict-ref stream-table 'video)))
+                               index
+                               (codec-obj-callback-data (first (dict-ref stream-table 'audio))))
+                       pre-str-list))
            (list "-i" file)])))
      (list
       "-filter_complex"
       (string-append (string-join pre-str-list) graph)
       "-map"
-      (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
-                                                        
-                                                        'video)))
+      (format "[~a]" (codec-obj-callback-data (first (dict-ref (stream-bundle-stream-table out-bundle)
+                                                               
+                                                               'video))))
       "-map"
-      (format "[~a]" (codec-obj-callback-data (dict-ref (stream-bundle-stream-table out-bundle)
-                                                        'audio)))
+      (format "[~a]" (codec-obj-callback-data (first (dict-ref (stream-bundle-stream-table out-bundle)
+                                                               'audio))))
       (stream-bundle-file out-bundle))))
   (displayln cmd)
   (apply system* cmd))
