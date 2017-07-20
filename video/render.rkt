@@ -298,8 +298,8 @@
            [(struct* render-settings ([destination dest]
                                       [width width]
                                       [height height]
-                                      [start start]
-                                      [end end]
+                                      [start start*]
+                                      [end end*]
                                       [fps fps]
                                       [pix-fmt pix-fmt]
                                       [sample-fmt sample-fmt]
@@ -314,25 +314,23 @@
                #:counts (hash 'video 1 'audio 1)))
             (add-vertex! render-graph start-node)
             (add-directed-edge! render-graph video-sink start-node 1)
+            (define start (or start* (dict-ref (node-props start-node) "start" 0)))
+            (define end (or end* (dict-ref (node-props start-node) "end" 0)))
             (define trim-node
-              (cond [(or start end)
-                     (define t-node
-                       (mk-filter-node
-                        (hash 'video (mk-filter
-                                      "trim" (let* ([r (hash)]
-                                                    [r (if start (hash-set r "start" start) r)]
-                                                    [r (if end (hash-set r "end" end) r)])
-                                               r))
-                              'audio (mk-filter
-                                      "atrim" (let* ([r (hash)]
-                                                     [r (if start (hash-set r "start" start) r)]
-                                                     [r (if end (hash-set r "end" end) r)])
-                                                r)))
-                        #:counts (node-counts start-node)))
-                     (add-vertex! render-graph t-node)
-                     (add-directed-edge! render-graph start-node t-node 1)
-                     t-node]
-                    [else start-node]))
+              (mk-filter-node
+               (hash 'video (mk-filter
+                             "trim" (let* ([r (hash)]
+                                           [r (if start (hash-set r "start" (racket->ffmpeg start)) r)]
+                                           [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
+                                      r))
+                     'audio (mk-filter
+                             "atrim" (let* ([r (hash)]
+                                            [r (if start (hash-set r "start" (racket->ffmpeg start)) r)]
+                                            [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
+                                       r)))
+               #:counts (node-counts start-node)))
+            (add-vertex! render-graph trim-node)
+            (add-directed-edge! render-graph start-node trim-node 1)
             (define pad-node
               (mk-filter-node
                (hash 'video (mk-filter "scale"
@@ -469,8 +467,12 @@
              ret)))
         (match prev-status
           ['stopped (void)]
-          ['stopping (sleep 1) (loop)]
-          ['running (async-channel-get writing-stopped-signal)])))
+          ['stopping
+           (sleep 1)
+           (loop)]
+          ['running
+           (async-channel-get writing-stopped-signal)
+           (void)])))
 
     (define/public (write-output-callback-constructor #:render-status render-status)
       (filtergraph-next-packet #:render-status render-status))

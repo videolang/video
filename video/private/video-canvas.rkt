@@ -201,7 +201,21 @@
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
+                  (define linesize (array-ref (av-frame-linesize out-frame) 0))
                   (send canvas draw-frame
                         (λ ()
-                          (void)))))]
+                          (for ([i (in-range (avcodec-context-height ctx))])
+                            (glTexSubImage2D
+                             GL_TEXTURE_2D
+                             0
+                             0
+                             i
+                             (avcodec-context-width ctx)
+                             1
+                             GL_RGB
+                             GL_UNSIGNED_BYTE
+                             (ptr-add (array-ref (av-frame-data out-frame) 0)
+                                      (* i linesize))))))
+                  (av-frame-free out-frame)
+                  (loop)))]
              [_ (void)])])))))

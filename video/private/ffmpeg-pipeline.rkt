@@ -171,6 +171,7 @@
                         (cond
                           [(list? v) (string-join (map loop v) ";")]
                           [(interval? v) (interval->string v)]
+                          [(duration? v) (duration->string v)]
                           [else v]))
                       (if (string? k)
                           (format "~a=~a" k v*)
@@ -225,7 +226,11 @@
                     (if end (format "-~a" end) "")
                     " "
                     (string-join (map command->string commands) ","))]))
-
+(struct duration (time))
+(define (mk-duration time) (duration time))
+(define (duration->string d)
+  (exact->inexact (duration-time d)))
+ 
 ;; ===================================================================================================
 
 ;; A callback table is:
