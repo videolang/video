@@ -32,6 +32,10 @@
 ;; The ordering of these libraries matters.
 ;; This is the order of dependencies so that Racket can
 ;; resolve it.
+(void
+ (match (system-type 'os)
+   ['macosx (ffi-lib (string-append lib-prefix "openh264") "4")]
+   [_ (void)]))
 (define avutil-lib
   (ffi-lib (string-append lib-prefix "avutil") "55"))
 (define-ffi-definer define-avutil avutil-lib

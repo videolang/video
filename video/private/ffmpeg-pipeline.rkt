@@ -321,9 +321,10 @@
         (define run-time (- (current-inexact-milliseconds) start-time))
         (define timed-out? (and timeout (> (/ run-time 1000) timeout)))
         (cond [(or needed? timed-out?)
+               (not timed-out?)]
+              [else
                (sleep 0.01)
-               (loop)]
-              [else (not timed-out?)])))
+               (loop)])))
     
     (define/public (init)
       (for ([i streams])
