@@ -1292,6 +1292,10 @@
                   (make-avrational (numerator x)
                                    (denominator x)))
                 (λ (x)
+                  (when (= (avrational-den x) 0)
+                    (error 'avrational "Invalid AVRational ~a/~a"
+                           (avrational-num x)
+                           (avrational-den x)))
                   (/ (avrational-num x)
                      (avrational-den x))))))
 

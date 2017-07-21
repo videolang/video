@@ -264,13 +264,12 @@
     (super-new)
     (init-field source)
 
-    (field [video-graph (video:mk-render-graph)])
-    (field [video-sink (parameterize ([video:current-render-graph video-graph])
-                         (video:convert source))]
+    (field [video-graph #f]
+           [video-sink #f]
            [render-graph #f]
-           [output-node #f])
-    (field [video-start (video:get-property video-sink "start")]
-           [video-end (video:get-property video-sink "end")])
+           [output-node #f]
+           [video-start #f]
+           [video-end #f])
     
     (define graph-obj #f)
     (define input-bundles #f)
@@ -310,7 +309,10 @@
       (call-with-semaphore
        current-render-settings-lock
        (λ ()
-         (set! current-render-settings render-settings)
+         (set! video-graph (video:mk-render-graph))
+         (set! video-sink (parameterize ([video:current-render-graph video-graph])
+                            (video:convert source)))
+         (set! current-render-settings settings)
          (match settings
            [(struct* render-settings ([destination dest]
                                       [width width]
@@ -417,6 +419,8 @@
             (add-vertex! render-graph sink-node)
             (add-directed-edge! render-graph speed-node sink-node 1)
             (set! output-node pad-node)
+            (set! video-start (video:get-property video-sink "start"))
+            (set! video-end (video:get-property video-sink "end"))
             ;(displayln (graphviz render-graph))
             (let-values ([(g i o) (init-filter-graph render-graph)])
               (set! graph-obj g)
