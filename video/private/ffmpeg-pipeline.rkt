@@ -28,6 +28,7 @@
          racket/draw
          racket/class
          racket/format
+         racket/hash
          (except-in racket/contract ->)
          (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
@@ -790,7 +791,7 @@
                         #:counts [c (hash)]
                         #:props [np (hash)])
   (source-node np c b))
-(struct sink-node node (bundle)
+(struct sink-node node (bundle consume-table next)
   #:methods gen:custom-write
   [(define write-proc
      (make-constructor-style-printer
@@ -799,9 +800,11 @@
                    '#:props (node-props x)
                    '#:counts (node-counts x)))))])
 (define (mk-sink-node b
+                      #:consume-table [ct #f]
+                      #:next [n #f]
                       #:counts [c (hash)]
                       #:props [np (hash)])
-  (sink-node np c b))
+  (sink-node np c b ct n))
 (struct filter-node node (table)
   #:methods gen:custom-write
   [(define write-proc
@@ -1085,10 +1088,16 @@
                     ['audio (filter->string (mk-empty-sink-audio-filter))]))])))))
 
 ;; Sink Node -> (Listof String)
-(define (sink-node->string vert)
+(define (sink-node->string vert #:count-offsets [count-offsets (hash)])
   (define bundle (sink-node-bundle vert))
   (define table (stream-bundle-stream-table bundle))
+  (define next (sink-node-next vert))
   (append*
+   (if next
+       (sink-node->string
+        next #:count-offsets (hash-union count-offsets (sink-node-consume-table vert)
+                                         #:combine +))
+       '())
    (for/list ([(type objs) (in-dict table)])
      (define count/bundle (length objs))
      (define count/vert (dict-ref (node-counts vert) type 0))
