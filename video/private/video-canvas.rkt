@@ -188,6 +188,8 @@
   (mixin (render<%>) ()
     (super-new)
     (define canvas #f)
+    (define/override (setup rs)
+      (super setup (struct-copy render-settings rs [pix-fmt 'rgb24])))
     (define/public (set-canvas c)
       (set! canvas c))
     (define/override (write-output-callback-constructor #:render-status render-status)
