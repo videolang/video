@@ -36,29 +36,23 @@
 (define HEIGHT 480)
 (define FPS 25)
 
-;; Probably not threadsafe when changing videos?
-;; Sadly not entirely sure.
-(define video-player%
-  (class frame%
+(define video-player-server%
+  (class object%
     (init-field video)
-    (super-new [label "Playback Controls"]
-               [spacing 10]
-               [stretchable-width #f]
-               [stretchable-height #f]
-               [min-width 700]
-               [min-height 600])
-
+    (super-new)
     ;; Internal State
     (define render-settings (make-render-settings #:start 0
                                                   #:width WIDTH
                                                   #:height HEIGHT
                                                   #:fps FPS))
     (define render #f)
+    (define screen #f)
+    (define/public (set-canvas c)
+      (set! screen c))
     (define/public (set-video v)
       (set! render (make-object (video-canvas-render-mixin render%) video))
       (send render setup render-settings)
       (send render set-canvas screen))
-    ;; Player Backend
     (define/public (get-video-length)
       (send render get-length))
     (define/public (play)
@@ -80,16 +74,42 @@
     (define/public (get-position)
       (send render get-current-position))
     (define/public (get-fps)
-      FPS)
+      FPS)))
+
+;; Probably not threadsafe when changing videos?
+;; Sadly not entirely sure.
+(define video-player%
+  (class frame%
+    (init-field video)
+    (super-new [label "Video Player"]
+               [spacing 10]
+               [stretchable-width #f]
+               [stretchable-height #f]
+               [min-width 700]
+               [min-height 600])
+
+    (define vps (new video-player-server% [video video]))
+
+    ;; Player Backend
     (define/override (show show?)
       (unless show?
         (send seek-bar-updater stop)
-        (stop))
+        (send vps stop))
       (super show show?))
     (define/augment (on-close)
       (send seek-bar-updater stop)
-      (stop))
+      (send vps stop))
     (define step-distance 100)
+    (define/public (play)
+      (send vps play))
+    (define/public (pause)
+      (send vps pause))
+    (define/public (stop)
+      (send vps stop))
+    (define/public (seek pos)
+      (send vps seek pos))
+    (define/public (set-speed spd)
+      (send vps set-speed spd))
 
     ;; GUI For Player
     (define screen-row
@@ -102,6 +122,7 @@
            [parent screen-row]
            [width WIDTH] 
            [height HEIGHT]))
+    (send vps set-canvas screen)
     (define top-row
       (new horizontal-pane%
            [parent this]
@@ -110,27 +131,27 @@
     (new button%
          [parent top-row]
          [label (step-back-icon #:color run-icon-color #:height 50)]
-         [callback (λ _ (seek (- (get-position) step-distance)))])
+         [callback (λ _ (send vps seek (- (send vps get-position) step-distance)))])
     (new button%
          [parent top-row]
          [label (rewind-icon #:color syntax-icon-color #:height 50)]
-         [callback (λ _ (rewind))])
+         [callback (λ _ (send vps rewind))])
     (new button%
          [parent top-row]
          [label (play-icon #:color run-icon-color #:height 50)]
-         [callback (λ _ (play))])
+         [callback (λ _ (send vps play))])
     (new button%
        [parent top-row]
        [label (stop-icon #:color halt-icon-color #:height 50)]
-       [callback (λ _ (pause))])
+       [callback (λ _ (send vps pause))])
     (new button%
          [parent top-row]
          [label (fast-forward-icon #:color syntax-icon-color #:height 50)]
-         [callback (λ _ (fast-forward))])
+         [callback (λ _ (send vps fast-forward))])
     (new button%
          [parent top-row]
          [label (step-icon #:color run-icon-color #:height 50)]
-         [callback (λ _ (seek (+ (get-position) step-distance)))])
+         [callback (λ _ (send vps seek (+ (send vps get-position) step-distance)))])
     (define seek-bar-max 10000)
     (define seek-bar
       (new slider%
@@ -143,11 +164,11 @@
            [callback
             (λ (b e)
               (define v (send b get-value))
-              (define frame (floor (* (get-video-length) (/ v seek-bar-max))))
-              (seek frame))]))
+              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max))))
+              (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
-      (define len (or (get-video-length) 1000000))
-      (define frame (floor (* seek-bar-max (/ (get-position) len))))
+      (define len (or (send vps get-video-length) 1000000))
+      (define frame (floor (* seek-bar-max (/ (send vps get-position) len))))
       (send seek-bar set-value frame)
       (send seek-message set-label (make-frame-string frame len)))
     (define/private (make-frame-string frame len)
@@ -181,7 +202,7 @@
          [callback
           (λ (b e)
             (define frame (send seek-field get-value))
-            (seek (string->number frame)))])
+            (send vps seek (string->number frame)))])
     (define speed-row
       (new horizontal-pane%
            [parent this]
@@ -204,13 +225,13 @@
            (λ (b e)
              (define speed (string->number (send speed-field get-value)))
              (when speed
-               (set-speed speed)))])
+               (send vps set-speed speed)))])
     (new message%
          [parent this]
-         [label (format "FPS: ~a" (get-fps))])
+         [label (format "FPS: ~a" (send vps get-fps))])
 
     ;; Start the initial video
-    (set-video video)
+    (send vps set-video video)
     (define seek-bar-updater
       (new timer%
            [interval 1000]
