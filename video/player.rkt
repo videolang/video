@@ -16,7 +16,9 @@
    limitations under the License.
 |#
 
-(provide video-player%
+(provide video-player-server%
+         video-player%
+         video-canvas%
          preview)
 (require (except-in racket/class field)
          racket/gui/base
@@ -25,10 +27,13 @@
          ffi/unsafe/atomic
          graph
          racket/file
+         racket/match
          video/render
          "private/video-canvas.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))
+
+(define pause-icon-color "yellow")
 
 ;; Constants for the window. These 'should' be setable by whoever
 ;; is previewing the video.
@@ -47,9 +52,12 @@
                                                   #:fps FPS))
     (define render #f)
     (define screen #f)
+    (define current-speed 1)
     (define/public (set-canvas c)
-      (set! screen c))
+      (set! screen c)
+      (set-video video))
     (define/public (set-video v)
+      (set! video v)
       (set! render (make-object (video-canvas-render-mixin render%) video))
       (send render setup render-settings)
       (send render set-canvas screen))
@@ -57,6 +65,17 @@
       (send render get-length))
     (define/public (play)
       (send render start-rendering))
+    (define/public (is-paused?)
+      (and (send render rendering?)
+           (= current-speed 0)))
+    (define/public (get-status)
+      (cond [(send render rendering?)
+             (cond [(= current-speed 1) 'playing]
+                   [(= current-speed 0) 'paused]
+                   [(< current-speed 0) 'rewinding]
+                   [(> current-speed 1) 'fast-forwarding]
+                   [else 'playing-slow])]
+            [else 'stopped]))
     (define/public (is-stopped?)
       (send render rendering?))
     (define/public (pause)
@@ -66,6 +85,7 @@
     (define/public (seek position)
       (send render seek position))
     (define/public (set-speed speed)
+      (set! current-speed speed)
       (send render set-speed speed))
     (define/public (rewind)
       (set-speed -5))
@@ -136,14 +156,19 @@
          [parent top-row]
          [label (rewind-icon #:color syntax-icon-color #:height 50)]
          [callback (λ _ (send vps rewind))])
-    (new button%
-         [parent top-row]
-         [label (play-icon #:color run-icon-color #:height 50)]
-         [callback (λ _ (send vps play))])
+    (define play-label (play-icon #:color run-icon-color #:height 50))
+    (define pause-label (pause-icon #:color pause-icon-color #:height 50))
+    (define play/pause-button
+      (new button%
+           [parent top-row]
+           [label (play-icon #:color run-icon-color #:height 50)]
+           [callback (λ _ (match (send vps get-status)
+                            ['playing (send vps pause)]
+                            [_ (send vps play)]))]))
     (new button%
        [parent top-row]
        [label (stop-icon #:color halt-icon-color #:height 50)]
-       [callback (λ _ (send vps pause))])
+       [callback (λ _ (send vps stop))])
     (new button%
          [parent top-row]
          [label (fast-forward-icon #:color syntax-icon-color #:height 50)]
@@ -170,7 +195,10 @@
       (define len (or (send vps get-video-length) 1000000))
       (define frame (floor (* seek-bar-max (/ (send vps get-position) len))))
       (send seek-bar set-value frame)
-      (send seek-message set-label (make-frame-string frame len)))
+      (send seek-message set-label (make-frame-string frame len))
+      (send play/pause-button set-label (if (eq? (send vps get-status) 'playing)
+                                            pause-label
+                                            play-label)))
     (define/private (make-frame-string frame len)
       (format "Frame: ~a/~a" frame len))
     (define frame-row
@@ -234,7 +262,7 @@
     (send vps set-video video)
     (define seek-bar-updater
       (new timer%
-           [interval 1000]
+           [interval 50]
            [notify-callback update-seek-bar-and-labels]))))
 
 (define (preview clip)
