@@ -318,17 +318,38 @@
                                       [start start*]
                                       [end end*]
                                       [fps fps]
+                                      [format format]
                                       [pix-fmt pix-fmt]
                                       [sample-fmt sample-fmt]
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
                                       [speed speed]))
-            (define out-path (path->complete-path (or dest "out.mp4")))
+            (define extension
+              (match format
+                ['raw "raw"]
+                [_ "mp4"]))
+            ;; XXX We're going to need two bundles here.
+            ;; AKA, the renderer is going to need to jugle
+            ;;   two different muxers.
+            (define bundle-spec
+              (match format
+                ['raw 'video]
+                [_ 'vid+aud]))
+            (define format-name
+              (match format
+                ['raw "rawvideo"]
+                [_ #f]))
+            (define video-streams 1)
+            (define audio-streams
+              (match format
+                ['raw 0]
+                [_ 1]))
+            (define out-path (path->complete-path (or dest (base:format "out.~a" extension))))
             (set! render-graph (graph-copy video-graph))
             (define start-node
               (mk-fifo-node
                #:props (node-props video-sink)
-               #:counts (hash 'video 1 'audio 1)))
+               #:counts (hash 'video video-streams 'audio audio-streams)))
             (add-vertex! render-graph start-node)
             (add-directed-edge! render-graph video-sink start-node 1)
             (define start (or start* (dict-ref (node-props start-node) "start" 0)))
@@ -337,12 +358,16 @@
               (mk-filter-node
                (hash 'video (mk-filter
                              "trim" (let* ([r (hash)]
-                                           [r (if start (hash-set r "start" (racket->ffmpeg start)) r)]
+                                           [r (if start
+                                                  (hash-set r "start" (racket->ffmpeg start))
+                                                  r)]
                                            [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
                                       r))
                      'audio (mk-filter
                              "atrim" (let* ([r (hash)]
-                                            [r (if start (hash-set r "start" (racket->ffmpeg start)) r)]
+                                            [r (if start
+                                                   (hash-set r "start" (racket->ffmpeg start))
+                                                   r)]
                                             [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
                                        r)))
                #:counts (node-counts start-node)))
@@ -376,14 +401,16 @@
             (define speed-node
               (mk-filter-node
                (hash 'video (mk-filter "setpts"
-                                       (hash "expr" (format "(PTS-STARTPTS)*~a"
-                                                            (exact->inexact speed))))
+                                       (hash "expr" (base:format "(PTS-STARTPTS)*~a"
+                                                                 (exact->inexact speed))))
                      'audio (mk-filter "asetrate"
                                        (hash "r" (exact->inexact (* sample-rate speed)))))
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph speed-node)
             (add-directed-edge! render-graph pix-fmt-node speed-node 1)
-            (define out-bundle (stream-bundle->file out-path 'vid+aud))
+            (define out-bundle
+              (stream-bundle->file out-path bundle-spec
+                                   #:format-name format-name))
             (define sink-node
               (mk-sink-node out-bundle
                             #:counts (node-counts trim-node)))
