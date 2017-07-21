@@ -1150,7 +1150,11 @@
     (define src-nodes (base:filter source-node? (get-vertices g)))
     (define bundle-lst (map source-node-bundle src-nodes))
     (define sink-node (findf sink-node? (get-vertices g)))
-    (define sink-bundle (sink-node-bundle sink-node))
+    (define sink-bundles (let loop ([curr-node sink-node])
+                           (cons (sink-node-bundle curr-node)
+                                 (if (sink-node-next curr-node)
+                                     (loop (sink-node-next curr-node))
+                                     '()))))
     ;; Build Graph for each individual codec-obj
     (define node-str-list
       (append*
@@ -1199,7 +1203,7 @@
     (values
      (string-join (append node-str-list cap-nodes-list) ";")
      bundle-lst
-     sink-bundle)))
+     sink-bundles)))
 
 (define (init-filter-graph g)
   (define (make-inout type name [next #f] [args #f])
@@ -1214,7 +1218,7 @@
   (define buffersink (avfilter-get-by-name "buffersink"))
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
-  (define-values (g-str bundles out-bundle) (filter-graph->string g))
+  (define-values (g-str bundles out-bundles) (filter-graph->string g))
   ;(displayln (graphviz g))
   ;(displayln g-str)
   (define seek-points (get-seek-point g 0))
@@ -1251,16 +1255,18 @@
            (cons n ins)]))))
   (define inputs
     (for/fold ([outs '()])
+              ([out-bundle (in-list out-bundles)])
+      (for/fold ([outs outs])
               ([str (stream-bundle-streams out-bundle)])
-      (match str
-        [(struct* codec-obj ([type type]
-                             [callback-data name]))
-         (define type* (match type
-                         ['video buffersink]
-                         ['audio abuffersink]))
-         (define n (make-inout type* name (if (null? outs) #f (car outs))))
-         (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
-         (cons n outs)])))
+        (match str
+          [(struct* codec-obj ([type type]
+                               [callback-data name]))
+           (define type* (match type
+                           ['video buffersink]
+                           ['audio abuffersink]))
+           (define n (make-inout type* name (if (null? outs) #f (car outs))))
+           (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
+           (cons n outs)]))))
   ;(avfilter-graph-parse graph g-str (car inputs) (car outputs) #f)
   (define-values (in-ret out-ret)
     (avfilter-graph-parse-ptr graph
@@ -1269,26 +1275,27 @@
                               (if (null? outputs) #f (car outputs))
                               #f))
   (avfilter-graph-config graph #f)
-  (for ([str (stream-bundle-streams out-bundle)])
-    (match str
-      [(struct* codec-obj ([codec-context ctx]
-                           [buffer-context buff-ctx]
-                           [type type]))
-       (set-avcodec-context-time-base! ctx (av-buffersink-get-time-base buff-ctx))
-       ;(set-avcodec-context-frame-rate! ctx (av-buffersink-get-frame-rate buff-ctx))
-       (match type
-         ['video (set-avcodec-context-pix-fmt! ctx (av-buffersink-get-format buff-ctx 'video))
-                 (set-avcodec-context-width! ctx (av-buffersink-get-w buff-ctx))
-                 (set-avcodec-context-height! ctx (av-buffersink-get-h buff-ctx))
-                 (set-avcodec-context-sample-aspect-ratio!
-                  ctx (av-buffersink-get-sample-aspect-ratio buff-ctx))]
-         ['audio (set-avcodec-context-sample-fmt! ctx (av-buffersink-get-format buff-ctx 'audio))
-                 (set-avcodec-context-channels! ctx (av-buffersink-get-channels buff-ctx))
-                 (set-avcodec-context-channel-layout! ctx (av-buffersink-get-channel-layout buff-ctx))
-                 (set-avcodec-context-sample-rate! ctx (av-buffersink-get-sample-rate buff-ctx))])]))
+  (for ([out-bundle (in-list out-bundles)])
+    (for ([str (stream-bundle-streams out-bundle)])
+      (match str
+        [(struct* codec-obj ([codec-context ctx]
+                             [buffer-context buff-ctx]
+                             [type type]))
+         (set-avcodec-context-time-base! ctx (av-buffersink-get-time-base buff-ctx))
+         ;(set-avcodec-context-frame-rate! ctx (av-buffersink-get-frame-rate buff-ctx))
+         (match type
+           ['video (set-avcodec-context-pix-fmt! ctx (av-buffersink-get-format buff-ctx 'video))
+                   (set-avcodec-context-width! ctx (av-buffersink-get-w buff-ctx))
+                   (set-avcodec-context-height! ctx (av-buffersink-get-h buff-ctx))
+                   (set-avcodec-context-sample-aspect-ratio!
+                    ctx (av-buffersink-get-sample-aspect-ratio buff-ctx))]
+           ['audio (set-avcodec-context-sample-fmt! ctx (av-buffersink-get-format buff-ctx 'audio))
+                   (set-avcodec-context-channels! ctx (av-buffersink-get-channels buff-ctx))
+                   (set-avcodec-context-channel-layout! ctx (av-buffersink-get-channel-layout buff-ctx))
+                   (set-avcodec-context-sample-rate! ctx (av-buffersink-get-sample-rate buff-ctx))])])))
   (avfilter-inout-free in-ret)
   (avfilter-inout-free out-ret)
-  (values graph bundles out-bundle))
+  (values graph bundles out-bundles))
 
 ;; ===================================================================================================
 
@@ -1374,8 +1381,9 @@
 
 ;; A useful simple rendering function. Only use when debugging, the
 ;;  video/render module has a much better interface.
+;; Only works when there is ONE (1) output bundle!
 (define (render g)
-  (define-values (graph in-bundles out-bundle) (init-filter-graph g))
+  (define-values (graph in-bundles out-bundles) (init-filter-graph g))
   (define in-threads
     (for/list ([bundle in-bundles]
                [index (in-naturals)])
@@ -1388,7 +1396,7 @@
     (thread
      (λ ()
        (mux-stream
-        out-bundle
+        (car out-bundles)
         #:by-index-callback (filtergraph-next-packet)))))
   
   (map thread-wait in-threads)
@@ -1404,7 +1412,8 @@
 ;;   user's path. This function must ONLY be used for internal
 ;;   Video development.
 (define (render/cmdline-ffmpeg g)
-  (define-values (graph in-bundles out-bundle) (filter-graph->string g))
+  (define-values (graph in-bundles out-bundles) (filter-graph->string g))
+  (define out-bundle (car out-bundles))
   (define pre-str-list '())
   (define cmd
     (append

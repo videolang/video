@@ -274,7 +274,7 @@
     
     (define graph-obj #f)
     (define input-bundles #f)
-    (define output-bundle #f)
+    (define output-bundles #f)
 
     (define current-render-status (mk-render-status-box))
 
@@ -421,7 +421,7 @@
             (let-values ([(g i o) (init-filter-graph render-graph)])
               (set! graph-obj g)
               (set! input-bundles i)
-              (set! output-bundle o))]))))
+              (set! output-bundles o))]))))
 
     (define/public (feed-buffers-callback-constructor)
       (filtergraph-insert-packet))
@@ -533,20 +533,25 @@
            ret)))
       (unless currently-stopped?
         (error 'write-output "Already writing output"))
-      (define proc (write-output-callback-constructor #:render-status current-render-status))
-      (define mux (new mux%
-                       [bundle output-bundle]
-                       [by-index-callback proc]))
-      (send mux init)
-      (send mux open)
-      (send mux write-header)
-      (let loop ()
-        (when (and (call-with-semaphore stop-writing-semaphore
-                                        (λ () (eq? stop-writing-flag 'running)))
-                   (send mux write-packet))
-          (loop)))
-      (send mux write-trailer)
-      (send mux close)
+      (define threads
+        (for/list ([output-bundle (in-list output-bundles)])
+          (thread
+           (λ ()
+             (define proc (write-output-callback-constructor #:render-status current-render-status))
+             (define mux (new mux%
+                              [bundle output-bundle]
+                              [by-index-callback proc]))
+             (send mux init)
+             (send mux open)
+             (send mux write-header)
+             (let loop ()
+               (when (and (call-with-semaphore stop-writing-semaphore
+                                               (λ () (eq? stop-writing-flag 'running)))
+                          (send mux write-packet))
+                 (loop)))
+             (send mux write-trailer)
+             (send mux close)))))
+      (map thread-wait threads)
       (define wait-for-reading?
         (call-with-semaphore
          stop-reading-semaphore
