@@ -401,15 +401,34 @@
             (add-vertex! render-graph pix-fmt-node)
             (add-directed-edge! render-graph fps-node pix-fmt-node 1)
             (define speed-node
-              (mk-filter-node
-               (hash 'video (mk-filter "setpts"
-                                       (hash "expr" (base:format "(PTS-STARTPTS)*~a"
-                                                                 (exact->inexact speed))))
-                     'audio (mk-filter "asetrate"
-                                       (hash "r" (exact->inexact (* sample-rate speed)))))
-               #:counts (node-counts trim-node)))
-            (add-vertex! render-graph speed-node)
-            (add-directed-edge! render-graph pix-fmt-node speed-node 1)
+              (cond
+                [(= speed 0)
+                 pix-fmt-node]
+                [else
+                 (define speed-node
+                   (mk-filter-node
+                    (hash 'video (mk-filter
+                                  "setpts"
+                                  (hash "expr" (base:format "(PTS-STARTPTS)*~a"
+                                                            (exact->inexact (/ 1 (abs speed))))))
+                          'audio (mk-filter "asetrate"
+                                            (hash "r" (exact->inexact (abs (* sample-rate speed))))))
+                    #:counts (node-counts trim-node)))
+                 (add-vertex! render-graph speed-node)
+                 (add-directed-edge! render-graph pix-fmt-node speed-node 1)
+                 speed-node]))
+            (define rev-node
+              (cond
+                [(< speed 0)
+                 (define rev-node
+                   (mk-filter-node
+                    (hash 'video (mk-filter "reverse")
+                          'audio (mk-filter "areverse"))
+                    #:counts (node-counts trim-node)))
+                 (add-vertex! render-graph rev-node)
+                 (add-directed-edge! render-graph speed-node rev-node 1)
+                 rev-node]
+                [else speed-node]))
             (define out-bundle
               (stream-bundle->file out-path bundle-spec
                                    #:format-name format-name))
@@ -417,7 +436,7 @@
               (mk-sink-node out-bundle
                             #:counts (node-counts trim-node)))
             (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph speed-node sink-node 1)
+            (add-directed-edge! render-graph rev-node sink-node 1)
             (set! output-node pad-node)
             (set! video-start (video:get-property video-sink "start"))
             (set! video-end (video:get-property video-sink "end"))
@@ -596,10 +615,11 @@
     ;;     (-∞, -1) is fast reverse
     (define/public (set-speed speed)
       (stop-rendering)
-      (setup (struct-copy render-settings current-render-settings
-                          [speed speed]
-                          [start (get-current-position)]))
-      (start-rendering))
+      (unless (= speed 0)
+        (setup (struct-copy render-settings current-render-settings
+                            [speed speed]
+                            [start (get-current-position)]))
+        (start-rendering)))
 
     ;; Return a copy of the video-graph. That is, the resulting graph from the given video
     ;;   object. Mutations to this graph will NOT affect the renderer's copy of the graph.

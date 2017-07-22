@@ -647,8 +647,7 @@
                                                (avstream-time-base stream))
                          (set-avpacket-stream-index!
                           next-packet (avstream-index (codec-obj-stream min-stream)))
-                         (av-write-frame output-context next-packet)
-                         ;(av-interleaved-write-frame output-context next-packet)
+                         (av-interleaved-write-frame output-context next-packet)
                          (av-packet-free next-packet)])]))
                #t]))
 
