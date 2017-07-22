@@ -367,6 +367,10 @@
               multi-component-range = ,(arithmetic-shift 1 12))
             _int))
 
+(define _av-log-flags
+  (_bitmask `(skip-repeated
+              print-level)))
+
 ;; ===================================================================================================
 
 (define _is-output (_enum '(input = 0
@@ -2272,8 +2276,29 @@
                                                 (when (< ret 0)
                                                   (error "av-image"))
                                                 ret)))
-
-
+(define-avutil av-log-set-level (_fun -> _int))
+(define-avutil av-log-get-level (_fun -> _int))
+(define-avutil av-log-set-flags (_fun _av-log-flags -> _void))
+(define-avutil av-log-get-flags (_fun -> _av-log-flags))
+(define av-log
+  (let ()
+    (define interfaces (make-hash))
+    (lambda (avcl level str . args)
+      (define itypes
+        (list* _pointer _int _string
+               (for/list ([x (in-list args)])
+                 (cond [(and (integer? x) (exact? x)) _int]
+                       [(real? x) _double*]
+                       [(string? x) _string]
+                       [(bytes? x) _bytes]
+                       [(symbol? x) _symbol]
+                       [(boolean? x) _bool]
+                       [else (error 'av_log "Invalid variable type in ~a" x)]))))
+      (define av-log (hash-ref! interfaces itypes
+                                (λ ()
+                                  (get-ffi-obj "av_log" avutil-lib 
+                                               (_cprocedure itypes _void)))))
+      (apply av-log avcl level str args))))
 (define-swscale sws-getContext (_fun _int
                                      _int
                                      _avpixel-format
