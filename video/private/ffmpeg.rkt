@@ -1129,6 +1129,18 @@
   (_enum '(all = 0
            none = -1)))
 
+(define _av-log-constant
+  (_enum `(quiet = -8
+           panic = 0
+           fatal = 8
+           error = 16
+           warning = 24
+           info = 32
+           verbose = 40
+           debug = 48
+           trace = 56
+           max-offset = ,(- 56 -8))))
+
 ;; ===================================================================================================
 
 (define-cstruct _avclass
@@ -2299,9 +2311,10 @@
                                   (get-ffi-obj "av_log" avutil-lib 
                                                (_cprocedure itypes _void)))))
       (apply av-log avcl level str args))))
+(define-avutil av-vlog (_fun _pointer _int _string _pointer -> _void))
 (define (av-log-set-callback call-back)
   (define-avutil av-log-set-callback (_fun _fpointer -> _void))
-  (av-log-set-callback (cast call-back _racket _fpointer)))
+  (av-log-set-callback (cast call-back _racket (_fun _pointer _int _string _pointer -> _void))))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
