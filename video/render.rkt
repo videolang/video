@@ -321,6 +321,8 @@
                                       [end end*]
                                       [fps fps]
                                       [format format]
+                                      [video-codec video-codec]
+                                      [audio-codec audio-codec]
                                       [pix-fmt pix-fmt]
                                       [sample-fmt sample-fmt]
                                       [sample-rate sample-rate]
@@ -417,6 +419,19 @@
                  (add-vertex! render-graph speed-node)
                  (add-directed-edge! render-graph pix-fmt-node speed-node 1)
                  speed-node]))
+            (define drop-node
+              (match video-codec
+                ['mpeg1video
+                 (define drop-node
+                   (mk-filter-node
+                    (hash 'video (mk-filter "select"
+                                            (hash "expr" (format "'not(mod(n\\,~a)'"
+                                                                 (exact-ceiling speed))))
+                    #:counts (node-counts trim-node))))
+                 (add-vertex! render-graph drop-node)
+                 (add-directed-edge! render-graph speed-node drop-node 1)
+                 drop-node]
+                [_ speed-node]))
             (define rev-node
               (cond
                 [(< speed 0)
@@ -426,9 +441,9 @@
                           'audio (mk-filter "areverse"))
                     #:counts (node-counts trim-node)))
                  (add-vertex! render-graph rev-node)
-                 (add-directed-edge! render-graph speed-node rev-node 1)
+                 (add-directed-edge! render-graph drop-node rev-node 1)
                  rev-node]
-                [else speed-node]))
+                [else drop-node]))
             (define out-bundle
               (stream-bundle->file out-path bundle-spec
                                    #:format-name format-name))
