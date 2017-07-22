@@ -2305,7 +2305,7 @@
                        [(bytes? x) _bytes]
                        [(symbol? x) _symbol]
                        [(boolean? x) _bool]
-                       [else (error 'av_log "Invalid variable type in ~a" x)]))))
+                       [else (error 'av-log "Invalid variable type in ~a" x)]))))
       (define av-log (hash-ref! interfaces itypes
                                 (λ ()
                                   (get-ffi-obj "av_log" avutil-lib 
@@ -2315,6 +2315,7 @@
 (define (av-log-set-callback call-back)
   (define-avutil av-log-set-callback (_fun _fpointer -> _void))
   (av-log-set-callback (cast call-back _racket (_fun _pointer _int _string _pointer -> _void))))
+(define-avutil av-log-default-callbak (_fun _pointer _int _string _pointer -> _void))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
