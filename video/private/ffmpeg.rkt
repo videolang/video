@@ -2300,8 +2300,8 @@
                                                (_cprocedure itypes _void)))))
       (apply av-log avcl level str args))))
 (define (av-log-set-callback call-back)
-  (define-avutil av-log-set-callback (_fun fpointer -> _void))
-  (av-log-set-callback (_cast call-back _racket _fpointer)))
+  (define-avutil av-log-set-callback (_fun _fpointer -> _void))
+  (av-log-set-callback (cast call-back _racket _fpointer)))
 
 (define-swscale sws-getContext (_fun _int
                                      _int
