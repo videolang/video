@@ -379,6 +379,7 @@
                           (cond [needs-clipping?
                                  (define node (mk-trim-node #:start 0
                                                             #:end length
+                                                            #:props (node-props t1)
                                                             #:counts (node-counts t1)))
                                  (add-vertex! ctx node)
                                  (add-directed-edge! ctx zero-node1 node 1)
@@ -388,6 +389,7 @@
                           (cond [needs-clipping?
                                  (define node (mk-trim-node #:start 0
                                                             #:end length
+                                                            #:props (node-props t2)
                                                             #:counts (node-counts t2)))
                                  (add-vertex! ctx node)
                                  (add-directed-edge! ctx zero-node2 node 2)
@@ -399,6 +401,7 @@
                              (define node
                                (mk-filter-node (hash 'video (mk-filter "scale" (hash "w" w
                                                                                      "h" h)))
+                                               #:props (node-props t1)
                                                #:counts (node-counts t1)))
                              (add-vertex! ctx node)
                              (add-directed-edge! ctx trim-node2 node 1)
