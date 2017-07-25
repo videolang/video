@@ -374,6 +374,7 @@
                                                    r)]
                                             [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
                                        r)))
+               #:props (node-props video-sink)
                #:counts (node-counts start-node)))
             (add-vertex! render-graph trim-node)
             (add-directed-edge! render-graph start-node trim-node 1)
@@ -383,6 +384,7 @@
                                        (hash "width" width
                                              "height" height))
                      'audio (mk-filter "anull"))
+               #:props (node-props video-sink)
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph pad-node)
             (add-directed-edge! render-graph trim-node pad-node 1)
@@ -390,6 +392,7 @@
               (mk-filter-node
                (hash 'video (mk-filter "fps"
                                        (hash "fps" fps)))
+               #:props (node-props video-sink)
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph fps-node)
             (add-directed-edge! render-graph pad-node fps-node 1)
@@ -399,6 +402,7 @@
                      'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
                                                        "sample_rates" sample-rate
                                                        "channel_layouts" channel-layout)))
+               #:props (node-props video-sink)
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph pix-fmt-node)
             (add-directed-edge! render-graph fps-node pix-fmt-node 1)
@@ -415,6 +419,7 @@
                                                             (exact->inexact (/ 1 (abs speed))))))
                           'audio (mk-filter "asetrate"
                                             (hash "r" (exact->inexact (abs (* sample-rate speed))))))
+                    #:props (node-props video-sink)
                     #:counts (node-counts trim-node)))
                  (add-vertex! render-graph speed-node)
                  (add-directed-edge! render-graph pix-fmt-node speed-node 1)
@@ -427,6 +432,7 @@
                     (hash 'video (mk-filter "select"
                                             (hash "expr" (format "'not(mod(n\\,~a)'"
                                                                  (exact-ceiling speed))))
+                    #:props (node-props video-sink)
                     #:counts (node-counts trim-node))))
                  (add-vertex! render-graph drop-node)
                  (add-directed-edge! render-graph speed-node drop-node 1)
@@ -439,6 +445,7 @@
                    (mk-filter-node
                     (hash 'video (mk-filter "reverse")
                           'audio (mk-filter "areverse"))
+                    #:props (node-props video-sink)
                     #:counts (node-counts trim-node)))
                  (add-vertex! render-graph rev-node)
                  (add-directed-edge! render-graph drop-node rev-node 1)
