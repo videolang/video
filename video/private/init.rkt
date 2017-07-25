@@ -20,34 +20,41 @@
 ;; Alternatively your program can just call `mlt-factory-init` on its own.
 ;;   If you do this though, do make sure to shut things down with mlt-factory-init
 
-(provide video-executor
-         register-video-close)
 (require ffi/unsafe
+         ffi/unsafe/define
          ffi/unsafe/global
          "ffmpeg.rkt"
          "threading.rkt")
 
 (define video-key #"VIDEO-FFMPEG-INIT")
 
+(define-ffi-definer define-internal #f)
+
+(define-internal vasprintf (_fun [out : (_ptr o _string)] _string _pointer -> [ret : _int]
+                                 -> (cond
+                                      [(< ret 0) (error 'vasprintf "Error ~a" ret)]
+                                      [else out])))
+
+#;
+(define (vasprintf format args)
+  (define-internal vasprintf (_fun [out : (_ptr o _pointer)] _string _pointer -> [ret : _int]
+                                   -> (cond
+                                        [(< ret 0) (error 'vasprintf "Error ~a" ret)]
+                                        [else out])))
+  (define pret (vasprintf format args))
+  (define ret (cast pret _pointer _string))
+  (free pret)
+  ret)
+
+#;
+(define (callback-proc avcl level fmt args)
+  ;(displayln avcl)
+  #;(void (vasprintf fmt args)))
+
  ;; Init ffmpeg (ONCE PER PROCESS)
 (void
  (unless (register-process-global video-key (cast 1 _racket _pointer))
    (av-register-all)
    (avfilter-register-all)
-   (avformat-network-init)))
-
-;; Set up GC thread for Video objects
-(define video-executor (make-will-executor))
-(void
- (thread
-  (λ ()
-    (let loop ()
-      (will-execute video-executor)
-      (loop)))))
-
-;; Register an video-object to be closed on garbadge collection
-;; For convience, return the mlt-object when done
-;; (_mlt-properties -> any) _mlt-properties -> _mlt-properties
-(define (register-video-close proc v)
-  (will-register video-executor v (λ (v) (proc v)))
-  v)
+   (avformat-network-init)
+   #;(av-log-set-callback callback-proc)))

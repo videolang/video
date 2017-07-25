@@ -22,6 +22,22 @@
          "init.rkt"
          "ffmpeg.rkt")
 
+;; Set up GC thread for Video objects
+(define video-executor (make-will-executor))
+(void
+ (thread
+  (λ ()
+    (let loop ()
+      (will-execute video-executor)
+      (loop)))))
+
+;; Register an video-object to be closed on garbadge collection
+;; For convience, return the mlt-object when done
+;; (_mlt-properties -> any) _mlt-properties -> _mlt-properties
+(define (register-video-close proc v)
+  (will-register video-executor v (λ (v) (proc v)))
+  v)
+
 (struct exn:packetqueue-empty ())
 
 (struct packetqueue (first     ;; First packet
