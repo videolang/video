@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2017 Leif Andersen, Benjamin Chung
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -664,8 +664,9 @@
       (define new-end (get-property node "end" +inf.0))
       (values (dict-set raw-nodes t (cons node index))
               (min start (get-property node "start" 0))
-              (unless (= new-end +inf.0)
-                (max end new-end)))))
+              (if (= new-end +inf.0)
+                  end
+                  (max end new-end)))))
   ;; Convert all clips to a compatible length
   (define nodes
     (hash-copy
