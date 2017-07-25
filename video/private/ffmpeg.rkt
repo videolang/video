@@ -16,7 +16,8 @@
    limitations under the License.
 |#
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         (all-from-out "ffmpeg-lib.rkt"))
 (require racket/match
          ffi/unsafe
          ffi/unsafe/define
@@ -75,15 +76,6 @@
 
 ;; Although deprecated, still seems useful
 (define AVCODEC-MAX-AUDIO-FRAME-SIZE 192000)
-
-;; ===================================================================================================
-
-(struct exn:ffmpeg exn ())
-(struct exn:ffmpeg:again exn:ffmpeg ())
-(struct exn:ffmpeg:eof exn:ffmpeg ())
-(struct exn:ffmpeg:flush exn:ffmpeg ())
-(struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
-(struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
 
 ;; ===================================================================================================
 

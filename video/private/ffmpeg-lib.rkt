@@ -67,15 +67,23 @@
 (define-ffi-definer define-avfilter avfilter-lib
   #:make-c-id convention:hyphen->underscore)
 
+;; ===================================================================================================
+
 (struct version (major
                  minor
-                 bug))
+                 bug)
+  #:methods gen:custom-write
+  [(define (write-proc x port mode)
+   (fprintf port "~a.~a.~a"
+            (version-major x)
+            (version-minor x)
+            (version-bug x)))])
 (define (mk-version #:major [major 0]
                     #:minor [minor 0]
                     #:bug [bug 0])
   (version major minor bug))
 (define _version
-  (make-ctype _int
+  (make-ctype _uint
               (λ (x)
                 (integer-bytes->integer
                  (bytes 0
@@ -85,6 +93,44 @@
                  #f #t))
               (λ (x)
                 (define bitstr (integer->integer-bytes x 4 #f #t))
-                (mk-version #:major (bytes-ref bitstr 2)
-                            #:minor (bytes-ref bitstr 3)
-                            #:bug (bytes-ref bitstr 4)))))
+                (mk-version #:major (bytes-ref bitstr 1)
+                            #:minor (bytes-ref bitstr 2)
+                            #:bug (bytes-ref bitstr 3)))))
+
+;; ===================================================================================================
+
+(define-avutil avutil-version (_fun -> _version))
+(define-swresample swresample-version (_fun -> _version))
+(define-swscale swscale-version (_fun -> _version))
+(define-avcodec avcodec-version (_fun -> _version))
+(define-avformat avformat-version (_fun -> _version))
+(define-avfilter avfilter-version (_fun -> _version))
+
+;; ===================================================================================================
+
+(struct exn:ffmpeg exn ())
+(struct exn:ffmpeg:again exn:ffmpeg ())
+(struct exn:ffmpeg:eof exn:ffmpeg ())
+(struct exn:ffmpeg:flush exn:ffmpeg ())
+(struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
+(struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
+(struct exn:ffmpeg:version exn:ffmpeg ())
+
+;; ===================================================================================================
+
+;; Does a check to ensure that the correct version of FFmpeg is installed. If an invalid
+;;   version is installed, throw an exception. To be a valid version the `major` field
+;;   must match EXACTLY, and the minor field must be AT LEAST the specified version.
+;; Version Int Int -> Void
+(define (version-check libname version major minor)
+  (unless (and (= (version-major version) major)
+               (>= (version-minor version) minor))
+    (raise (exn:ffmpeg:version (format "FFmpeg ~a version ~a incompatible with Video" libname version)
+                               (current-continuation-marks)))))
+
+(version-check "libavutil" (avutil-version) 55 58)
+(version-check "libavcodec" (avcodec-version) 57 89)
+(version-check "libavformat" (avformat-version) 57 71)
+(version-check "libavfilter" (avfilter-version) 6 82)
+(version-check "libswscale" (swscale-version) 4 6)
+(version-check "libswresample" (swresample-version) 2 7)
