@@ -22,52 +22,8 @@
          ffi/unsafe/define
          ffi/unsafe/define/conventions
          setup/dirs
-         (for-syntax racket/base))
-
-(define lib-prefix
-  (match (system-type 'os)
-    ['windows ""]
-    [_ "lib"]))
-
-;; The ordering of these libraries matters.
-;; This is the order of dependencies so that Racket can
-;; resolve it.
-(void
- (match (system-type 'os)
-   ['macosx (ffi-lib (string-append lib-prefix "openh264") "4")]
-   [_ (void)]))
-(define avutil-lib
-  (ffi-lib (string-append lib-prefix "avutil") "55"))
-(define-ffi-definer define-avutil avutil-lib
-  #:make-c-id convention:hyphen->underscore)
-(define swresample-lib
-  (ffi-lib (string-append lib-prefix "swresample") "2"))
-(define-ffi-definer define-swresample swresample-lib
-  #:make-c-id convention:hyphen->underscore)
-(define swscale-lib
-  (ffi-lib (string-append lib-prefix "swscale") "4"))
-(define-ffi-definer define-swscale swscale-lib
-  #:make-c-id convention:hyphen->underscore)
-(define avcodec-lib
-  (ffi-lib (string-append lib-prefix "avcodec") "57"))
-(define-ffi-definer define-avcodec avcodec-lib
-  #:make-c-id convention:hyphen->underscore)
-(define avformat-lib
-  (ffi-lib (string-append lib-prefix "avformat") "57"))
-(define-ffi-definer define-avformat avformat-lib
-  #:make-c-id convention:hyphen->underscore)
-(match (system-type 'os)
-  ['windows
-   (define postproc-lib
-     (ffi-lib (string-append lib-prefix "postproc") "54"))
-   (define-ffi-definer define-postproc postproc-lib
-     #:make-c-id convention:hyphen->underscore)
-   (void)]
-  [_ (void)])
-(define avfilter-lib
-  (ffi-lib (string-append lib-prefix "avfilter") "6"))
-(define-ffi-definer define-avfilter avfilter-lib
-  #:make-c-id convention:hyphen->underscore)
+         (for-syntax racket/base)
+         "ffmpeg-lib.rkt")
 
 ;; ===================================================================================================
 
