@@ -262,7 +262,10 @@
   (define r1
     (cond [track1-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
-           (add-directed-edge! (current-render-graph prev1-copy (video-subgraph-sources track1-sub)) 2)
+           (add-directed-edge! (current-render-graph)
+                               prev1-copy
+                               (video-subgraph-sources track1-sub)
+                               2)
            (video-subgraph-sinks track1-sub)]
           [else
            (define sink-node (mk-empty-sink-node #:counts (node-counts prev1-copy)))
@@ -697,8 +700,11 @@
          (convert-transition element (car bundle-pair) (car bundle-pair-2)))
        (when combined-out
          (define idx (min (cdr bundle-pair) (cdr bundle-pair-2)))
-         (dict-set! nodes track (cons combined-out idx))
-         (dict-set! nodes track-2 (cons combined-out idx)))
+         (dict-set! nodes
+                    (if (< (cdr bundle-pair) (cdr bundle-pair-2))
+                        track
+                        track-2)
+                    (cons combined-out idx)))
        (when track1-out
          (dict-set! nodes track (cons track1-out (cdr bundle-pair))))
        (when track2-out
