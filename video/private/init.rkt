@@ -42,8 +42,8 @@
               (bytes->string/locale (subbytes out 0 len))])))
 
 (define (callback-proc avcl level fmt args)
-  (void)
-  #;(displayln (vsnprintf fmt args)))
+  ;(define x (vsnprintf "hello" args))
+  (void))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
 (void
@@ -51,4 +51,4 @@
    (av-register-all)
    (avfilter-register-all)
    (avformat-network-init)
-   (av-log-set-callback callback-proc)))
+   #;(av-log-set-callback callback-proc)))

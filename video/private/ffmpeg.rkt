@@ -2262,6 +2262,14 @@
 (define-avutil av-vlog (_fun _pointer _int _string _pointer -> _void))
 (define-avutil av-log-set-callback (_fun (_fun _pointer _int _string _pointer -> _void) -> _void))
 (define-avutil av-log-default-callback (_fun _pointer _int _string _pointer -> _void))
+(define-avutil av-log-format-line2
+  (_fun _pointer _int _string _pointer [out : (_bytes o len)] [len : _int] _intptr
+        -> [ret : _int]
+        -> (cond
+             [(< ret 0) (error 'av-log-format-line2 "~a : ~a" ret (convert-err ret))]
+             [else
+              (define out-len (min (sub1 len) ret))
+              (bytes->string/locale (subbytes out 0 out-len))])))
 
 (define-swscale sws-getContext (_fun _int
                                      _int

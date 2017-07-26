@@ -668,6 +668,9 @@
                   end
                   (max end new-end)))))
   ;; Convert all clips to a compatible length
+  ;; Nodes : Hash[Node -> Track (Cons Node Integer)]
+  ;; Where the key is the source node, and the value is
+  ;;   its trimmed counterpart.
   (define nodes
     (hash-copy
      (for/hash ([(k v) (in-dict raw-nodes)])
@@ -713,7 +716,7 @@
     (unless (equal? (car n-pair) ret)
       (define trash (convert (make-nullsink)))
       (add-vertex! (current-render-graph) trash)
-      (add-directed-edge! (current-render-graph) (cdr n-pair) trash 1)))
+      (add-directed-edge! (current-render-graph) (car n-pair) trash 1)))
   ret)
 
 (define-constructor video-subgraph properties ([graph (mk-render-graph)]
