@@ -31,7 +31,7 @@
 (define-ffi-definer define-internal #f)
 
 #;
-(define-internal vasprintf (_fun [out : (_ptr o _string)] _string _pointer -> [ret : _int]
+(define-internal vsnprintf (_fun [out : (_ptr o _string)] _size _string _pointer -> [ret : _int]
                                  -> (cond
                                       [(< ret 0) (error 'vasprintf "Error ~a" ret)]
                                       [else out])))

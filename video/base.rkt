@@ -361,9 +361,11 @@
   #:track2-subgraph (λ (ctx t2) #f)
   #:combined-subgraph (λ (ctx t1 t2)
                         (define zero-node1 (mk-reset-timestamp-node
-                                           #:counts (node-counts t1)))
+                                            #:props (node-props t1)
+                                            #:counts (node-counts t1)))
                         (define zero-node2 (mk-reset-timestamp-node
-                                           #:counts (node-counts t2)))
+                                            #:props (node-props t2)
+                                            #:counts (node-counts t2)))
                         (add-vertex! ctx zero-node1)
                         (add-vertex! ctx zero-node2)
                         (define length (min (- (get-property t1 "end" 0)
@@ -427,8 +429,10 @@
   #:track2-subgraph (λ (ctx t2) #f)
   #:combined-subgraph (λ (ctx t1 t2)
                         (define zero-node1 (mk-reset-timestamp-node
+                                            #:props (node-props t1)
                                             #:counts (node-counts t1)))
                         (define zero-node2 (mk-reset-timestamp-node
+                                            #:props (node-props t2)
                                             #:counts (node-counts t2)))
                         (add-vertex! ctx zero-node1)
                         (add-vertex! ctx zero-node2)
@@ -438,6 +442,7 @@
                           (mk-filter-node (hash 'video (mk-filter "scale"
                                                                   (hash "w" (* (- x2 x1) t1w)
                                                                         "h" (* (- y2 y1) t1h))))
+                                          #:props (node-props t2)
                                           #:counts (node-counts t2)))
                         (add-vertex! ctx scale-node2)
                         (add-directed-edge! ctx zero-node2 scale-node2 1)
