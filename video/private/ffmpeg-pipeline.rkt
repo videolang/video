@@ -1470,7 +1470,7 @@
                         seek-point
                         (for/fold ([offset +inf.0])
                                   ([$from (in-neighbors g $v)])
-                          (min offset (+ (DIST $from)
+                          (min offset (+ (DIST $from #:default +inf.0)
                                          (OFFSET $from $v)))))))
   (for/hash ([n (in-vertices g)]
              #:when (source-node? n))
