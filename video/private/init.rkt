@@ -30,27 +30,20 @@
 
 (define-ffi-definer define-internal #f)
 
-#;
-(define-internal vsnprintf (_fun [out : (_ptr o _string)] _size _string _pointer -> [ret : _int]
-                                 -> (cond
-                                      [(< ret 0) (error 'vasprintf "Error ~a" ret)]
-                                      [else out])))
+(define MAX-LOG-MSG-SIZE 4096)
 
-#;
-(define (vasprintf format args)
-  (define-internal vasprintf (_fun [out : (_ptr o _pointer)] _string _pointer -> [ret : _int]
-                                   -> (cond
-                                        [(< ret 0) (error 'vasprintf "Error ~a" ret)]
-                                        [else out])))
-  (define pret (vasprintf format args))
-  (define ret (cast pret _pointer _string))
-  (free pret)
-  ret)
+(define-internal vsnprintf
+  (_fun [out : (_bytes o MAX-LOG-MSG-SIZE)] [len : _size = MAX-LOG-MSG-SIZE] _string _pointer
+        -> [ret : _int]
+        -> (cond
+             [(< ret 0) (error 'vsnprintf "Error ~a" ret)]
+             [else
+              (define len (min (sub1 MAX-LOG-MSG-SIZE) ret))
+              (bytes->string/locale (subbytes out 0 len))])))
 
-#;
 (define (callback-proc avcl level fmt args)
-  ;(displayln avcl)
-  #;(void (vasprintf fmt args)))
+  (void)
+  #;(displayln (vsnprintf fmt args)))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
 (void
@@ -58,4 +51,4 @@
    (av-register-all)
    (avfilter-register-all)
    (avformat-network-init)
-   #;(av-log-set-callback callback-proc)))
+   (av-log-set-callback callback-proc)))
