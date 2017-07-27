@@ -850,9 +850,12 @@
                                      ret)])
                        ret)))
 (define (mk-empty-audio-filter #:duration [d #f])
-  (mk-filter "aevalsrc" (let* ([ret (hash "exprs" "0")]
-                               [ret (if d (dict-set ret "d" d) ret)])
-                          ret)))
+  (mk-filter "aevalsrc"
+             (let* ([ret (hash "exprs" "0")]
+                    [ret (if d
+                             (dict-set ret "d" (racket->ffmpeg d))
+                             (dict-set ret "d" (racket->ffmpeg (dict-ref ret "d" +inf.0))))])
+               ret)))
 (define (mk-empty-node #:width [width DEFAULT-WIDTH]
                        #:height [height DEFAULT-HEIGHT]
                        #:duration [duration 100]
