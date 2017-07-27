@@ -49,23 +49,24 @@
 (check-producer g #:len #f)
 (check-producer g1 #:len 1)
 
-#|
 (check-transition (composite-transition 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
-(check-transition (fade-transition #:length 2))
+(check-transition (fade-transition #:properties (hash "start" 0 "end" 2)))
 
 (check-producer b8 #:len 8)
 (check-producer
- (image circ-png #:length (/ (get-property b8 "length") 8))
+ (image circ-png #:properties (hash "start" 0 "end" (/ (get-property b8 "length") 8)))
    #:len 1)
 
 (check-producer
  (multitrack
-  (image circ-png #:length (/ (get-property b8 "length") 8))
+  (image circ-png #:properties (hash "start" 0 "end" (/ (get-property b8 "length") 8)))
   (composite-transition 0 0 3/4 3/4)
   b8
-  #:length 5)
+  #:properties (hash "start" 0 "end" 5))
  #:len 5)
+
+#|
 
 (check-producer (clip vid-mp4 #:length 3) #:len 3)
 
