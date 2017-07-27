@@ -109,13 +109,19 @@
        trimmed-prop]
       [else video-node]))
   ;; Attach filters
-  (if (service? video-source)
-      (for/fold ([ret vprop])
-                ([f (in-list (service-filters video-source))])
-        (define f* (convert-filter f ret))
-        (add-directed-edge! (current-render-graph) ret f* 1)
-        f*)
-      vprop))
+  (define attached
+    (if (service? video-source)
+        (for/fold ([ret vprop])
+                  ([f (in-list (service-filters video-source))])
+          (define f* (convert-filter f ret))
+          (add-directed-edge! (current-render-graph) ret f* 1)
+          f*)
+        vprop))
+  ;; Extend properties table (TODO)
+  (define extended
+    (cond [(properties? attached) attached]
+          [else attached]))
+  extended)
 
 ;; Dynamic Dispatch for Video Objects
 (define-generics video-ops
@@ -204,10 +210,27 @@
 
 (define (get-property dict key
                       [default (λ () (error 'get-property "Key not found: ~a" key))])
-  (dict-ref (cond [(properties? dict) (properties-prop dict)]
-                  [(node? dict) (node-props dict)]
-                  [else (error 'get-property "Not a valid video object: ~a" dict)])
-            key default))
+  (define the-dict 
+    (cond [(properties? dict) (properties-prop dict)]
+          [(node? dict) (node-props dict)]
+          [else (error 'get-property "Not a valid video object: ~a" dict)]))
+  (match key
+    ["length"
+     (define maybe-length (dict-ref the-dict key #f))
+     (or maybe-length
+         (and (dict-ref the-dict "start" #f)
+              (dict-ref the-dict "end" #f)
+              (- (dict-ref the-dict "end")
+                 (dict-ref the-dict "start")))
+         (if (video? dict)
+             (parameterize ([current-render-graph (mk-render-graph)])
+               (define new-dict (node-props (convert dict)))
+               (and (dict-ref new-dict "start" #f)
+                    (dict-ref new-dict "end" #f)
+                    (- (dict-ref new-dict "end")
+                       (dict-ref new-dict "start" default))))
+             (dict-ref the-dict key default)))]
+    [_ (dict-ref the-dict key default)]))
 
 (define-constructor service properties ([filters '()]) ())
 
