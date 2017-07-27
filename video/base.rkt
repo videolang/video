@@ -160,6 +160,14 @@
 
 (define-producer (color c)
   #:user-properties prop
+  #:properties (λ (r)
+                 (let* ([r (if (dict-has-key? r "start")
+                               r
+                               (dict-set r "start" 0))]
+                        [r (if (dict-has-key? r "end")
+                               r
+                               (dict-set r "end" +inf.0))])
+                   r))
   #:subgraph (hash 'video
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
                                              [ret (if length (hash-set ret "d" length) ret)]

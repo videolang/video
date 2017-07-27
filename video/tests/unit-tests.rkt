@@ -46,7 +46,7 @@
 
 ;; basic examples -------------------------------------------------------------
 
-(check-producer g #:len #f)
+(check-producer g #:len +inf.0)
 (check-producer g1 #:len 1)
 
 (check-transition (composite-transition 0 0 3/4 3/4))
@@ -66,24 +66,23 @@
   #:properties (hash "start" 0 "end" 5))
  #:len 5)
 
-#|
+(check-producer (clip vid-mp4 #:properties (hash "start" 0 "end" 3)) #:len 3)
 
-(check-producer (clip vid-mp4 #:length 3) #:len 3)
-
-(check-producer (color "blue" #:length 2) #:len 2)
-(check-producer (clip vid-mp4 #:start 100 #:end 103) #:len 3)
-(check-producer (image circ-png #:length 1) #:len 1)
+(check-producer (color "blue" #:properties (hash "start" 0 "end" 2)) #:len 2)
+(check-producer (clip vid-mp4 #:properties (hash "start" 100 "end" 103)) #:len 3)
+(check-producer (image circ-png #:properties (hash "start" 0 "end" 1)) #:len 1)
 (check-producer (blank 2) #:len 2)
-(check-producer (blank #f) #:len #f)
+(check-producer (blank #f) #:len +inf.0)
 (check-producer (blank 6) #:len 6)
-(check-producer circ-img #:len #f)
-(check-producer circ-img #:len #f)
-(check-producer vid-clip #:len 139) ; 166?
-(check-producer (playlist circ-img vid-clip) #:len #f)
-(check-producer (playlist (blank 2) circ-img vid-clip) #:len #f)
+(check-producer circ-img #:len +inf.0)
+(check-producer vid-clip #:len 83/15)
+(check-producer (playlist circ-img vid-clip) #:len +inf.0)
+(check-producer (playlist (blank 2) circ-img vid-clip) #:len +inf.0)
 
-(check-producer shapes #:len #f)
-(check-producer colors #:len #f)
+(check-producer shapes #:len +inf.0)
+(check-producer colors #:len +inf.0)
+
+#|
 
 ;; playlists
 (check-producer (playlist shapes colors) #:len #f)

@@ -70,7 +70,7 @@
 (define AV-INPUT-BUFFER-PADDING-SIZE 32)
 (define AV-INPUT-BUFFER-MIN-SIZE 16384)
 
-(define AV-NOPTS-VALUE #x8000000000000000)
+(define AV-NOPTS-VALUE (integer-bytes->integer (integer->integer-bytes #x8000000000000000 8 #f) #t))
 (define AV-TIME-BASE 1000000)
 (define AV-TIME-BASE-Q (/ 1 AV-TIME-BASE))
 

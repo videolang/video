@@ -208,14 +208,15 @@
 
 (define-constructor properties video ([prop (hash)]) ())
 
+(struct not-found-key ())
 (define (get-property dict key
                       [default (λ () (error 'get-property "Key not found: ~a" key))])
   (define the-dict 
     (cond [(properties? dict) (properties-prop dict)]
           [(node? dict) (node-props dict)]
           [else (error 'get-property "Not a valid video object: ~a" dict)]))
-  (match key
-    ["length"
+  (cond
+    [(equal? key "length")
      (define maybe-length (dict-ref the-dict key #f))
      (or maybe-length
          (and (dict-ref the-dict "start" #f)
@@ -227,10 +228,17 @@
                (define new-dict (node-props (convert dict)))
                (and (dict-ref new-dict "start" #f)
                     (dict-ref new-dict "end" #f)
-                    (- (dict-ref new-dict "end")
+                    (- (dict-ref new-dict "end" default)
                        (dict-ref new-dict "start" default))))
              (dict-ref the-dict key default)))]
-    [_ (dict-ref the-dict key default)]))
+    [(video? dict)
+     (define maybe-val (dict-ref the-dict key (not-found-key)))
+     (if (not-found-key? maybe-val)
+         (parameterize ([current-render-graph (mk-render-graph)])
+           (define new-dict (node-props (convert dict)))
+           (dict-ref new-dict key default))
+         maybe-val)]
+    [else (dict-ref the-dict key default)]))
 
 (define-constructor service properties ([filters '()]) ())
 
@@ -384,7 +392,10 @@
           (set!/error fheight (avcodec-context-height cctx) =)
           (set!/error ffps (avcodec-context-framerate cctx) =)
           (set!/error ftime-base (avstream-time-base stream) =)
-          (set!/error fstart (avstream-start-time stream) =)
+          (define avst (avstream-start-time stream))
+          (set!/error fstart
+                      (if (= avst AV-NOPTS-VALUE) #f avst)
+                      =)
           (set!/error fduration (avstream-duration stream) =)
           (set!/error fpix-fmt (avcodec-context-pix-fmt cctx) eq?)]
          ['audio
@@ -398,7 +409,7 @@
                                                          0)
                                              "end" (or (and fstart fduration ftime-base
                                                             (* (+ fduration fstart) ftime-base))
-                                                       0)
+                                                       +inf.0)
                                              "width" (or fwidth 0)
                                              "height" (or fheight 0)
                                              "time-base" (or ftime-base 0)
