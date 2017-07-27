@@ -170,7 +170,9 @@
                    r))
   #:subgraph (hash 'video
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
-                                             [ret (if length (hash-set ret "d" length) ret)]
+                                             [ret (if (and length (not (equal? length +inf.0)))
+                                                      (hash-set ret "d" length)
+                                                      ret)]
                                              [ret (if (and width height)
                                                       (hash-set ret "size" (format "~ax~a"
                                                                                    width

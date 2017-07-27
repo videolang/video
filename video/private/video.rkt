@@ -92,7 +92,7 @@
              (dict-ref prop "length" #f)))
        (define trimmed-prop
          (cond
-           [(and start end)
+           [(and start end (not (equal? end +inf.0)))
             (define node
               (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" (racket->ffmpeg start)
                                                                    "end" (racket->ffmpeg end)))

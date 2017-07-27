@@ -769,6 +769,7 @@
   (cond
     [(string? x) x]
     [(integer? x) x]
+    [(and (number? x) (= +inf.0 x)) 999999999]
     [(number? x) (exact->inexact x)]
     [else x]))
 
