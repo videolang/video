@@ -612,7 +612,7 @@
       (for ([i (in-vector streams)])
         (set-add! remaining-streams i)))
     
-    ;; #t - More packets to write
+    ;; Integer - Number of packets written or streams closed
     ;; #f - No more packets to write
     (define/public (write-packet)
       (cond [(set-empty? remaining-streams) #f]
@@ -635,9 +635,10 @@
                     'write min-stream)))
              (let loop ([next-packet next-packet])
                (cond [(eof-object? next-packet)
-                      (set-remove! remaining-streams min-stream)]
+                      (set-remove! remaining-streams min-stream)
+                      1]
                      [(list? next-packet)
-                      (map loop next-packet)]
+                      (apply + (map loop next-packet))]
                      [else
                       (match min-stream
                         [(struct* codec-obj ([codec-context codec-context]
@@ -648,8 +649,8 @@
                          (set-avpacket-stream-index!
                           next-packet (avstream-index (codec-obj-stream min-stream)))
                          (av-interleaved-write-frame output-context next-packet)
-                         (av-packet-free next-packet)])]))
-               #t]))
+                         (av-packet-free next-packet)
+                         1])]))]))
 
     (define/public (write-trailer)
       ;(av-interleaved-write-frame output-context #f) ;; <- Maybe not needed?

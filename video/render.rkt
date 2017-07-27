@@ -507,8 +507,8 @@
        stop-reading-semaphore
        (λ ()
          (when (eq? stop-reading-flag 'stopping)
-           (async-channel-put reading-stopped-signal 'stopped)
-           (set! stop-reading-flag 'stopped))))
+           (async-channel-put reading-stopped-signal 'stopped))
+         (set! stop-reading-flag 'stopped)))
       (void))
 
     ;; Asynchronous thread to start-rendering.
@@ -590,10 +590,16 @@
              (send mux open)
              (send mux write-header)
              (let loop ()
-               (when (and (call-with-semaphore stop-writing-semaphore
-                                               (λ () (eq? stop-writing-flag 'running)))
-                          (send mux write-packet))
-                 (loop)))
+               (when (call-with-semaphore stop-writing-semaphore
+                                          (λ () (eq? stop-writing-flag 'running)))
+                 (define out (send mux write-packet))
+                 (define continue?
+                   (and out
+                       #;(and (= out 0)
+                            (call-with-semaphore stop-reading-semaphore
+                                                 (λ () (eq? stop-reading-flag 'stopped))))))
+                 (when continue?
+                   (loop))))
              (send mux write-trailer)
              (send mux close)))))
       (map thread-wait threads)
@@ -602,7 +608,8 @@
          stop-reading-semaphore
          (λ ()
            (define reading? (eq? stop-reading-flag 'running))
-           (set! stop-reading-flag 'stopping)
+           (when reading?
+             (set! stop-reading-flag 'stopping))
            reading?)))
       (when wait-for-reading?
         (async-channel-get reading-stopped-signal))
