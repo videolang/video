@@ -347,7 +347,7 @@
           [(struct* codec-obj ([start-offset start-offset]
                                [stream stream]
                                [index index]))
-           (when start-offset
+           (when (and start-offset (not (= start-offset +inf.0)))
              (av-seek-frame avformat
                             index
                             (exact-floor (/ (max 0 (- start-offset 1))
@@ -1479,4 +1479,4 @@
                                          (OFFSET $from $v)))))))
   (for/hash ([n (in-vertices g)]
              #:when (source-node? n))
-    (values (source-node-bundle n) (DIST n))))
+    (values (source-node-bundle n) (DIST n #:default +inf.0))))

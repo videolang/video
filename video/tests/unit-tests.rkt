@@ -20,8 +20,10 @@
          racket/path
          racket/file
          syntax/location
+         racket/class
          "test-utils.rkt"
          (prefix-in debug: "../private/video.rkt")
+         "../render.rkt"
          "../private/utils.rkt")
 
 ;; tests from paper examples
@@ -285,3 +287,9 @@
   (check-equal? (get-property r "end") #f)
   (check-equal? (get-property r "length") #f))
 |#
+
+(let ()
+  (define r (new render% [source (multitrack
+                                  (color "green")
+                                  (image circ-png))]))
+  (send r setup (make-render-settings)))
