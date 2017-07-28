@@ -268,7 +268,7 @@
            [video-sink #f]
            [render-graph #f]
            [output-node #f]
-           [video-start #f]
+           [video-start 0]
            [video-end #f])
     
     (define graph-obj #f)
@@ -561,7 +561,8 @@
            (loop)]
           ['running
            (async-channel-get writing-stopped-signal)
-           (void)])))
+           (void)]))
+      (wait-for-rendering))
 
     (define/public (write-output-callback-constructor #:render-status render-status)
       (filtergraph-next-packet #:render-status render-status))
@@ -685,11 +686,12 @@
     ;; Basically, treat this result as something that will occasionally be wrong
     ;;   (like for a progress bar).
     (define/public (get-current-position)
-      (render-status-box-position current-render-status))
+      (+ video-start (render-status-box-position current-render-status)))
 
     ;; Return the length of the internal video (not the setup length) in seconds
     (define/public (get-length)
-      (- video-end video-start))))
+      (and video-end video-start
+           (- video-end video-start)))))
 
 (define render<%>
   (class->interface render%))

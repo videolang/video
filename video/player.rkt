@@ -61,6 +61,9 @@
       (set! render (make-object (video-canvas-render-mixin render%) video))
       (send render set-canvas screen))
     (define/public (get-video-length)
+      (when (is-stopped?)
+        (play)
+        (stop))
       (send render get-length))
     (define/public (play)
       (send render setup render-settings)
@@ -77,7 +80,7 @@
                    [else 'playing-slow])]
             [else 'stopped]))
     (define/public (is-stopped?)
-      (send render rendering?))
+      (not (send render rendering?)))
     (define/public (pause)
       (send render set-speed 0))
     (define/public (stop)

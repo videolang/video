@@ -19,16 +19,30 @@
 (require rackunit
          racket/gui/base
          "../player.rkt"
+         "../private/video-canvas.rkt"
          (prefix-in green: "green.vid"))
 
 (let ()
-  (define p (new video-player% [video green:vid]))
-  (send p show #f)
+  (define f (new frame% [label "foo"]))
+  (define c (new video-canvas%
+                 [width 300]
+                 [height 300]
+                 [parent f]))
+  (define p (new video-player-server% [video green:vid]))
+  (send p set-canvas c)
+  (send p play)
   (check-true (>= (send p get-video-length) 9999))
   (send p stop)
   (check-true (send p is-stopped?))
-  (send p seek 10)
-  (check-equal? (send p get-position) 10)
-  ;(send p play)
-  ;(check-false (send p is-stopped?))
-  (check-equal? (send p get-fps) 25))
+  (check-false (send p is-paused?))
+  ;(send p seek 10)
+  ;(check-equal? (send p get-position) 10)
+;  ;(send p play)
+;  (check-false (send p is-paused?))
+;  (check-true (send p is-stopped?))
+#;  (check-equal? (send p get-fps) 25))
+
+#;
+(let ()
+  (define p (new video-player% [video green:vid]))
+  (send p show #f))
