@@ -19,6 +19,9 @@
 (provide (all-defined-out)
          (all-from-out "ffmpeg-lib.rkt"))
 (require racket/match
+         racket/set
+         racket/dict
+         racket/hash
          ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/define/conventions
@@ -28,10 +31,100 @@
 
 ;; ===================================================================================================
 
+(define errno-set
+  (set 'E2BIG
+       'EACCES
+       'EADDRINUSE
+       'EADDRNOTAVAIL
+       'EAFNOSUPPORT
+       'EAGAIN
+       'EALREADY
+       'EBADF
+       'EBADMSG
+       'EBUSY
+       'ECANCELED
+       'ECHILD
+       'ECONNABORTED
+       'ECONNREFUSED
+       'ECONNRESET
+       'EDEADLK
+       'EDESTADDRREQ
+       'EDOM
+       'EDQUOT
+       'EEXIST
+       'EFAULT
+       'EFBIG
+       'EHOSTUNREACH
+       'EIDRM
+       'EILSEQ
+       'EINPROGRESS
+       'EINTR
+       'EINVAL
+       'EIO
+       'EISCONN
+       'EISDIR
+       'ELOOP
+       'EMFILE
+       'EMLINK
+       'EMSGSIZE
+       'EMULTIHOP
+       'ENAMETOOLONG
+       'ENETDOWN
+       'ENETRESET
+       'ENETUNREACH
+       'ENFILE
+       'ENOBUFS
+       'ENODATA
+       'ENODEV
+       'ENOENT
+       'ENOEXEC
+       'ENOLCK
+       'ENOLINK
+       'ENOMEM
+       'ENOMSG
+       'ENOPROTOOPT
+       'ENOSPC
+       'ENOSR
+       'ENOSTR
+       'ENOSYS
+       'ENOTCONN
+       'ENOTDIR
+       'ENOTEMPTY
+       'ENOTRECOVERABLE
+       'ENOTSOCK
+       'ENOTSUP
+       'ENOTTY
+       'ENXIO
+       'EOPNOTSUPP
+       'EOVERFLOW
+       'EOWNERDEAD
+       'EPERM
+       'EPIPE
+       'EPROTO
+       'EPROTONOSUPPORT
+       'EPROTOTYPE
+       'ERANGE
+       'EROFS
+       'ESPIPE
+       'ESRCH
+       'ESTALE
+       'ETIME
+       'ETIMEDOUT
+       'ETXTBSY
+       'EWOULDBLOCK
+       'EXDEV))
+
+(define int->errno-table
+  (for/hash ([err (in-set errno-set)])
+    (values (lookup-errno err) err)))
+
 (define (convert-err err)
-  (define ret (integer->integer-bytes (abs err) 4 #t))
-  (with-handlers ([exn:fail? (λ (e) ret)])
-    (bytes->string/locale ret)))
+  (cond [(dict-has-key? int->errno-table err)
+         (symbol->string (dict-ref int->errno-table err))]
+        [else
+         (define ret (integer->integer-bytes (abs err) 4 #t))
+         (with-handlers ([exn:fail? (λ (e) ret)])
+           (bytes->string/locale ret))]))
 
 (define (MK-TAG [a #\space] [b #\space] [c #\space] [d #\space])
   (integer-bytes->integer (bytes (if (integer? a) a (char->integer a))
@@ -1835,7 +1928,7 @@
                                            -> (cond
                                                 [(= ret 0) out]
                                                 [(< ret 0)
-                                                 (error 'avformat (convert-err ret))])))
+                                                 (error 'avformat "~a : ~a" ret (convert-err ret))])))
 (define-avformat avformat-find-stream-info (_fun _avformat-context-pointer
                                                  _pointer
                                                  -> [r : _int]
