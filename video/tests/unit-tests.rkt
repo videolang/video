@@ -51,11 +51,14 @@
 
 (check-transition (composite-transition 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
-(check-transition (fade-transition #:properties (hash "start" 0 "end" 2)))
+(check-transition (fade-transition 2))
 
 (check-producer b8 #:len 8)
 (check-producer
  (image circ-png #:properties (hash "start" 0 "end" (/ (get-property b8 "length") 8)))
+   #:len 1)
+(check-producer
+ (image circ-png #:properties (hash "length" (/ (get-property b8 "length") 8)))
    #:len 1)
 
 (check-producer
@@ -82,32 +85,32 @@
 (check-producer shapes #:len +inf.0)
 (check-producer colors #:len +inf.0)
 
-#|
 
 ;; playlists
-(check-producer (playlist shapes colors) #:len #f)
-(check-producer (playlist (color "green" #:length 1) (color "blue" #:length 8))
+(check-producer (playlist shapes colors) #:len +inf.0)
+(check-producer (playlist (color "green" #:properties (hash "length" 1))
+                          (color "blue" #:properties (hash "length" 8)))
                  #:len 9)
 (check-producer (playlist (playlist g1) (playlist b8)) #:len 9)
 
 
-#|
-TODO: bug in mlt, should be 4
 (check-producer
- (playlist (image circ-png #:length 3)
-           (fade-transition #:length 2)
-           (clip vid-mp4 #:length 3))
+ (playlist (image circ-png #:properties (hash "start" 0 "end" 3))
+           (fade-transition 2)
+           (clip vid-mp4 #:properties (hash "start" 0 "end" 3)))
  #:len 4)
-|#
+
 (check-producer
- (playlist (image circ-png #:length 4)
-           (fade-transition #:length 2)
-           (clip vid-mp4 #:length 4))
+ (playlist (image circ-png #:properties (hash "start" 0 "end" 4))
+           (fade-transition 2)
+           (clip vid-mp4 #:properties (hash "start" 0 "end" 4)))
  #:len 6)
+
 (check-producer
- (playlist (image circ-png #:length 3)
-           (clip vid-mp4 #:length 3))
+ (playlist (image circ-png #:properties (hash "length" 3))
+           (clip vid-mp4 #:properties (hash "start" 0 "end" 3)))
  #:len 6)
+#|
 
 (check-producer
  (playlist

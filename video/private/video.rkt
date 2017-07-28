@@ -450,6 +450,14 @@
   (define elements*
     (append pre-list elements post-list))
   ;; Generate nodes and handle transitions
+  ;; When a transition is encountered, split previous node, pass through
+  ;;    track1 filter.
+  ;; Then store new filter as well as the creators for track2 and
+  ;;    combined subgraph.
+  ;; On the next video, split and pass to track2 and combined subgraph.
+  ;; Otherwise just add the compiled filter to the list.
+  ;; Invariant assumed: Transitions are never the first or last filters in a list.
+  ;; Invariant assumed: No two transitions happen side by side.
   (define-values (rev-trans-vids rev-trans-nodes start end fps width height counts)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
@@ -493,32 +501,32 @@
                 (add-vertex! (current-render-graph) sink)
                 (add-directed-edge! (current-render-graph) track1-copy sink 2)
                 (values (cons i prev-vids)
-                             (cons track1-copy (cdr prev-nodes))
-                             start
-                             (- end
-                                (get-property (car prev-nodes) "end")
-                                (get-property (car prev-nodes) "start"))
-                             fps
-                             width
-                             height
-                             counts)])]
+                        (cons track1-copy (cdr prev-nodes))
+                        start
+                        (- end
+                           (get-property (car prev-nodes) "end")
+                           (get-property (car prev-nodes) "start"))
+                        fps
+                        width
+                        height
+                        counts)])]
         [_
          (define pre-node (convert i))
          (define node
            (cond [(and (not (null? prev-vids))
                        (transition? (car prev-vids)))
-                  (define track1-copy (car prev-nodes))
-                  (define track2-subgraph-proc (transition-track2-subgraph (car prev-vids)))
-                  (define combined-subgraph-proc (transition-combined-subgraph (car prev-vids)))
-                  (define track2-subgraph (track2-subgraph-proc (mk-render-graph) pre-node))
-                  (define combined-subgraph
-                    (combined-subgraph-proc (mk-render-graph) track1-copy pre-node))
                   (define track2-copy (mk-filter-node (hash 'video (mk-filter "split")
                                                             'audio (mk-filter "asplit"))
                                                       #:props (node-props pre-node)
                                                       #:counts (node-counts pre-node)))
                   (add-vertex! (current-render-graph) track2-copy)
                   (add-directed-edge! (current-render-graph) pre-node track2-copy 1)
+                  (define track1-copy (car prev-nodes))
+                  (define track2-subgraph-proc (transition-track2-subgraph (car prev-vids)))
+                  (define combined-subgraph-proc (transition-combined-subgraph (car prev-vids)))
+                  (define track2-subgraph (track2-subgraph-proc (mk-render-graph) pre-node))
+                  (define combined-subgraph
+                    (combined-subgraph-proc (mk-render-graph) track1-copy track2-copy))
                   (cond [(video-subgraph? track2-subgraph)
                          (graph-union! (current-render-graph) (video-subgraph-graph track2-subgraph))
                          (add-directed-edge! (current-render-graph)
@@ -537,11 +545,11 @@
                                        (video-subgraph-graph combined-subgraph))
                          (add-directed-edge! (current-render-graph)
                                              track2-copy
-                                             (car (video-subgraph-sources combined-subgraph))
+                                             (cdr (video-subgraph-sources combined-subgraph))
                                              2)
                          (add-directed-edge! (current-render-graph)
                                              track1-copy
-                                             (cdr (video-subgraph-sources combined-subgraph))
+                                             (car (video-subgraph-sources combined-subgraph))
                                              1)]
                         [else
                          (define sink-a
