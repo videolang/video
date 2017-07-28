@@ -110,15 +110,14 @@
  (playlist (image circ-png #:properties (hash "length" 3))
            (clip vid-mp4 #:properties (hash "start" 0 "end" 3)))
  #:len 6)
-#|
 
 (check-producer
  (playlist
-  (image circ-png #:length 4)
-  (fade-transition #:length 1)
-  (color "blue" #:length 5)
-  (fade-transition #:length 2)
-  (clip vid-mp4 #:start 0 #:end 8))
+  (image circ-png #:properties (hash "length" 4))
+  (fade-transition 1)
+  (color "blue" #:properties (hash "length" 5))
+  (fade-transition 2)
+  (clip vid-mp4 #:properties (hash "start" 0 "end" 8)))
  #:len 14)
 
 ;; multitracks
@@ -127,8 +126,7 @@
   (clip vid-mp4)
   (composite-transition 0 0 3/4 3/4)
   (image circ-png))
- #:len 139)
-
+ #:len 83/15)
 
 (check-producer
  (multitrack
@@ -138,8 +136,9 @@
    (image circ-png)
    (composite-transition 0 1/2 1/2 1/2)
    (color "green")))
- #:len 139)
+ #:len 83/15)
 
+#|
 ;; explicit transition list
 (check-producer
  (multitrack
@@ -148,7 +147,7 @@
   (list (composite-transition 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
         (composite-transition 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
         (composite-transition 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
- #:len 139)
+ #:len 83/15)
 
 (check-producer (fading-playlist (image circ-png) (color "green")))
 (check-producer (fading-playlist (color "green") (clip vid-mp4)))
