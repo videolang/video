@@ -24,6 +24,7 @@
          racket/list
          racket/generic
          racket/hash
+         racket/struct
          file/convertible
          (prefix-in file: file/convertible)
          graph
@@ -159,7 +160,14 @@
        (begin
          (struct name #,@(if (identifier? #'super*) (list #'super*) '())
            (ids ...)
-           #:transparent
+           #:methods gen:custom-write
+           [(define write-proc
+              (make-constructor-style-printer
+               (λ (obj) '#,#'name)
+               (λ (obj)
+                 (list #,@(for/list ([i (in-list all-structs)]
+                                     [j (in-list all-ids)])
+                            #`(#,(format-id stx "~a-~a" i j) obj))))))]
            #:methods gen:video-ops
            [(define (copy-video-op v to-copy)
               (name

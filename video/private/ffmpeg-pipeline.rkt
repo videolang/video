@@ -1429,11 +1429,21 @@
           [(struct* stream-bundle ([stream-table stream-table]
                                    [file file]))
            (set! pre-str-list
-                 (cons (format "[~a:v]copy[~a];[~a:a]anull[~a];"
-                               index
-                               (codec-obj-callback-data (first (dict-ref stream-table 'video)))
-                               index
-                               (codec-obj-callback-data (first (dict-ref stream-table 'audio))))
+                 (cons (string-join
+                        (append
+                         (if (dict-has-key? stream-table 'video)
+                             (list (format "[~a:v]copy[~a]"
+                                           (codec-obj-callback-data
+                                            (first (dict-ref stream-table 'video)))
+                                           index))
+                             (list))
+                         (if (dict-has-key? stream-table 'audio)
+                             (list (format "[~a:a]anull[~a]"
+                                           (codec-obj-callback-data
+                                            (first (dict-ref stream-table 'audio)))
+                                           index))
+                             (list)))
+                        ";")
                        pre-str-list))
            (list "-i" file)])))
      (list

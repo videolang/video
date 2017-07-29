@@ -87,6 +87,14 @@
 (check-producer shapes #:len +inf.0)
 (check-producer colors #:len +inf.0)
 
+(let ()
+  (define vid1
+    (color "green" #:properties (hash "width" 10 "height" 20)))
+
+  (define vid2
+    (color "green" #:properties (hash "width" 10 "height" 20)))
+  (check-not-equal? vid1 vid2))
+
 
 ;; playlists
 (check-producer (playlist shapes colors) #:len +inf.0)
@@ -139,6 +147,13 @@
    (composite-transition 0 1/2 1/2 1/2)
    (color "green")))
  #:len 83/15)
+
+(check-producer
+ (multitrack
+  (color "green" #:properties (hash "width" 10 "height" 20))
+  (composite-transition 0.5 0.5 0.25 0.25)
+  (color "green" #:properties (hash "width" 10 "height" 20)))
+ #:len +inf.0)
 
 #|
 ;; explicit transition list
@@ -293,3 +308,4 @@
                                   (color "green")
                                   (image circ-png))]))
   (send r setup (make-render-settings)))
+
