@@ -36,7 +36,7 @@
   (check-equal? (sub-sub-world ss2) "YOU")
   (check-false (file:convert (make-new-video) 'mlt))
   (define ss3 (copy-video ss))
-  (check-equal? ss3 ss)
+  (check-not-equal? ss3 ss)
   (check-not-equal? ss3 ss2))
 
 (let ()
