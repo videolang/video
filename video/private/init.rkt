@@ -20,6 +20,7 @@
 ;; Alternatively your program can just call `mlt-factory-init` on its own.
 ;;   If you do this though, do make sure to shut things down with mlt-factory-init
 
+(provide (all-defined-out))
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
@@ -32,6 +33,10 @@
 
 (define MAX-LOG-MSG-SIZE 4096)
 
+;; XXX, va_list is NOT _pointer sized. Therefore, we cannot
+;; use this function until we extend libffi to accept
+;; va_list or add a C shim (in libvideo).
+#;
 (define-internal vsnprintf
   (_fun [out : (_bytes o MAX-LOG-MSG-SIZE)] [len : _size = MAX-LOG-MSG-SIZE] _string _pointer
         -> [ret : _int]
@@ -52,3 +57,6 @@
    (avfilter-register-all)
    (avformat-network-init)
    #;(av-log-set-callback callback-proc)))
+
+;; Logging messages can be sent here.
+(define-logger video)

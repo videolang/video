@@ -1223,8 +1223,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundles) (filter-graph->string g))
-  ;(displayln (graphviz g))
-  ;(displayln g-str)
+  (log-video-debug "Video Graph Created:" (graphviz g))
+  (log-video-debug "Filter Graph Created:" g-str)
   (define seek-points (get-seek-point g 0))
   (define graph (avfilter-graph-alloc))
   (define outputs
@@ -1457,7 +1457,7 @@
       (format "[~a]" (codec-obj-callback-data (first (dict-ref (stream-bundle-stream-table out-bundle)
                                                                'audio))))
       (stream-bundle-file out-bundle))))
-  (displayln cmd)
+  (log-video-debug "ffmpeg command run: ~a" cmd)
   (apply system* cmd))
 
 ;; ===================================================================================================
