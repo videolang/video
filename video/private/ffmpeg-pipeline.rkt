@@ -1072,16 +1072,22 @@
                     ['video (filter->string (mk-empty-sink-video-filter))]
                     ['audio (filter->string (mk-empty-sink-audio-filter))]))])))))
 
-;; Sink Node -> (Listof String)
-(define (sink-node->string vert #:count-offsets [count-offsets (hash)])
+;; Convert a sink node to a string. The count offsets and neighbors-vert are used
+;;   exclusively for internal recursive calls.
+;; Sink-Node Hash (U Sink-Node #f) -> (Listof String)
+(define (sink-node->string vert
+                           #:count-offsets [count-offsets (hash)]
+                           #:neighbors-vert [neighbors-vert #f])
   (define bundle (sink-node-bundle vert))
   (define table (stream-bundle-stream-table bundle))
   (define next (sink-node-next vert))
   (append*
    (if next
        (sink-node->string
-        next #:count-offsets (hash-union count-offsets (sink-node-consume-table vert)
-                                         #:combine +))
+        next
+        #:count-offsets (hash-union count-offsets (sink-node-consume-table vert)
+                                    #:combine +)
+        #:neighbors-vert (or neighbors-vert vert))
        '())
    (for/list ([(type objs) (in-dict table)])
      (define count/bundle (length objs))
@@ -1091,7 +1097,7 @@
       (for/list ([i (in-range count)])
         (define name
           (string-append*
-           (for/list ([n (get-sorted-neighbors (current-graph*) vert)])
+           (for/list ([n (get-sorted-neighbors (current-graph*) (or neighbors-vert vert))])
              (define name ((current-edge-mapping-ref!) n vert type i))
              (set-codec-obj-callback-data! (list-ref (dict-ref table type) i)
                                            name)

@@ -352,7 +352,7 @@
                 [else (list #f)]))
             (define format-names
               (match format
-                ['raw (list "rawvideo" "s16")]
+                ['raw (list "rawvideo" "s16be")]
                 [_ (list #f)]))
             (define video-streams 1)
             (define audio-streams
