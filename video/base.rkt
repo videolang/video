@@ -83,8 +83,8 @@
                                  [(and/c number? positive?)]
                                  #:direction s/e)]
 
-  [overlay-transition (->transition [(and/c number? positive?)
-                                     (and/c number? positive?)]
+  [overlay-transition (->transition [(and/c number? (>=/c 0))
+                                     (and/c number? (>=/c 0))]
                                     [(or/c (and/c number? positive?) #f)
                                      (or/c (and/c number? positive?) #f)]
                                     #:direction t/b)]

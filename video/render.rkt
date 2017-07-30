@@ -560,7 +560,8 @@
        running-lock
        (λ ()
          (and writing-thread (thread-wait writing-thread))
-         (and reading-thread (thread-wait reading-thread)))))
+         (and reading-thread (thread-wait reading-thread))))
+      (void))
 
     ;; Used for early termination of `feed-buffers`.
     ;; This is needed because trimmed outputs will

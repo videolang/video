@@ -319,3 +319,10 @@
                                   (fade-transition 10)
                                   (clip vid-mp4))]))
   (send r setup (make-render-settings)))
+
+(let ()
+  (define r (new render% [source (multitrack
+                                  (clip vid-mp4)
+                                  (overlay-transition 0 0 100 100)
+                                  (image circ-png))]))
+  (send r setup (make-render-settings)))
