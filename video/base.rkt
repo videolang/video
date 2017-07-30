@@ -549,13 +549,13 @@
     (define start (get-property prev "start" 0))
     (define end (get-property prev "end" 0))
     (define fade-filter
-      (mk-filter "fade" (match direction
-                          ['in (hash "t" "in"
-                                     "ss" 0
-                                     "d" length)]
-                          ['out (hash "t" "out"
-                                      "ss" (- end length)
-                                      "d" length)])))
+      (mk-filter "afade" (match direction
+                           ['in (hash "t" "in"
+                                      "ss" 0
+                                      "d" length)]
+                           ['out (hash "t" "out"
+                                       "ss" (- end length)
+                                       "d" length)])))
     (define node
       (mk-filter-node (hash 'audio fade-filter)
                       #:counts (node-counts prev)

@@ -332,3 +332,9 @@
                                        #:filters (list (mux-filter #:type 'video
                                                                    #:index 0)))]))
   (send r setup (make-render-settings)))
+
+(let ()
+  (define r (new render% [source (clip vid-mp4
+                                       #:filters (list (envelope-filter #:direction 'in
+                                                                        #:length 5)))]))
+  (send r setup (make-render-settings)))
