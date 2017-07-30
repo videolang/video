@@ -25,9 +25,10 @@
 (let ()
   (define f (new frame% [label "foo"]))
   (define c (new video-canvas%
-                 [width 300]
-                 [height 300]
+                 [width 640]
+                 [height 480]
                  [parent f]))
+  (send f show #t)
   (define p (new video-player-server% [video green:vid]))
   (send p set-canvas c)
   (send p play)
@@ -35,12 +36,10 @@
   (send p stop)
   (check-true (send p is-stopped?))
   (check-false (send p is-paused?))
-  ;(send p seek 10)
-  ;(check-equal? (send p get-position) 10)
-;  ;(send p play)
-;  (check-false (send p is-paused?))
-;  (check-true (send p is-stopped?))
-#;  (check-equal? (send p get-fps) 25))
+;  (send p seek 10)
+;  (check-equal? (send p get-position) 10)
+  (check-equal? (send p get-fps) 25)
+  (send f show #f))
 
 #;
 (let ()

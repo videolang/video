@@ -290,12 +290,12 @@
     ;;   - stopping : Actively reading/writing, requested to stop asap
     ;;   - stopped : No longer reading/writing
     ;; Must always use call-with-semaphore before modifying the status flag.
-    (define stop-reading-flag 'stopped)
-    (define reading-stopped-signal (make-async-channel))
-    (define stop-reading-semaphore (make-semaphore 1))
-    (define stop-writing-flag 'stopped)
-    (define writing-stopped-signal (make-async-channel))
-    (define stop-writing-semaphore (make-semaphore 1))
+    (field [stop-reading-flag 'stopped]
+           [reading-stopped-signal (make-async-channel)]
+           [stop-reading-semaphore (make-semaphore 1)]
+           [stop-writing-flag 'stopped]
+           [writing-stopped-signal (make-async-channel)]
+           [stop-writing-semaphore (make-semaphore 1)])
 
     ;; Copy this renderer, that way it can be
     ;; setup to multiple profiles
@@ -474,15 +474,6 @@
     ;; Send all of the input pads into the render graph.
     ;; This method sould be run in its own thread
     (define/public (feed-buffers)
-      (define currently-running?
-        (call-with-semaphore
-         stop-reading-semaphore
-         (λ ()
-           (define ret (eq? stop-reading-flag 'running))
-           (set! stop-reading-flag 'running)
-           ret)))
-      (when currently-running?
-        (error 'feed-buffers "Reader already running"))
       (define threads
         (for/list ([bundle (in-list input-bundles)])
           (thread
@@ -519,6 +510,24 @@
     ;; after this method concludes.
     ;; Boolean -> Void
     (define/public (start-rendering [wait? #f])
+      (define reader-currently-running?
+        (call-with-semaphore
+         stop-reading-semaphore
+         (λ ()
+           (define ret (eq? stop-reading-flag 'running))
+           (set! stop-reading-flag 'running)
+           ret)))
+      (when reader-currently-running?
+        (error 'feed-buffers "Reader already running"))
+      (define writer-currently-stopped?
+        (call-with-semaphore
+         stop-writing-semaphore
+         (λ ()
+           (define ret (eq? stop-writing-flag 'stopped))
+           (set! stop-writing-flag 'running)
+           ret)))
+      (unless writer-currently-stopped?
+        (error 'write-output "Already writing output"))
       (call-with-semaphore
        running-lock
        (λ ()
@@ -570,15 +579,6 @@
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread
     (define/public (write-output)
-      (define currently-stopped?
-        (call-with-semaphore
-         stop-writing-semaphore
-         (λ ()
-           (define ret (eq? stop-writing-flag 'stopped))
-           (set! stop-writing-flag 'running)
-           ret)))
-      (unless currently-stopped?
-        (error 'write-output "Already writing output"))
       (define threads
         (for/list ([output-bundle (in-list output-bundles)])
           (thread
@@ -739,5 +739,12 @@
     feed-buffers-callback-constructor
     feed-buffers
     write-output-callback-constructor
-    write-output))
+    write-output
+    
+    stop-reading-flag
+    reading-stopped-signal
+    stop-reading-semaphore
+    stop-writing-flag
+    writing-stopped-signal
+    stop-writing-semaphore))
 (require 'render-fields)

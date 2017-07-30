@@ -29,6 +29,4 @@
 
 (define test-omit-paths
   '("private/examples.rkt"
-    "private/packetqueue.rkt"
-    ;; This WILL need to be re-enabled before release.
-    "tests/player.rkt"))
+    "private/packetqueue.rkt"))

@@ -187,6 +187,7 @@
 (define video-canvas-render-mixin
   (mixin (render<%>) ()
     (super-new)
+    (inherit-field stop-writing-flag stop-writing-semaphore)
     (define canvas #f)
     (define/override (setup rs)
       (super setup (struct-copy render-settings rs
@@ -221,5 +222,7 @@
                              (ptr-add (array-ref (av-frame-data out-frame) 0)
                                       (* i linesize))))))
                   (av-frame-free out-frame)
-                  (loop)))]
+                  (when (call-with-semaphore stop-writing-semaphore
+                                             (λ () (eq? stop-writing-flag 'running)))
+                    (loop))))]
              [_ (void)])])))))
