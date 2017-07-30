@@ -155,7 +155,6 @@
   (color "green" #:properties (hash "width" 10 "height" 20)))
  #:len +inf.0)
 
-#|
 ;; explicit transition list
 (check-producer
  (multitrack
@@ -165,6 +164,7 @@
         (composite-transition 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
         (composite-transition 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
  #:len 83/15)
+
 
 (check-producer (fading-playlist (image circ-png) (color "green")))
 (check-producer (fading-playlist (color "green") (clip vid-mp4)))
@@ -176,8 +176,10 @@
                                    #:top a
                                    #:bottom b))))
 
+#| TODO, finish scale
 ;; filters
 (check-producer (attach-filter (image circ-png) (scale-filter 1 3)))
+|#
 
 
 ;; props
@@ -201,6 +203,7 @@
 (parameterize ([current-directory video-dir])
   (external-video "green.vid"))
 
+
 ;; racketcon
 (define (make-speaker-slides-composite sp sl)
   (multitrack sp sl logo bg
@@ -213,22 +216,23 @@
 (define sl (blank 100))
 (check-producer
  (make-speaker-slides-composite
-  (color "red" #:length 500)
-  (color "blue" #:length 500)))
+  (color "red" #:properties (hash "length" 500))
+  (color "blue" #:properties (hash "length" 500))))
 ;(define bg (color "blue")) ; already defined
 
+#|
 ;; TODO, put defines at end?
 (define (make-talk-video main-talk)
   ;; defines should be after playlist?
-  (define begin-clip (image circ-png #:length 500))
-  (define end-clip (image circ-png #:length 500))
+  (define begin-clip (image circ-png #:properties (hash "length" 500)))
+  (define end-clip (image circ-png #:properties (hash "length" 500)))
   (playlist begin-clip
-            (fade-transition #:length 200)
+            (fade-transition #:properties (hash "length" 200))
             main-talk
-            (fade-transition #:length 200)
+            (fade-transition #:properties (hash "length" 200))
             end-clip))
 (check-producer
- (make-talk-video (color "red" #:length 1000))
+ (make-talk-video (color "red" #:properties (hash "length" 1000)))
  #:len 1600)
 
 ; TODO: add filters

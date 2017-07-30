@@ -721,7 +721,7 @@
                   end
                   (max end new-end)))))
   ;; Convert all clips to a compatible length
-  ;; Nodes : Hash[Node -> Track (Cons Node Integer)]
+  ;; Nodes : Hash[Track -> (Cons Node Integer)]
   ;; Where the key is the source node, and the value is
   ;;   its trimmed counterpart.
   (define nodes
@@ -734,6 +734,12 @@
        (add-vertex! (current-render-graph) trimmed)
        (add-directed-edge! (current-render-graph) (car v) trimmed 1)
        (values k (cons trimmed (cdr v))))))
+  ;; Make a back map, this is so we can have merging semantics
+  ;;   when transition are applied
+  (define back-map
+    (hash-copy
+     (for/hash ([(k v) (in-dict nodes)])
+       (values v (set k)))))
   ;; Start merging tracks together
   ;; Prefer individual track if it exists, otherwise
   ;;   merge combined one.
@@ -742,23 +748,42 @@
       [(struct* field-element ([element element]
                                [track track]
                                [track-2 track-2]))
+       ;((dynamic-require 'racket/pretty 'pretty-print) nodes)
+       ;(newline)
+       ;((dynamic-require 'racket/pretty 'pretty-print) back-map)
+       ;(newline)
+       ;(displayln "-----")
+       ;(newline)
        (define bundle-pair (dict-ref nodes track))
-       (dict-remove! nodes track)
+       (define bundle-pair-back (dict-ref back-map bundle-pair))
+       (for ([tr (in-set bundle-pair-back)])
+         (dict-remove! nodes tr))
+       (dict-remove! back-map bundle-pair)
        (define bundle-pair-2 (dict-ref nodes track-2))
-       (dict-remove! nodes track-2)
+       (define bundle-pair-2-back (dict-ref back-map bundle-pair-2))
+       (for ([tr (in-set bundle-pair-2-back)])
+         (dict-remove! nodes tr))
+       (dict-remove! back-map bundle-pair-2)
        (define-values (track1-out track2-out combined-out)
          (convert-transition element (car bundle-pair) (car bundle-pair-2)))
        (when combined-out
          (define idx (min (cdr bundle-pair) (cdr bundle-pair-2)))
-         (dict-set! nodes
-                    (if (< (cdr bundle-pair) (cdr bundle-pair-2))
-                        track
-                        track-2)
-                    (cons combined-out idx)))
+         (define back-set (set-union (if track1-out (set) bundle-pair-back)
+                                     (if track2-out (set) bundle-pair-2-back)))
+         (define val (cons combined-out idx))
+         (dict-set! back-map val back-set)
+         (for ([tr (in-set back-set)])
+           (dict-set! nodes tr val)))
        (when track1-out
-         (dict-set! nodes track (cons track1-out (cdr bundle-pair))))
+         (define val (cons track1-out (cdr bundle-pair)))
+         (dict-set! back-map val bundle-pair-back)
+         (for ([tr (in-set bundle-pair-back)])
+           (dict-set! nodes tr val)))
        (when track2-out
-         (dict-set! nodes track-2 (cons track2-out (cdr bundle-pair-2))))]))
+         (define val (cons track2-out (cdr bundle-pair-2)))
+         (dict-set! back-map val bundle-pair-2-back)
+         (for ([tr (in-set bundle-pair-2-back)])
+           (dict-set! nodes tr)))]))
   ;; Select top-most track from table
   (define-values (ret trash)
     (for/fold ([node #f]
