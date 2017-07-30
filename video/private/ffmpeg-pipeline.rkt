@@ -71,25 +71,6 @@
                           #:options-dict [o #f]
                           #:file [f #f])
   (stream-bundle rs s st ctx o f))
-(define (fill-stream-bundle bundle [use-type 'encode])
-  (define table (make-hash))
-  (for ([s (in-list (stream-bundle-streams bundle))]
-        [index (in-naturals)])
-    (match s
-      [(struct* codec-obj ([id id]
-                           [type type]))
-       (define codec ((match use-type
-                        ['encode avcodec-find-encoder]
-                        ['decode avcodec-find-decoder])
-                      id))
-       (set-codec-obj-codec! s codec)
-       (set-codec-obj-index! s index)
-       (set-codec-obj-codec-context! s (avcodec-alloc-context3 codec))
-       (dict-update! table type
-                     (λ (rst) (append rst (list s)))
-                     (λ () '()))]))
-  (set-stream-bundle-stream-table! bundle table)
-  bundle)
 
 (struct codec-obj (codec-parameters
                    type
