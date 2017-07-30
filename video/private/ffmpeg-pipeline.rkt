@@ -1223,8 +1223,8 @@
   (define abuffersrc (avfilter-get-by-name "abuffer"))
   (define abuffersink (avfilter-get-by-name "abuffersink"))
   (define-values (g-str bundles out-bundles) (filter-graph->string g))
-  (log-video-debug "Video Graph Created:" (graphviz g))
-  (log-video-debug "Filter Graph Created:" g-str)
+  (log-video-debug "Video Graph Created: ~a" (graphviz g))
+  (log-video-debug "Filter Graph Created: ~a" g-str)
   (define seek-points (get-seek-point g 0))
   (define graph (avfilter-graph-alloc))
   (define outputs
