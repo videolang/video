@@ -220,16 +220,30 @@
   (color "blue" #:properties (hash "length" 500))))
 ;(define bg (color "blue")) ; already defined
 
-#|
+(check-producer
+ (playlist
+  (image circ-png #:properties (hash "length" 500))
+  (fade-transition 200)
+  (color "red" #:properties (hash "length" 1000)))
+ #:len 1300)
+
+(check-producer
+ (playlist
+  (image circ-png #:properties (hash "length" 500))
+  (fade-transition 200)
+  (color "red" #:properties (hash "length" 1000))
+  (image circ-png #:properties (hash "length" 500)))
+ #:len 1800)
+
 ;; TODO, put defines at end?
 (define (make-talk-video main-talk)
   ;; defines should be after playlist?
   (define begin-clip (image circ-png #:properties (hash "length" 500)))
   (define end-clip (image circ-png #:properties (hash "length" 500)))
   (playlist begin-clip
-            (fade-transition #:properties (hash "length" 200))
+            (fade-transition 200)
             main-talk
-            (fade-transition #:properties (hash "length" 200))
+            (fade-transition 200)
             end-clip))
 (check-producer
  (make-talk-video (color "red" #:properties (hash "length" 1000)))
@@ -239,9 +253,11 @@
 (define (attach-audio v a o)
   (define cleaned-audio
     (cut-producer a #:end o))
-  (multitrack v cleaned-audio #:length (get-property v "length")))
+  (multitrack v cleaned-audio #:properties (hash "length" (get-property v "length"))))
 (check-producer
- (attach-audio (color "red" #:length 100) (color "blue" #:length 100) 50)
+ (attach-audio (color "red" #:properties (hash "length" 100))
+               (color "blue" #:properties (hash "length" 100))
+               50)
  #:len 100)
 
 ;; TODO: use define*
@@ -251,20 +267,13 @@
   (define v (make-talk-video Y))
   (attach-audio v a o))
 
-#|
+#| XXX, needs to be uncomented!
 (check-producer
  (make-conf-talk (blank 100) (blank 100) (blank 100) 0))
-
 |#
 
-;; Just test by running it
-(debug:debug/save-prop circ-img (make-temporary-file))
 
-(check-equal? (get-property
-               (clip vid-mp4 #:start 50 #:end 75)
-               "length/unedited")
-              139)
-
+#|
 ;; TODO, rethink
 (check-equal? (get-property
                (playlist (color "red" #:length 100)
@@ -285,27 +294,18 @@
                          (color "blue" #:length 50))
                "playlist-clip-count")
               2)
+|#
 
 (check-equal?
  (get-property
   (playlist
-   (image circ-png #:length 4)
-   (fade-transition #:length 2)
-   (color "blue" #:length 4)
-   (fade-transition #:length 2)
-   (clip vid-mp4 #:start 0 #:end 4))
-  "length" 'int)
+   (image circ-png #:properties (hash "length" 4))
+   (fade-transition 2)
+   (color "blue" #:properties (hash "length" 4))
+   (fade-transition 2)
+   (clip vid-mp4 #:properties (hash "start" 0 "end" 4)))
+  "length")
  8)
-
-(let ()
-  (define r (color "red"))
-  (define props (debug:properties-prop r))
-  (check-equal? (hash-ref props "start") 0)
-  (check-equal? (hash-ref props "end") -1)
-  (check-equal? (get-property r "start") #f)
-  (check-equal? (get-property r "end") #f)
-  (check-equal? (get-property r "length") #f))
-|#
 
 (let ()
   (define r (new render% [source (multitrack
