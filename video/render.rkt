@@ -348,17 +348,14 @@
             ;;   'consume everything else'
             (define consume-tables
               (match format
-                ['raw (list #f (hash "audio" 1))]
+                ['raw (list #f (hash 'audio 1))]
                 [else (list #f)]))
             (define format-names
               (match format
                 ['raw (list "rawvideo" "s16be")]
                 [_ (list #f)]))
             (define video-streams 1)
-            (define audio-streams
-              (match format
-                ['raw 0]
-                [_ 1]))
+            (define audio-streams 1)
             (define out-paths
               (for/list ([extension (in-list extensions)])
                 (path->complete-path (or dest (base:format "out.~a" extension)))))

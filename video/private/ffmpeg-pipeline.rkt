@@ -29,6 +29,7 @@
          racket/class
          racket/format
          racket/hash
+         racket/pretty
          (except-in racket/contract ->)
          (prefix-in con: racket/contract)
          (prefix-in base: racket/base)
@@ -780,7 +781,9 @@
       (λ _ 'sink-node)
       (λ (x) (list '#:file (stream-bundle-file (sink-node-bundle x))
                    '#:props (node-props x)
-                   '#:counts (node-counts x)))))])
+                   '#:counts (node-counts x)
+                   '#:consume-table (sink-node-consume-table x)
+                   '#:next (sink-node-next x)))))])
 (define (mk-sink-node b
                       #:consume-table [ct #f]
                       #:next [n #f]
@@ -1074,6 +1077,8 @@
 
 ;; Convert a sink node to a string. The count offsets and neighbors-vert are used
 ;;   exclusively for internal recursive calls.
+;; This function is ONLY used for excess or unfilled counts. The filter-node->string
+;;   function processes the rest.
 ;; Sink-Node Hash (U Sink-Node #f) -> (Listof String)
 (define (sink-node->string vert
                            #:count-offsets [count-offsets (hash)]
@@ -1081,41 +1086,43 @@
   (define bundle (sink-node-bundle vert))
   (define table (stream-bundle-stream-table bundle))
   (define next (sink-node-next vert))
-  (append*
-   (if next
-       (sink-node->string
-        next
-        #:count-offsets (hash-union count-offsets (sink-node-consume-table vert)
-                                    #:combine +)
-        #:neighbors-vert (or neighbors-vert vert))
-       '())
-   (for/list ([(type objs) (in-dict table)])
-     (define count/bundle (length objs))
-     (define count/vert (dict-ref (node-counts vert) type 0))
-     (define count (max count/bundle count/vert))
-     (append*
-      (for/list ([i (in-range count)])
-        (define name
-          (string-append*
-           (for/list ([n (get-sorted-neighbors (current-graph*) (or neighbors-vert vert))])
-             (define name ((current-edge-mapping-ref!) n vert type i))
-             (set-codec-obj-callback-data! (list-ref (dict-ref table type) i)
-                                           name)
-             name)))
-        (cond
-          [(and (< i count/bundle) (< i count/vert))
-           '()]
-          [(< i count/vert)
-           (list (format "[~a]~a"
-                         name
-                         (match type
-                           ['video (filter->string (mk-empty-sink-video-filter))]
-                           ['audio (filter->string (mk-empty-sink-audio-filter))])))]
-          [else (list (format "~a[~a]"
-                              (match type
-                                ['video (filter->string (mk-empty-video-filter))]
-                                ['audio (filter->string (mk-empty-audio-filter))])
-                              name))]))))))
+  (define ret
+    (append*
+     (if next
+         (sink-node->string
+          next
+          #:count-offsets (hash-union count-offsets (sink-node-consume-table vert)
+                                      #:combine +)
+          #:neighbors-vert (or neighbors-vert vert))
+         '())
+     (for/list ([(type objs) (in-dict table)])
+       (define count/bundle (length objs))
+       (define count/vert (dict-ref (node-counts vert) type 0))
+       (define count (max count/bundle count/vert))
+       (append*
+        (for/list ([i (in-range count)])
+          (define name
+            (string-append*
+             (for/list ([n (get-sorted-neighbors (current-graph*) (or neighbors-vert vert))])
+               (define name ((current-edge-mapping-ref!) n (or neighbors-vert vert) type i))
+               (set-codec-obj-callback-data! (list-ref (dict-ref table type) i)
+                                             name)
+               name)))
+          (cond
+            [(and (< i count/bundle) (< i count/vert))
+             '()]
+            [(< i count/vert)
+             (list (format "[~a]~a"
+                           name
+                           (match type
+                             ['video (filter->string (mk-empty-sink-video-filter))]
+                             ['audio (filter->string (mk-empty-sink-audio-filter))])))]
+            [else (list (format "~a[~a]"
+                                (match type
+                                  ['video (filter->string (mk-empty-video-filter))]
+                                  ['audio (filter->string (mk-empty-audio-filter))])
+                                name))]))))))
+  ret)
 
 ;; Because `in-neighbors` returns neighbors in
 ;; an unspecified order, we need them sorted based
@@ -1150,16 +1157,18 @@
     (define node-str-list
       (append*
        (for/list ([vert (in-vertices g)])
-         (cond
-           [(filter-node? vert)
-            (filter-node->string vert)]
-           [(mux-node? vert)
-            (mux-node->string vert)]
-           [(source-node? vert)
-            (source-node->string vert)]
-           [(sink-node? vert)
-            (sink-node->string vert)]
-           [else '()]))))
+         (define str
+           (cond
+             [(filter-node? vert)
+              (filter-node->string vert)]
+             [(mux-node? vert)
+              (mux-node->string vert)]
+             [(source-node? vert)
+              (source-node->string vert)]
+             [(sink-node? vert)
+              (sink-node->string vert)]
+             [else '()]))
+         str)))
     ;; Different nodes have different stream counts.
     ;; Need to make empty (null) nodes for mismatching
     ;; connections.
@@ -1191,6 +1200,7 @@
                            ['audio (mk-empty-sink-audio-filter)]))))
                  '()))]
            [_ '()]))))
+    (log-video-debug "Video Graph Connection Table: ~a" (pretty-format edge-mapping))
     (values
      (string-join (append node-str-list cap-nodes-list) ";")
      bundle-lst
