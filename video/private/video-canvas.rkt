@@ -192,6 +192,7 @@
     (define/override (setup rs)
       (super setup (struct-copy render-settings rs
                                 [pix-fmt 'rgb24]
+                                [sample-fmt 's16]
                                 [format 'raw])))
     (define/public (set-canvas c)
       (set! canvas c))

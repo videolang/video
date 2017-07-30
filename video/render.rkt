@@ -328,27 +328,40 @@
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
                                       [speed speed]))
-            (define extension
+            ;; Raw videos should output two streams, one for video and one for audio.
+            ;; Needed because there is no single container for raw video
+            ;;   and audio.
+            (define extensions
               (match format
-                ['raw "raw"]
-                [_ "mp4"]))
-            ;; XXX We're going to need two bundles here.
-            ;; AKA, the renderer is going to need to jugle
-            ;;   two different muxers.
-            (define bundle-spec
+                ['raw (list "video.raw" "audio.raw")]
+                [_ (list "mp4")]))
+            ;; If the output type is "raw", generate two feeds, one for audio and one for video
+            (define bundle-specs
               (match format
-                ['raw 'video]
-                [_ 'vid+aud]))
-            (define format-name
+                ['raw (list 'video 'audio)]
+                [_ (list 'vid+aud)]))
+            ;; When outputting multiple streams,
+            ;;   every node but the last one must tell
+            ;;   what streams they are consuming.
+            ;; Because this list happens in reverse order,
+            ;;   only the first element of the list can be #f, for
+            ;;   'consume everything else'
+            (define consume-tables
               (match format
-                ['raw "rawvideo"]
-                [_ #f]))
+                ['raw (list #f (hash "audio" 1))]
+                [else (list #f)]))
+            (define format-names
+              (match format
+                ['raw (list "rawvideo" "s16")]
+                [_ (list #f)]))
             (define video-streams 1)
             (define audio-streams
               (match format
                 ['raw 0]
                 [_ 1]))
-            (define out-path (path->complete-path (or dest (base:format "out.~a" extension))))
+            (define out-paths
+              (for/list ([extension (in-list extensions)])
+                (path->complete-path (or dest (base:format "out.~a" extension)))))
             (set! render-graph (graph-copy video-graph))
             (define start-node
               (mk-fifo-node
@@ -451,12 +464,20 @@
                  (add-directed-edge! render-graph drop-node rev-node 1)
                  rev-node]
                 [else drop-node]))
-            (define out-bundle
-              (stream-bundle->file out-path bundle-spec
-                                   #:format-name format-name))
+            (define out-bundles
+              (for/list ([spec (in-list bundle-specs)]
+                         [format-name (in-list format-names)]
+                         [out-path (in-list out-paths)])
+                (stream-bundle->file out-path spec
+                                     #:format-name format-name)))
             (define sink-node
-              (mk-sink-node out-bundle
-                            #:counts (node-counts trim-node)))
+              (for/fold ([next #f])
+                        ([out-bundle (in-list out-bundles)]
+                         [consume-table (in-list consume-tables)])
+                (mk-sink-node out-bundle
+                              #:counts (node-counts trim-node)
+                              #:next next
+                              #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
             (add-directed-edge! render-graph rev-node sink-node 1)
             (set! output-node pad-node)
