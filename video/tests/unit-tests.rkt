@@ -313,3 +313,9 @@
                                   (image circ-png))]))
   (send r setup (make-render-settings)))
 
+(let ()
+  (define r (new render% [source (playlist
+                                  (image circ-png #:properties (hash "length" 100))
+                                  (fade-transition 10)
+                                  (clip vid-mp4))]))
+  (send r setup (make-render-settings)))
