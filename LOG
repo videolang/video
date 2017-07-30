@@ -1,6 +1,6 @@
 v0.2-alpha.2
 Date: 2017-07-30
-Commit#: TBD
+Commit#: 44ee039ab2785de24c7b957dc9084f1e5d509239
 * Fix many bugs related to multitracks and the way it processes transitions
 * Fix concurrency bugs with live player.
 * Reintroduce most of the unit tests from the v0.1 build.
