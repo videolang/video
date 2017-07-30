@@ -326,3 +326,9 @@
                                   (overlay-transition 0 0 100 100)
                                   (image circ-png))]))
   (send r setup (make-render-settings)))
+
+(let ()
+  (define r (new render% [source (clip vid-mp4
+                                       #:filters (list (mux-filter #:type 'video
+                                                                   #:index 0)))]))
+  (send r setup (make-render-settings)))
