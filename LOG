@@ -1,3 +1,12 @@
+v0.2-alpha.2
+Date: 2017-07-30
+Commit#: TBD
+* Fix many bugs related to multitracks and the way it processes transitions
+* Fix concurrency bugs with live player.
+* Reintroduce most of the unit tests from the v0.1 build.
+* Add video/version to track the version more accurately than Racket's info.rkt system.
+* Add video-log and ffmpeg-log to print out debug messages. ffmpeg-log not yet hooked up.
+
 v0.2-alpha.1
 Date: 2017-07-18
 Commit#: d93040922586b9d29d07236bf727d2f90484cb31
