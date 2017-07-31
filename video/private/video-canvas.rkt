@@ -237,12 +237,13 @@
                       (= (- frame-size sample-offset) 0)) ; <-- (= samples-left 0)
               (read-frame block))
             (unless curr-frame
+              #;
               (memset buffer
                       pos
                       0
                       needed-samples
                       _int32)
-              (set! sample-offset #f)
+              ;(set! sample-offset #f)
               (return))
             (define samples-left (- frame-size sample-offset))
             (when (= samples-left 0)
@@ -268,6 +269,7 @@
     (inherit-field stop-writing-flag stop-writing-semaphore)
     (define canvas #f)
     (define audio-buffer (new audio-buffer%))
+    (define stop-audio #f)
     (define/override (setup rs)
       (super setup (struct-copy render-settings rs
                                 [pix-fmt 'rgb24]
@@ -285,10 +287,12 @@
                                [type type]))
            (match* (type mode)
              [('audio 'open)
-              (stream-play/unsafe (λ (buff count)
-                                    (send audio-buffer feed-samples! buff count #f))
-                                  0.1
-                                  44100)]
+              (match (stream-play/unsafe (λ (buff count)
+                                           (send audio-buffer feed-samples! buff count #f))
+                                         0.1
+                                         44100)
+                [(list status stop)
+                 (set! stop-audio stop)])]
              [('audio 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
@@ -296,6 +300,8 @@
                   (define out-frame (av-buffersink-get-frame buff-ctx))
                   (send audio-buffer add-frame out-frame)
                   (loop)))]
+             [('audio 'close)
+              (stop-audio)]
              [('video 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
