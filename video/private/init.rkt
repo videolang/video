@@ -24,6 +24,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
+         portaudio
          "ffmpeg.rkt"
          "threading.rkt")
 
@@ -56,7 +57,8 @@
    (av-register-all)
    (avfilter-register-all)
    (avformat-network-init)
-   #;(av-log-set-callback callback-proc)))
+   ;(av-log-set-callback callback-proc)
+   (pa-maybe-initialize)))
 
 ;; Logging messages can be sent here.
 (define-logger video)

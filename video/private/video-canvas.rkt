@@ -17,11 +17,15 @@
 |#
 
 (provide video-canvas%
+         audio-buffer%
          video-canvas-render-mixin)
 (require opengl
          opengl/util
+         portaudio
+         racket/generator
          racket/class
-         racket/gui/base
+         racket/async-channel
+         (except-in racket/gui/base yield)
          racket/format
          racket/match
          ffi/unsafe
@@ -39,6 +43,9 @@
   tex-id
   prog)
 
+;; A Video canvas object displays the video data from a file.
+;; It is a superclass of canvas% and can thus be placed anywhere a canvas can.
+;; Generally it is used with video-canvas-render-mixin%.
 (define video-canvas%
   (class canvas%
     (init-field width height)
@@ -142,6 +149,10 @@
             (glViewport 0 0 width height)
             (glClearColor 0.0 0.0 0.0 0.0)))
 
+    ;; Draw data to a frame. The data-fill-callback fills the
+    ;;   opengl buffers. It has no parameters because that is
+    ;;   handled (unsafely) by opengl state.
+    ;; -> Void
     (define/public (draw-frame data-fill-callback)
       (send this with-gl-context
             (λ ()
@@ -162,8 +173,7 @@
               (glDisableVertexAttribArray 1)))
       (send this swap-gl-buffers))
 
-    (will-register video-canvas%-executor this video-canvas%-final)
-    ))
+    (will-register video-canvas%-executor this video-canvas%-final)))
 
 (define (video-canvas%-final this)
   (send this with-gl-context
@@ -182,6 +192,63 @@
       (will-execute video-canvas%-executor)
       (loop)))))
 
+;; Handles the audio buffer for the video canvas
+;; Based on the portaudio library.
+(define audio-buffer%
+  (class object%
+    (super-new)
+    (define buff (make-async-channel))
+    (define curr-frame #f)
+    (define sample-offset 0)
+    (define frame-size #f)
+
+    ;; Add a frame to the buffer queue
+    (define/public (add-frame frame)
+      (async-channel-put buff frame))
+
+    ;; Read the next frame from the queue, discarding
+    ;;   the old current-frame if it exists.
+    ;; Optionally block until the next frame comes in.
+    ;; Only sets the current frame to #f if block is set to #f.
+    ;; Boolean -> (void)
+    (define/public (read-frame [block #t])
+      (when curr-frame
+        (av-frame-free curr-frame))
+      (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
+      (set! frame-size
+            (and curr-frame
+                 (av-frame-nb-samples curr-frame)))
+      (set! sample-offset 0))
+
+    ;; UNSAFE METHOD
+    ;; Feed `count` samples into the `buffer` given.
+    ;; This procedure usesee unsafe ffi calls!
+    ;; s16vector nonnegative-number -> Void
+    (define/public (feed-samples! buffer count [block #t])
+      (let/ec return
+        (let loop ([pos 0])
+          (when (< pos count)
+            (when (or (not frame-size)
+                      (not sample-offset)
+                      (= (- frame-size sample-offset) 0)) ; <-- (= samples-left 0)
+              (read-frame block))
+            (unless curr-frame
+              (return))
+            (define samples-left (- frame-size sample-offset))
+            (define samples-to-get (min samples-left count))
+            #;
+            (memcpy (av-frame-extended-data curr-frame)
+                    sample-offset
+                    buffer
+                    pos
+                    samples-to-get
+                    _int16)
+            (set! sample-offset (+ sample-offset samples-to-get))
+            (unless (= samples-to-get count)
+              (read-frame block)
+              (loop (+ pos samples-to-get)))))
+        (void)))))
+
 ;; Similar to the Video Renderer, however adds `set-canvas` method for Video
 ;; to render to a canvas rather than a file.
 (define video-canvas-render-mixin
@@ -189,10 +256,12 @@
     (super-new)
     (inherit-field stop-writing-flag stop-writing-semaphore)
     (define canvas #f)
+    (define audio-buffer (new audio-buffer%))
     (define/override (setup rs)
       (super setup (struct-copy render-settings rs
                                 [pix-fmt 'rgb24]
                                 [sample-fmt 's16]
+                                [sample-rate 44100]
                                 [format 'raw])))
     (define/public (set-canvas c)
       (set! canvas c))
@@ -200,9 +269,22 @@
       (λ (mode obj)
         (match obj
           [(struct* codec-obj ([codec-context ctx]
-                               [buffer-context buff-ctx]))
-           (match mode
-             ['write
+                               [buffer-context buff-ctx]
+                               [type type]))
+           (match* (type mode)
+             [('audio 'open)
+              (stream-play/unsafe (λ (buff count)
+                                    (send audio-buffer feed-samples! buff count #f))
+                                  0.2
+                                  44100)]
+             [('audio 'write)
+              (let loop ()
+                (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
+                                [exn:ffmpeg:eof? (λ (e) eof)])
+                  (define out-frame (av-buffersink-get-frame buff-ctx))
+                  (send audio-buffer add-frame out-frame)
+                  (loop)))]
+             [('video 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
@@ -226,4 +308,4 @@
                   (when (call-with-semaphore stop-writing-semaphore
                                              (λ () (eq? stop-writing-flag 'running)))
                     (loop))))]
-             [_ (void)])])))))
+             [(_ _) (void)])])))))

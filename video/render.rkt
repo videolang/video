@@ -599,7 +599,8 @@
     ;; This method sould be run in its own thread
     (define/public (write-output)
       (define threads
-        (for/list ([output-bundle (in-list output-bundles)])
+        (for/list ([output-bundle (in-list output-bundles)]
+                   [index (in-naturals)])
           (thread
            (λ ()
              (define proc (write-output-callback-constructor #:render-status current-render-status))
