@@ -239,6 +239,10 @@
 
 ;; ===================================================================================================
 
+(define _ff-decode-error-flags
+  (_bitmask `(invalid-bistream
+              missing-reference)))
+
 (define _sws-flags
   (_bitmask `(fast-bilinear
               bilinear
@@ -366,6 +370,11 @@
               dont-strdup-val
               dont-overwrite
               append)))
+
+(define _av-frame-flags
+  (_bitmask `(corrupt
+              discard = 4)
+            _int))
 
 (define _avfilter-flags
   (_bitmask `(dynamic-inputs
@@ -1084,9 +1093,43 @@
            bt2020-cl
            smpte2085)))
 
-(define _avcolor-transfer-characteristic _fixint)
-(define _avchroma-location _fixint)
-(define _avfield-order _fixint)
+(define _avcolor-transfer-characteristic
+  (_enum '(reserved0 = 0
+           bt709
+           unspecified
+           reserved
+           gamma22
+           gamma28
+           smpte170m
+           smpte240m
+           linear
+           log
+           log-sqrt
+           iec61966-2-4
+           bt1361-ecg
+           iec61966-2-1
+           bt2020-10
+           bt2020-12
+           smpte2048
+           smpte428
+           arib-std-b67)))
+
+(define _avchroma-location
+  (_enum '(unspecified = 0
+           left
+           center
+           topleft
+           top
+           bottomleft
+           bottom)))
+
+(define _avfield-order
+  (_enum '(unknown
+           progressive
+           tt
+           bb
+           tb
+           bt)))
 
 (define _avsample-format
   (_enum '(none = -1
@@ -1745,7 +1788,45 @@
    [key-frame _bool]
    [pict-type _avpicture-type]
    [sample-aspect-ration _avrational]
-   [pts _int64]))
+   [pts _int64]
+   [pkt-pts _int64] ;; DEP AVUTIL 56
+   [pkt-dts _int64]
+   [coded-picture-number _int]
+   [display-picture-number _int]
+   [quality _int]
+   [opaque _pointer]
+   [error (_array _uint64 AV-NUM-DATA-POINTERS)] ;; DEP AVUTIL 56
+   [repeate-pict _int]
+   [interlaced-frame _int]
+   [top-field-first _int]
+   [palette-has-changed _int]
+   [reordered-opaque _int64]
+   [sample-rate _int]
+   [channel-layout _uint64]
+   [buf (_array _pointer AV-NUM-DATA-POINTERS)]
+   [extended-buf _pointer]
+   [nb-extended-buf _int]
+   [side-data _pointer]
+   [nb-side-data _int]
+   [flags _av-frame-flags]
+   [color-range _avcolor-range]
+   [color-primaries _avcolor-primaries]
+   [color-trc _avcolor-transfer-characteristic]
+   [color-space _avcolor-space]
+   [chroma-location _avchroma-location]
+   [best-effort-timestamp _int64]
+   [pkt-pos _int64]
+   [pkt-duration _int64]
+   [metadata _pointer]
+   [decode-error-flags _ff-decode-error-flags]
+   [channels _int]
+   [pkt-size _int]
+   [qscale-table _int8] ;; DEP AVUTIL 56
+   [qstride _int] ;; DEP AVUTIL 56
+   [qscale-type _int] ;; DEP AVUTIL 56
+   [qp-table-ref _pointer] ;; DEP AVUTIL 56
+   [hw-frames-ctx _pointer]
+   [opaque-ref _pointer]))
 (define (av-frame-format/video frame)
   (cast (av-frame-format frame) _int _avpixel-format))
 (define (set-av-frame-format/video! frame format)
