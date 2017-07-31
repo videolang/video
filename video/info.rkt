@@ -29,5 +29,4 @@
 
 (define test-omit-paths
   '("private/examples.rkt"
-    "private/packetqueue.rkt"
     "tests/player.rkt"))

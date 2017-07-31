@@ -25,8 +25,7 @@
          ffi/unsafe/define
          ffi/unsafe/global
          portaudio
-         "ffmpeg.rkt"
-         "threading.rkt")
+         "ffmpeg.rkt")
 
 (define video-key #"VIDEO-FFMPEG-INIT")
 

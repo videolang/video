@@ -235,13 +235,19 @@
             (unless curr-frame
               (return))
             (define samples-left (- frame-size sample-offset))
+            (when (= samples-left 0)
+              (return))
             (define samples-to-get (min samples-left count))
+            ;(displayln samples-left)
+            ;(displayln count)
+            ;(displayln samples-to-get)
+            ;(newline)
             #;
             (memcpy (av-frame-extended-data curr-frame)
                     sample-offset
                     buffer
                     pos
-                    samples-to-get
+                    (* 2 samples-to-get)
                     _int16)
             (set! sample-offset (+ sample-offset samples-to-get))
             (unless (= samples-to-get count)

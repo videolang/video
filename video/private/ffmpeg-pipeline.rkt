@@ -37,9 +37,7 @@
          racket/math
          graph
          "init.rkt"
-         "packetqueue.rkt"
-         "ffmpeg.rkt"
-         "threading.rkt")
+         "ffmpeg.rkt")
 (provide (all-defined-out))
 
 (define DEFAULT-WIDTH 1920)
@@ -670,78 +668,6 @@
       (loop)))
   (send mux write-trailer)
   (send mux close))
-
-;; ===================================================================================================
-
-(struct queue-callback-data (queue
-                             codec-obj
-                             callback-data)
-  #:mutable)
-(define (mk-queue-callback-data #:queue q
-                                #:codec-obj co
-                                #:callback-data cd)
-        (queue-callback-data q co cd))
-
-(define ((queue-stream #:passthrough-proc [passthrough-proc #f]) mode obj packet)
-  (match obj
-    [(struct* codec-obj ([callback-data callback-data]
-                         [codec-parameters codec-parameters]
-                         [flags flags]))
-     (match mode
-       ['init (when passthrough-proc
-                (passthrough-proc mode obj packet))
-              (set-codec-obj-callback-data!
-               obj (mk-queue-callback-data #:queue (mk-packetqueue)
-                                           #:codec-obj obj
-                                           #:callback-data (codec-obj-callback-data obj)))]
-       ['loop (define packet* (if passthrough-proc
-                                  (passthrough-proc mode obj packet)
-                                  packet))
-              (packetqueue-put (queue-callback-data-queue callback-data) packet*)]
-       ['close (when passthrough-proc
-                 (passthrough-proc mode obj packet))
-               (packetqueue-put (queue-callback-data-queue callback-data) eof)
-               (set-codec-obj-flags!
-                obj (set-add flags 'no-close-context))])]))
-
-(define ((dequeue-stream #:passthrough-proc [passthrough-proc #f]) mode obj)
-  (match obj
-    [(struct* codec-obj ([callback-data callback-data]))
-     (match callback-data
-       [(struct* queue-callback-data ([codec-obj old-obj]
-                                      [queue queue]))
-        (define old-context (codec-obj-codec-context old-obj))
-        (match mode
-          ['init (when passthrough-proc
-                   (passthrough-proc mode obj #f old-context))]
-          ['open (when passthrough-proc
-                   (passthrough-proc mode obj #f old-context))]
-          ['write
-           (with-handlers ([exn:ffmpeg:again? (λ (e) '())])
-             (define data (packetqueue-get queue))
-             (if passthrough-proc
-                 (passthrough-proc mode obj data old-context)
-                 data))]
-          ['close (when passthrough-proc
-                    (passthrough-proc mode obj #f old-context))
-                  (define ctx (codec-obj-codec-context (queue-callback-data-codec-obj callback-data)))
-                  (avcodec-close ctx)])])]))
-
-(define (queue-link in-bundle-maker
-                    out-bundle-maker
-                    #:in-callback [in-callback #f]
-                    #:out-callback [out-callback #f])
-  (define in-bundle (in-bundle-maker))
-  (define in-thread
-    ;(thread (λ ()
-    (demux-stream in-bundle #:by-index-callback (queue-stream #:passthrough-proc in-callback)));))
-  (define out-bundle (out-bundle-maker in-bundle))
-  (define out-thread
-    ;(thread (λ ()
-    (mux-stream out-bundle #:by-index-callback (dequeue-stream #:passthrough-proc out-callback)));))
-  (void)
-  ;(thread-wait in-thread)
-  #;(thread-wait out-thread))
 
 ;; ===================================================================================================
 
