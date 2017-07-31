@@ -1250,6 +1250,14 @@
 
 ;; ===================================================================================================
 
+(define-cstruct _av-dictionary-entry
+  ([key _string]
+   [value _string]))
+
+(define-cstruct _av-dictionary
+  ([count _int]
+   [elems _av-dictionary-entry-pointer]))
+
 (define-cstruct _avclass
   ([class-name _string]
    [item-name _fpointer]
@@ -1868,14 +1876,6 @@
 
 (define-cpointer-type _sws-context-pointer)
 (define-cpointer-type _swr-context-pointer)
-
-(define-cstruct _av-dictionary-entry
-  ([key _string]
-   [value _string]))
-
-(define-cstruct _av-dictionary
-  ([count _int]
-   [elems _av-dictionary-entry-pointer]))
 
 (define-cpointer-type _avfilter-pad-pointer)
 
