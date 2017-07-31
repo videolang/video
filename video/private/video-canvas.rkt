@@ -33,6 +33,7 @@
          "../render.rkt"
          (submod "../render.rkt" render-fields)
          "ffmpeg.rkt"
+         "init.rkt"
          (except-in "ffmpeg-pipeline.rkt" render))
 
 ;; These fields are private to this module.
@@ -215,6 +216,8 @@
       (when curr-frame
         (av-frame-free curr-frame))
       (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
+      (unless curr-frame
+        (log-video-debug "Audiobuffer: No frame currently in queue"))
       (set! frame-size
             (and curr-frame
                  (av-frame-nb-samples curr-frame)))
@@ -227,30 +230,32 @@
     (define/public (feed-samples! buffer count [block #t])
       (let/ec return
         (let loop ([pos 0])
-          (when (< pos count)
+          (define needed-samples (- count pos))
+          (unless (<= needed-samples 0)
             (when (or (not frame-size)
                       (not sample-offset)
                       (= (- frame-size sample-offset) 0)) ; <-- (= samples-left 0)
               (read-frame block))
             (unless curr-frame
+              (memset buffer
+                      pos
+                      0
+                      needed-samples
+                      _int32)
+              (set! sample-offset #f)
               (return))
             (define samples-left (- frame-size sample-offset))
             (when (= samples-left 0)
               (return))
-            (define samples-to-get (min samples-left count))
-            ;(displayln samples-left)
-            ;(displayln count)
-            ;(displayln samples-to-get)
-            ;(newline)
-            #;
-            (memcpy (av-frame-extended-data curr-frame)
-                    sample-offset
-                    buffer
+            (define samples-to-get (min samples-left needed-samples))
+            (memcpy buffer
                     pos
-                    (* 2 samples-to-get)
-                    _int16)
+                    (ptr-ref (av-frame-extended-data curr-frame) _pointer 0)
+                    sample-offset
+                    samples-to-get
+                    _int32)
             (set! sample-offset (+ sample-offset samples-to-get))
-            (unless (= samples-to-get count)
+            (unless (= samples-to-get needed-samples)
               (read-frame block)
               (loop (+ pos samples-to-get)))))
         (void)))))
@@ -268,6 +273,7 @@
                                 [pix-fmt 'rgb24]
                                 [sample-fmt 's16]
                                 [sample-rate 44100]
+                                [channel-layout 'stereo]
                                 [format 'raw])))
     (define/public (set-canvas c)
       (set! canvas c))
@@ -281,7 +287,7 @@
              [('audio 'open)
               (stream-play/unsafe (λ (buff count)
                                     (send audio-buffer feed-samples! buff count #f))
-                                  0.2
+                                  0.1
                                   44100)]
              [('audio 'write)
               (let loop ()
