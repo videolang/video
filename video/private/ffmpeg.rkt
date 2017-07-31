@@ -1191,6 +1191,29 @@
                                   text
                                   ass)))
 
+(define _av-frame-side-data-type (_enum '(panscale
+                                          a53-cc
+                                          stereo3d
+                                          matrixencoding
+                                          downmix-info
+                                          replayagain
+                                          displaymatrix
+                                          afd
+                                          motion-vectors
+                                          skip-samples
+                                          audio-service-type
+                                          mastering-display-metadata
+                                          gop-timecode
+                                          spherical)))
+
+(define _av-active-format-description (_enum '(same = 8
+                                               4-3
+                                               16-9
+                                               14-9
+                                               4-3-sp-14-9
+                                               16-9-sp-14-9
+                                               sp-4)))
+
 (define _avclass-category (_enum '(na = 0
                                    input
                                    output
@@ -1775,6 +1798,13 @@
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]))
 
+(define-cstruct _av-frame-side-data
+  ([type _av-frame-side-data-type]
+   [data _pointer]
+   [size _int]
+   [metadata _av-dictionary-pointer]
+   [buf _avbuffer-ref-pointer]))
+
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
 (define-cstruct _av-frame
@@ -1806,7 +1836,7 @@
    [buf (_array _pointer AV-NUM-DATA-POINTERS)]
    [extended-buf _pointer]
    [nb-extended-buf _int]
-   [side-data _pointer]
+   [side-data* _av-frame-side-data-pointer]
    [nb-side-data _int]
    [flags _av-frame-flags]
    [color-range _avcolor-range]
