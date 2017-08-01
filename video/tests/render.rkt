@@ -19,9 +19,9 @@
 (require racket/file
          "../render.rkt"
          "../base.rkt"
-         "../private/utils.rkt")
+         "../private/utils.rkt"
+         "../private/debug-mixin.rkt")
 
-;; TODO, these tests!!!
 (define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 
 (define the-clip
@@ -32,3 +32,7 @@
 
 (render the-clip
         (make-temporary-file "vidtest~a.mp4"))
+
+(render the-clip
+        (make-temporary-file "vidtest~a.mp4")
+        #:render-mixin cmdline-mixin)

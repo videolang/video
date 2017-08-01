@@ -1356,22 +1356,22 @@
                         (append
                          (if (dict-has-key? stream-table 'video)
                              (list (format "[~a:v]copy[~a]"
+                                           index
                                            (codec-obj-callback-data
-                                            (first (dict-ref stream-table 'video)))
-                                           index))
+                                            (first (dict-ref stream-table 'video)))))
                              (list))
                          (if (dict-has-key? stream-table 'audio)
                              (list (format "[~a:a]anull[~a]"
+                                           index
                                            (codec-obj-callback-data
-                                            (first (dict-ref stream-table 'audio)))
-                                           index))
+                                            (first (dict-ref stream-table 'audio)))))
                              (list)))
                         ";")
                        pre-str-list))
            (list "-i" file)])))
      (list
       "-filter_complex"
-      (string-append (string-join pre-str-list) graph)
+      (string-append (string-join pre-str-list) ";" graph)
       "-map"
       (format "[~a]" (codec-obj-callback-data (first (dict-ref (stream-bundle-stream-table out-bundle)
                                                                
@@ -1381,7 +1381,9 @@
                                                                'audio))))
       (stream-bundle-file out-bundle))))
   (log-video-debug "ffmpeg command run: ~a" cmd)
-  (apply system* cmd))
+  (if ffmpeg
+      (apply system* cmd)
+      (log-video-debug "ffmpeg command line tool not installed, no command ran")))
 
 ;; ===================================================================================================
 
