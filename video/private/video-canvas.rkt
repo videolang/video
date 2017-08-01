@@ -291,7 +291,7 @@
                                            (send audio-buffer feed-samples! buff count #f))
                                          0.1
                                          44100)
-                [(list status stop)
+                [(list stream-time stats stop)
                  (set! stop-audio stop)])]
              [('audio 'write)
               (let loop ()
@@ -301,7 +301,8 @@
                   (send audio-buffer add-frame out-frame)
                   (loop)))]
              [('audio 'close)
-              (stop-audio)]
+              (when stop-audio
+                (stop-audio))]
              [('video 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
