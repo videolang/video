@@ -119,8 +119,8 @@
     (values (lookup-errno err) err)))
 
 (define (convert-err err)
-  (cond [(dict-has-key? int->errno-table err)
-         (symbol->string (dict-ref int->errno-table err))]
+  (cond [(dict-has-key? int->errno-table (abs err))
+         (symbol->string (dict-ref int->errno-table (abs err)))]
         [else
          (define ret (integer->integer-bytes (abs err) 4 #t))
          (with-handlers ([exn:fail? (λ (e) ret)])
@@ -2064,13 +2064,14 @@
   (define frame* (or frame (av-packet-alloc)))
   (av-read-frame ctx frame*))
 (define-avformat av-seek-frame
-  (_fun _avformat-context-pointer _int _int64 _avseek-flags -> [ret : _int]
+  (_fun _avformat-context-pointer [idx : _int] [ts : _int64] _avseek-flags -> [ret : _int]
         -> (when (< ret 0)
-             (error 'av-seek-frame "~a : ~a" ret (convert-err ret)))))
-(define-avformat avformat-seek-file
-  (_fun _avformat-context-pointer _int _int64 _int64 _int64 _int -> [ret : _int]
-        -> (when (< ret 0)
-             (error 'avformat-seek-file "~a : ~a" ret (convert-err ret)))))
+             (error 'av-seek-frame "IDX:~a TS:~a : ~a : ~a" idx ts ret (convert-err ret)))))
+; XXX This is not yet part of the stable API (per the ffmpeg docs)
+;(define-avformat avformat-seek-file
+;  (_fun _avformat-context-pointer _int _int64 _int64 _int64 _int -> [ret : _int]
+;        -> (when (< ret 0)
+;             (error 'avformat-seek-file "~a : ~a" ret (convert-err ret)))))
 (define-avformat avformat-flush (_fun _avformat-context-pointer -> [ret : _int]
                              -> (when (< ret 0)
                                   (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))

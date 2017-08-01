@@ -332,7 +332,7 @@
                             index
                             (exact-floor (/ (max 0 (- start-offset 1))
                                             (avstream-time-base stream)))
-                            '()))])))
+                            '(backwards)))])))
 
     ;; #t - More to read
     ;; #f - Done reading

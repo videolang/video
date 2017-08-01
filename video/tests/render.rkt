@@ -22,28 +22,13 @@
          "../private/utils.rkt")
 
 ;; TODO, these tests!!!
-#|
 (define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 
 (define the-clip
   (playlist
    (clip vid-mp4
-         #:start 50
-         #:end 100)))
+         #:properties (hash "start" 50
+                            "end" 100))))
 
 (render the-clip
-        (make-temporary-file "vidtest~a" 'directory)
-        #:render-mixin mp4:render-mixin)
-
-(render the-clip
-        (make-temporary-file "vidtest~a" 'directory)
-        #:render-mixin png:render-mixin)
-
-(render the-clip
-        (make-temporary-file "vidtest~a" 'directory)
-        #:render-mixin jpg:render-mixin)
-
-(render the-clip
-        (make-temporary-file "vidtest~a" 'directory)
-        #:render-mixin xml:render-mixin)
-|#
+        (make-temporary-file "vidtest~a.mp4"))
