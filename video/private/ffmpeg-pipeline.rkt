@@ -1381,9 +1381,8 @@
                                                                'audio))))
       (stream-bundle-file out-bundle))))
   (log-video-debug "ffmpeg command run: ~a" cmd)
-  (if ffmpeg
-      (apply system* cmd)
-      (log-video-debug "ffmpeg command line tool not installed, no command ran")))
+  ;(apply system* cmd) <-- Uncomment to run
+  (log-video-debug "ffmpeg command line tool not ran"))
 
 ;; ===================================================================================================
 
