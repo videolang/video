@@ -28,7 +28,7 @@
          syntax/location
          (except-in pict frame blank)
          graph
-         "private/video.rkt"
+         (except-in "private/video.rkt" producer? transition?)
          "surface.rkt"
          (prefix-in core: "private/video.rkt")
          "units.rkt"
@@ -42,7 +42,7 @@
   ;;   (not quite sure what right interface for this function
   ;;   looks like yet)
   [multitrack (->* []
-                   [#:transitions (listof field-element?)
+                   [#:merges (listof field-element?)
                     #:properties (or/c (hash/c string? any/c) #f)
                     #:filters (or/c (listof filter?) #f)]
                    #:rest (listof any/c)
@@ -80,23 +80,20 @@
 
   ;; Creates a fading transition from a start to end clip
   [fade-transition (->transition []
-                                 [(and/c number? positive?)]
-                                 #:direction s/e)]
+                                 [(and/c number? positive?)])]
 
-  [overlay-transition (->transition [(and/c number? (>=/c 0))
-                                     (and/c number? (>=/c 0))]
-                                    [(or/c (and/c number? positive?) #f)
-                                     (or/c (and/c number? positive?) #f)]
-                                    #:direction t/b)]
+  [overlay-merge (->merge [(and/c number? (>=/c 0))
+                           (and/c number? (>=/c 0))]
+                          [(or/c (and/c number? positive?) #f)
+                           (or/c (and/c number? positive?) #f)])]
   
   ;; Creates a composite transition where the top track is
   ;;   placed above the bottom track
-  [composite-transition (->transition [(between/c 0 1)
-                                       (between/c 0 1)
-                                       (between/c 0 1)
-                                       (between/c 0 1)]
-                                       []
-                                       #:direction t/b)]
+  [composite-merge (->merge [(between/c 0 1)
+                             (between/c 0 1)
+                             (between/c 0 1)
+                             (between/c 0 1)]
+                            [])]
 
   #| TODO
   ;; Creates a swiping transition from a start clip to an
@@ -189,7 +186,7 @@
   (define width (dict-ref prop "width" #f))
   (define height (dict-ref prop "height" #f)))
 
-(define (multitrack #:transitions [transitions '()]
+(define (multitrack #:merges [transitions '()]
                     #:properties [prop #f]
                     #:filters [maybe-filters #f]
                     . tracks)
@@ -261,7 +258,6 @@
   (copy-video obj #:prop new-props))
 
 (define-transition (fade-transition [fade-length 1])
-  #:direction s/e
   #:properties (λ (prop)
                  (dict-set* (or prop (hash))
                             "pre-length" fade-length
@@ -366,8 +362,7 @@
                                              #:sinks ovr-b
                                              #:prop (hash "length" t-length))))
 
-(define-transition (overlay-transition x y [w #f] [h #f])
-  #:direction t/b
+(define-merge (overlay-merge x y [w #f] [h #f])
   #:track1-subgraph (λ (ctx t1) #f)
   #:track2-subgraph (λ (ctx t2) #f)
   #:combined-subgraph (λ (ctx t1 t2)
@@ -434,8 +429,7 @@
                                              #:sinks overlay)))
 
 
-(define-transition (composite-transition x1 y1 x2 y2)
-  #:direction t/b
+(define-merge (composite-merge x1 y1 x2 y2)
   #:track1-subgraph (λ (ctx t1) #f)
   #:track2-subgraph (λ (ctx t2) #f)
   #:combined-subgraph (λ (ctx t1 t2)

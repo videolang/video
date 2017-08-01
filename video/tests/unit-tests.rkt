@@ -51,7 +51,7 @@
 (check-producer g #:len +inf.0)
 (check-producer g1 #:len 1)
 
-(check-transition (composite-transition 0 0 3/4 3/4))
+(check-transition (composite-merge 0 0 3/4 3/4))
 ;(check-transition (swipe-transition #:direction 'up #:length 2)) ; TODO
 (check-transition (fade-transition 2))
 
@@ -66,7 +66,7 @@
 (check-producer
  (multitrack
   (image circ-png #:properties (hash "start" 0 "end" (/ (get-property b8 "length") 8)))
-  (composite-transition 0 0 3/4 3/4)
+  (composite-merge 0 0 3/4 3/4)
   b8
   #:properties (hash "start" 0 "end" 5))
  #:len 5)
@@ -134,24 +134,24 @@
 (check-producer
  (multitrack
   (clip vid-mp4)
-  (composite-transition 0 0 3/4 3/4)
+  (composite-merge 0 0 3/4 3/4)
   (image circ-png))
  #:len 83/15)
 
 (check-producer
  (multitrack
   (clip vid-mp4)
-  (composite-transition 0 0 1/2 1/2)
+  (composite-merge 0 0 1/2 1/2)
   (multitrack
    (image circ-png)
-   (composite-transition 0 1/2 1/2 1/2)
+   (composite-merge 0 1/2 1/2 1/2)
    (color "green")))
  #:len 83/15)
 
 (check-producer
  (multitrack
   (color "green" #:properties (hash "width" 10 "height" 20))
-  (composite-transition 0.5 0.5 0.25 0.25)
+  (composite-merge 0.5 0.5 0.25 0.25)
   (color "green" #:properties (hash "width" 10 "height" 20)))
  #:len +inf.0)
 
@@ -159,10 +159,10 @@
 (check-producer
  (multitrack
   circ-img vid-clip b g
-  #:transitions
-  (list (composite-transition 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
-        (composite-transition 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
-        (composite-transition 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
+  #:merges
+  (list (composite-merge 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
+        (composite-merge 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
+        (composite-merge 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
  #:len 83/15)
 
 
@@ -172,9 +172,9 @@
   (playlist a b
             #:transitions
             (list
-             (composite-transition 0 0 1/2 1/2
-                                   #:top a
-                                   #:bottom b))))
+             (composite-merge 0 0 1/2 1/2
+                              #:top a
+                              #:bottom b))))
 
 #| TODO, finish scale
 ;; filters
@@ -186,7 +186,7 @@
 (check-producer
  (multitrack
   rect-clip
-  (composite-transition
+  (composite-merge
    0
    (if (get-property rect-clip "bottom?") 1/2 0)
    1/2 1/2)
@@ -207,10 +207,10 @@
 ;; racketcon
 (define (make-speaker-slides-composite sp sl)
   (multitrack sp sl logo bg
-              #:transitions
-              (list (composite-transition 0 0 3/10 1 #:top sp #:bottom bg)
-                    (composite-transition 0 1/2 3/10 1 #:top logo #:bottom bg)
-                    (composite-transition 1/3 0 2/3 1 #:top sl #:bottom bg))))
+              #:merges
+              (list (composite-merge 0 0 3/10 1 #:top sp #:bottom bg)
+                    (composite-merge 0 1/2 3/10 1 #:top logo #:bottom bg)
+                    (composite-merge 1/3 0 2/3 1 #:top sl #:bottom bg))))
 (define logo (image circ-png))
 (define sp (blank 100))
 (define sl (blank 100))
@@ -323,7 +323,7 @@
 (let ()
   (define r (new render% [source (multitrack
                                   (clip vid-mp4)
-                                  (overlay-transition 0 0 100 100)
+                                  (overlay-merge 0 0 100 100)
                                   (image circ-png))]))
   (send r setup (make-render-settings)))
 

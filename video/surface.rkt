@@ -24,6 +24,7 @@
 (provide define-producer
          ->producer
          defproducer
+         producer?
 
          ;; Transitions define three procs:
          ;; track1-subgraph : Graph Node -> (U (vertex-subgraph #:source Graph
@@ -76,7 +77,18 @@
          define-transition
          ->transition
          deftransition
-         
+         transition?
+
+         ;; Merges have the same API as transitions. The only
+         ;;   diference is they have the keywords #:top #:bottom
+         ;;   rather than up/down
+         define-merge
+         ->merge
+         defmerge
+         merge?
+
+         ;; The following functions define videograph (and some filtergraph)
+         ;;   level primitives to use in transitions/mergers/filters.
          node-counts
          node-props
          filter-node?

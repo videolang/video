@@ -1,3 +1,10 @@
+vTBD
+Date: TBD
+Commit#: master
+* Audio works in live preview
+* Introduced concept of `merge` for multitrack, replaces transition
+* Transitions now only appear in playlists.
+
 v0.2-alpha.2
 Date: 2017-07-30
 Commit#: 44ee039ab2785de24c7b957dc9084f1e5d509239

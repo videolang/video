@@ -94,14 +94,12 @@ currently documented.
 
 @section{Bundled Transitions}
 
-@deftransition[(fade-transition)
-               #:direction s/e]
+@deftransition[(fade-transition)]
 
-@deftransition[(composite-transition [x (or/c (between/c 0 1) pixel?)]
-                                     [y (or/c (between/c 0 1) pixel?)]
-                                     [width (or/c (between/c 0 1) pixel?)]
-                                     [height (or/c (between/c 0 1) pixel?)])
-               #:direction t/b]{
+@defmerge[(composite-merge [x (or/c (between/c 0 1) pixel?)]
+                           [y (or/c (between/c 0 1) pixel?)]
+                           [width (or/c (between/c 0 1) pixel?)]
+                           [height (or/c (between/c 0 1) pixel?)])]{
                                 
  The @racket[x] and @racket[y] coordinates specify the top-left point of
  overlayed image. If a @racket[pixel?] struct is provided

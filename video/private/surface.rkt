@@ -22,6 +22,7 @@
          racket/dict
          (only-in scribble/manual defproc)
          "video.rkt"
+         (prefix-in internal: "video.rkt")
          (for-label "init.rkt"
                     "../core.rkt")
          (for-syntax syntax/parse
@@ -75,13 +76,15 @@
          producer?
          content ...)]))
 
+(define (producer? x)
+  (internal:producer? x)) 
+
 ;; Transitions =======================================================================================
 
 (define-syntax (define-transition stx)
   (syntax-parse stx
     [(_ f:function-header
-        (~or (~optional (~seq #:direction direction))
-             (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
+        (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc #'(λ (x) (make-video-subgraph))]))
@@ -93,11 +96,7 @@
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
         body ...)
-     #:with arg1 #'[p1 #f]
-     #:with arg2 #'[p2 #f]
-     #`(define (f.name #,@(match (syntax-e (attribute direction))
-                            [(or 't/b 'top/bottom) #'(#:top arg2 #:bottom arg1)]
-                            [(or 's/e 'start/end _) #'(#:start arg2 #:end arg1)])
+     #`(define (f.name #:start [p2 #f] #:end [p1 #f]
                        #:properties [user-prop (hash)]
                        . f.args)
          body ...
@@ -115,27 +114,81 @@
   (syntax-parse stx
     [(_ [required ...]
         [optional ...]
-        (~optional (~seq #:direction direction))
         (~optional ret? #:defaults ([ret? #'any/c])))
      #`(->* [required ...]
             [#:properties (or/c dict? #f)
-             #,@(match (syntax-e (attribute direction))
-                  [(or 't/b 'top/bottom) #'(#:top (or/c any/c #f) #:bottom (or/c any/c #f))]
-                  [(or 's/e 'start/end _) #'(#:start (or/c any/c #f) #:end (or/c any/c #f))])
+             #:start (or/c any/c #f)
+             #:end (or/c any/c #f)
              optional ...]
             (and/c (or/c transition? field-element?) ret?))]))
 
 (define-syntax (deftransition stx)
   (syntax-parse stx
     [(_ (id:id args ...)
-        (~optional (~seq #:direction direction))
         body ...)
      #`(defproc (id args ...
                     [#:length length (or/c nonnegative-integer? #f) #f]
-                    #,@(match (syntax-e (attribute direction))
-                         [(or 't/b 'top/bottom) #'([#:top top (or/c any/c #f) #f]
-                                                   [#:bottom bottom (or/c any/c #f) #f])]
-                         [(or 's/e 'start/end _) #'([#:start start (or/c any/c #f) #f]
-                                                    [#:end end (or/c any/c #f) #f])]))
+                    [#:start start (or/c any/c #f) #f]
+                    [#:end end (or/c any/c #f) #f])
          (or/c transition? field-element?)
          body ...)]))
+
+(define (transition? x)
+  (internal:transition? x))
+
+;; Merge =============================================================================================
+
+(define-syntax (define-merge stx)
+  (syntax-parse stx
+    [(_ f:function-header
+        (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
+             (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
+             (~optional (~seq #:track1-subgraph track1-subgraph-proc)
+                        #:defaults ([track1-subgraph-proc #'(λ (x) (make-video-subgraph))]))
+             (~optional (~seq #:track2-subgraph track2-subgraph-proc)
+                        #:defaults ([track2-subgraph-proc #'(λ (x) (make-video-subgraph))]))
+             (~optional (~seq #:combined-subgraph combined-subgraph-proc)
+                        #:defaults ([combined-subgraph-proc #'(λ (x y) (make-video-subgraph))]))
+             (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
+             (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
+        ...
+        body ...)
+     #`(define (f.name #:top [p2 #f] #:bottom [p1 #f]
+                       #:properties [user-prop (hash)]
+                       . f.args)
+         body ...
+         (define trans
+           (make-transition
+            #:track1-subgraph track1-subgraph-proc
+            #:track2-subgraph track2-subgraph-proc
+            #:combined-subgraph combined-subgraph-proc
+            #:prop (properties-proc user-prop)))
+         (if (and p1 p2)
+             (make-field-element #:element trans #:track p1 #:track-2 p2)
+             trans))]))
+
+(define-syntax (->merge stx)
+  (syntax-parse stx
+    [(_ [required ...]
+        [optional ...]
+        (~optional ret? #:defaults ([ret? #'any/c])))
+     #`(->* [required ...]
+            [#:properties (or/c dict? #f)
+             #:top (or/c any/c #f)
+             #:bottom (or/c any/c #f)
+             optional ...]
+            (and/c (or/c transition? field-element?) ret?))]))
+
+(define-syntax (defmerge stx)
+  (syntax-parse stx
+    [(_ (id:id args ...)
+        body ...)
+     #`(defproc (id args ...
+                    [#:length length (or/c nonnegative-integer? #f) #f]
+                    [#:top top (or/c any/c #f) #f]
+                    [#:bottom bottom (or/c any/c #f) #f])
+         (or/c merge? field-element?)
+         body ...)]))
+
+(define (merge? x)
+  (internal:transition? x))
