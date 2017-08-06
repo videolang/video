@@ -24,7 +24,6 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
-         portaudio
          "ffmpeg.rkt")
 
 (define video-key #"VIDEO-FFMPEG-INIT")
@@ -57,7 +56,18 @@
    (avfilter-register-all)
    (avformat-network-init)
    ;(av-log-set-callback callback-proc)
-   (pa-maybe-initialize)))
+   ))
 
 ;; Logging messages can be sent here.
 (define-logger video)
+
+;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
+;; require it in situations where its actually needed.
+(module* portaudio racket
+  (require ffi/unsafe
+           ffi/unsafe/global
+           portaudio)
+  
+  (define portaudio-key #"VIDEO-PORTAUDIO-INIT")
+  (unless (register-process-global portaudio-key (cast 1 _racket _pointer))
+    (pa-maybe-initialize)))

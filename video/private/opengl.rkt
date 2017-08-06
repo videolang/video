@@ -78,7 +78,9 @@
 (define gl-get-proc-address
   (match (system-type 'os)
     ['windows
-     (define-internal wglGetProcAddress (_fun _string -> _pointer))
+     (define libgl (ffi-lib "opengl32"))
+     (define-ffi-definer define-libgl libgl)
+     (define-libgl wglGetProcAddress (_fun _string -> _pointer))
      (define-internal LoadLibraryA (_fun _string -> _intptr))
      (define-internal GetProcAddress (_fun _intptr _string -> _pointer))
 

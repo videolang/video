@@ -34,6 +34,7 @@
          (submod "../render.rkt" render-fields)
          "ffmpeg.rkt"
          "init.rkt"
+         (submod "init.rkt" portaudio)
          (except-in "ffmpeg-pipeline.rkt" render))
 
 ;; These fields are private to this module.
