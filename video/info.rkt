@@ -29,4 +29,5 @@
 
 (define test-omit-paths
   '("private/examples.rkt"
+    "private/opengl.rkt"
     "tests/player.rkt"))
