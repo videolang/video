@@ -16,14 +16,38 @@
    limitations under the License.
 |#
 
+;; This module provides several low-level opengl calls. It is useful because the
+;; sgl bindings provided with Racket assume the deprecated fixed-function pipeline,
+;; while the opengl package is set up assuming a few old functions (glGetString)
+;; are provided.
+;;
+;; We only seem to need this module in Windows
+;;
+;; Finally, this module is NOT a complete (or anywhere near complete)
+;; set of opengl bindings. Rather, it is only enough to run the video-canvas.rkt
+;; module in this same folder.
+
+(provide (all-defined-out))
 (require racket/match
+         racket/vector
          ffi/unsafe
+         ffi/vector
          ffi/unsafe/define
          ffi/unsafe/define/conventions
          (for-syntax syntax/parse
                      racket/base))
 
 (define GL-TEXTURE-2D #x0DE1)
+(define GL-ALPHA #x1906)
+(define GL-RGB #x1907)
+(define GL-RGBA #x1908)
+(define GL-BYTE #x1400)
+(define GL-UNSIGNED-BYTE #x1401)
+(define GL-SHORT #x1402)
+(define GL-UNSIGNED-SHORT #x1403)
+(define GL-FLOAT #x1406)
+(define GL-FIXED #x140C)
+
 (define GL-MAJOR-VERSION #x821B)
 (define GL-MINOR-VERSION #x821C)
 
@@ -35,6 +59,7 @@
 (define _gl-uint _uint32)
 (define _gl-sizei _uint32)
 (define _gl-sizei-ptr _intptr)
+(define _gl-pointer _pointer)
 
 (define-ffi-definer define-internal #f)
 
@@ -66,8 +91,8 @@
        (cast (glXGetProcAddress str) _pointer type))]
     ['macosx
      (define gl-lib 
-       (ffi-lib "/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL"))
-       ;(ffi-lib "/System/Library/Frameworks/OpenGL.framework/OpenGL"))
+       ;(ffi-lib "/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL"))
+       (ffi-lib "/System/Library/Frameworks/OpenGL.framework/OpenGL"))
      (λ (str type)
        (get-ffi-obj str gl-lib type))]))
 
@@ -86,7 +111,14 @@
 (define-gl glBufferData (_fun _gl-enum _gl-sizei-ptr _pointer _gl-enum -> _void))
 (define-gl glGenTextures (_fun _gl-enum [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindTexture (_fun _gl-uint -> _void))
-
+(define-gl glTexImage2D
+  (_fun _gl-enum _gl-int _gl-int _gl-sizei _gl-sizei _gl-int _gl-enum _gl-enum _gl-pointer -> _void))
+(define-gl glTexParameteri (_fun _gl-enum _gl-enum _gl-int -> _void))
+(define-gl glCreateShader (_fun _gl-enum -> _gl-uint))
+(define (glShaderSource type sources)
+  (define-gl glShaderSource (_fun _gl-uint _gl-sizei (_vector i _string) _s32vector -> _void))
+  (glShaderSource type (vector-length sources) sources (vector-map string-length sources)))
+                                
 #|
 (require racket/gui/base
          racket/class)
