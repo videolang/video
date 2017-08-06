@@ -21,6 +21,7 @@
          racket/file
          syntax/location
          racket/class
+         racket/port
          "test-utils.rkt"
          (prefix-in debug: "../private/video.rkt")
          "../render.rkt"
@@ -319,6 +320,18 @@
                                   (fade-transition 10)
                                   (clip vid-mp4))]))
   (send r setup (make-render-settings)))
+
+(render (playlist (image circ-png #:properties (hash "length" 100))
+                  (fade-transition 10)
+                  (clip vid-mp4))
+        (make-temporary-file "~a.mp4"))
+
+#;
+(parameterize ([current-output-port (open-output-nowhere)])
+  (render/pretty (multitrack (image circ-png)
+                             (overlay-merge 10 10 50 50)
+                             (clip vid-mp4))
+                 (make-temporary-file "~a.mp4")))
 
 (let ()
   (define r (new render% [source (multitrack
