@@ -55,9 +55,11 @@
              (GetProcAddress opengl-module str)
              maybe-addr))
        (cast addr _pointer type))]
-    ['linux
-     (define-internal glXGetProcAddress (_fun _string -> _pointer))
-     (define-internal glXGetProcAddressARB (_fun _string -> _pointer))
+    ['unix
+     (define lib-gl (ffi-lib "libGL" '("1" "")))
+     (define-ffi-definer define-libgl lib-gl)
+     (define-libgl glXGetProcAddress (_fun _string -> _pointer))
+     (define-libgl glXGetProcAddressARB (_fun _string -> _pointer))
      (λ (str type)
        (cast (glXGetProcAddress str) _pointer type))]
     ['macosx
