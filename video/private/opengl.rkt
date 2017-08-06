@@ -23,6 +23,7 @@
          (for-syntax syntax/parse
                      racket/base))
 
+(define GL-TEXTURE-2D #x0DE1)
 (define GL-MAJOR-VERSION #x821B)
 (define GL-MINOR-VERSION #x821C)
 
@@ -33,6 +34,7 @@
 (define _gl-short _int16)
 (define _gl-uint _uint32)
 (define _gl-sizei _uint32)
+(define _gl-sizei-ptr _intptr)
 
 (define-ffi-definer define-internal #f)
 
@@ -74,8 +76,13 @@
 (define-gl glGetIntegerv (_fun _gl-enum [out : (_ptr o _gl-int)] -> _void -> out))
 (define-gl glGetInt64  (_fun _gl-enum [out : (_ptr o _gl-int64)] -> _void -> out))
 (define-gl glGetError (_fun -> _gl-enum))
-(define-gl glGenVertexArrays (_fun _gl-sizei _pointer -> _void))
+(define-gl glGenVertexArrays (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindVertexArray (_fun _gl-uint -> _void))
+(define-gl glGenBuffers (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
+(define-gl glBindBuffers (_fun _gl-uint -> _void))
+(define-gl glBufferData (_fun _gl-enum _gl-sizei-ptr _pointer _gl-enum -> _void))
+(define-gl glGenTextures (_fun _gl-enum [out : (_ptr o _gl-uint)] -> _void -> out))
+(define-gl glBindTextures (_fun _gl-uint -> void))
 
 #|
 (require racket/gui/base
