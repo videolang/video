@@ -4,6 +4,7 @@ Video is a DSL for describing videos. It is still very much in development and b
 
 [![Build Status](https://travis-ci.org/videolang/video.svg?branch=master)](https://travis-ci.org/videolang/video)
 [![Coverage Status](https://coveralls.io/repos/github/videolang/video/badge.svg?branch=master)](https://coveralls.io/github/videolang/video?branch=master)
+[![Project Stats](https://www.openhub.net/p/video/widgets/project_thin_badge.gif)](https://www.openhub.net/p/video)
 
 # Website
 
