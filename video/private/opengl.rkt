@@ -65,8 +65,11 @@
      (λ (str type)
        (cast (glXGetProcAddress str) _pointer type))]
     ['macosx
+     (define gl-lib 
+       (ffi-lib "/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL"))
+       ;(ffi-lib "/System/Library/Frameworks/OpenGL.framework/OpenGL"))
      (λ (str type)
-       (get-ffi-obj str #f type))]))
+       (get-ffi-obj str gl-lib type))]))
 
 (define-syntax (define-gl stx)
   (syntax-parse stx
@@ -74,21 +77,23 @@
      #`(define name (gl-get-proc-address #,(symbol->string (syntax->datum #'name)) type))]))
 
 (define-gl glGetIntegerv (_fun _gl-enum [out : (_ptr o _gl-int)] -> _void -> out))
-(define-gl glGetInt64  (_fun _gl-enum [out : (_ptr o _gl-int64)] -> _void -> out))
+(define-gl glGetInteger64v (_fun _gl-enum [out : (_ptr o _gl-int64)] -> _void -> out))
 (define-gl glGetError (_fun -> _gl-enum))
 (define-gl glGenVertexArrays (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindVertexArray (_fun _gl-uint -> _void))
 (define-gl glGenBuffers (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
-(define-gl glBindBuffers (_fun _gl-uint -> _void))
+(define-gl glBindBuffer (_fun _gl-uint -> _void))
 (define-gl glBufferData (_fun _gl-enum _gl-sizei-ptr _pointer _gl-enum -> _void))
 (define-gl glGenTextures (_fun _gl-enum [out : (_ptr o _gl-uint)] -> _void -> out))
-(define-gl glBindTextures (_fun _gl-uint -> void))
+(define-gl glBindTexture (_fun _gl-uint -> _void))
 
 #|
 (require racket/gui/base
          racket/class)
 (define f (new frame% [label "hello"]))
-(define c (new canvas% [parent f]))
+(define c (new canvas%
+               [parent f]
+               [style '(gl no-autoclear)]))
 (send c with-gl-context
       (λ ()
         (displayln (glGetIntegerv GL-MAJOR-VERSION))
