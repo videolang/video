@@ -38,6 +38,9 @@
                      racket/base))
 
 (define GL-TEXTURE-2D #x0DE1)
+(define GL-TEXTURE0 #x84C0)
+(define GL-TEXTURE1 #x84C1)
+(define GL-TEXTURE2 #x84C2)
 (define GL-ALPHA #x1906)
 (define GL-RGB #x1907)
 (define GL-RGBA #x1908)
@@ -60,6 +63,15 @@
 (define _gl-sizei _uint32)
 (define _gl-sizei-ptr _intptr)
 (define _gl-pointer _pointer)
+(define _gl-clampf _float) ; <- Should be 32bit.
+(define _gl-bitfield _uint)
+(define _gl-boolean _bool)
+
+(define _gl-buffer-mask
+  (_bitmask `(depth = #x100
+              stencil = #x400
+              color = #x4000)
+            _gl-bitfield))
 
 (define-ffi-definer define-internal #f)
 
@@ -106,11 +118,21 @@
 (define-gl glGetError (_fun -> _gl-enum))
 (define-gl glGenVertexArrays (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindVertexArray (_fun _gl-uint -> _void))
+(define (glDeleteVertexArrays arr)
+  (define-gl glDeleteVertexArrays (_fun _gl-sizei _u32vector -> _void))
+  (glDeleteVertexArrays (vector-length arr) arr))
 (define-gl glGenBuffers (_fun _gl-sizei [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindBuffer (_fun _gl-uint -> _void))
 (define-gl glBufferData (_fun _gl-enum _gl-sizei-ptr _pointer _gl-enum -> _void))
+(define (glDeleteBuffers buffers)
+  (define-gl glDeleteBuffers (_fun _gl-sizei _u32vector -> _void))
+  (glDeleteBuffers (vector-length buffers) buffers))
 (define-gl glGenTextures (_fun _gl-enum [out : (_ptr o _gl-uint)] -> _void -> out))
 (define-gl glBindTexture (_fun _gl-uint -> _void))
+(define (glDeleteTextures texs)
+  (define-gl glDeleteTextures (_fun _gl-sizei _u32vector -> _void))
+  (glDeleteTextures (vector-length texs) texs))
+(define-gl glActiveTexture (_fun _gl-enum -> _void))
 (define-gl glTexImage2D
   (_fun _gl-enum _gl-int _gl-int _gl-sizei _gl-sizei _gl-int _gl-enum _gl-enum _gl-pointer -> _void))
 (define-gl glTexParameteri (_fun _gl-enum _gl-enum _gl-int -> _void))
@@ -118,7 +140,26 @@
 (define (glShaderSource type sources)
   (define-gl glShaderSource (_fun _gl-uint _gl-sizei (_vector i _string) _s32vector -> _void))
   (glShaderSource type (vector-length sources) sources (vector-map string-length sources)))
-                                
+(define-gl glCompileShader (_fun _gl-uint -> _void))
+(define-gl glCreateProgram (_fun -> _gl-uint))
+(define-gl glAttachShader (_fun _gl-uint _gl-uint -> _void))
+(define-gl glLinkProgram (_fun _gl-uint -> _void))
+(define-gl glDetachShader (_fun _gl-uint _gl-uint -> _void))
+(define-gl glDeleteShader (_fun _gl-uint -> _void))
+(define-gl glUseProgram (_fun _gl-uint -> _void))
+(define-gl glGetUniformLocation (_fun _gl-uint _string -> _gl-int))
+(define-gl glViewport (_fun _gl-int _gl-int _gl-sizei _gl-sizei -> _void))
+(define-gl glClearColor (_fun _gl-clampf _gl-clampf _gl-clampf _gl-clampf -> _void))
+(define-gl glClear (_fun _gl-buffer-mask -> _void))
+(define-gl glUniform1i (_fun _gl-int _gl-int -> _void))
+(define-gl glEnableVertexAttribArray (_fun _gl-uint -> _void))
+(define-gl glDisableVertexAttribArray (_fun _gl-uint -> _void))
+(define-gl glVertexAttribPointer
+  (_fun _gl-uint _gl-int _gl-enum _gl-boolean _gl-sizei _pointer -> _void))
+(define-gl glDrawArrays (_fun _gl-enum _gl-int _gl-sizei -> _void))
+(define-gl glTexSubImage2D
+  (_fun _gl-enum _gl-int _gl-int _gl-int _gl-sizei _gl-sizei _gl-enum _gl-enum _pointer -> _void))
+
 #|
 (require racket/gui/base
          racket/class)
