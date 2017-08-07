@@ -17,6 +17,7 @@
 |#
 
 (require racket/file
+         racket/port
          "../render.rkt"
          "../base.rkt"
          "../private/utils.rkt"
@@ -43,9 +44,15 @@
      (color "green")
      (composite-merge 0 0 1/2 1/2)
      (color "red")))
-  (render breaks "color.mov"
+  (render breaks (make-temporary-file "color~a.mov")
           #:width 1280
-               #:height 720
-               #:start 0
-               #:end 2
-               #:fps 24))
+          #:height 720
+          #:start 0
+          #:end 2
+          #:fps 24))
+
+(parameterize ([current-output-port (open-output-nowhere)])
+  (render/pretty (multitrack
+                  (color "green")
+                  (clip vid-mp4))
+                 (make-temporary-file "~a.mp4")))
