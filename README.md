@@ -3,6 +3,7 @@ Video
 Video is a DSL for describing videos. It is still very much in development and backwards breaking changes are made frequently.
 
 [![Build Status](https://travis-ci.org/videolang/video.svg?branch=master)](https://travis-ci.org/videolang/video)
+[![Build status](https://ci.appveyor.com/api/projects/status/f2t9op5dflo67ls4?svg=true)](https://ci.appveyor.com/project/LeifAndersen/video)
 [![Coverage Status](https://coveralls.io/repos/github/videolang/video/badge.svg?branch=master)](https://coveralls.io/github/videolang/video?branch=master)
 [![Project Stats](https://www.openhub.net/p/video/widgets/project_thin_badge.gif)](https://www.openhub.net/p/video)
 

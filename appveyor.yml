@@ -1,0 +1,15 @@
+version: 1.0.{build}
+platform: x64
+environment:
+  PATH: C:\Program Files\Racket;%PATH%
+build_script:
+- ps: >-
+    Invoke-WebRequest https://github.com/pauldalewilliams/chocolatey-comm-pkgs/raw/48c2d2110beae07ff38b3125ea57f03ab67ced20/racket/racket.6.10.nupkg -OutFile racket.6.10.nupkg
+
+    Invoke-WebRequest https://raw.githubusercontent.com/pauldalewilliams/chocolatey-comm-pkgs/48c2d2110beae07ff38b3125ea57f03ab67ced20/racket/racket.nuspec -OutFile racket.nuspec
+
+    choco install C:\projects\video\racket.6.10.nupkg
+
+    raco pkg install --deps search-auto -n video
+test_script:
+- ps: '# raco test -p video'
