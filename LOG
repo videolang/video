@@ -4,6 +4,8 @@ Commit#: master
 * Audio works in live preview
 * Introduced concept of `merge` for multitrack, replaces transition
 * Transitions now only appear in playlists.
+* Add CI testing for windows builds
+* Add initial opengl bindings for windows. (The Racket ones don't)
 
 v0.2-alpha.2
 Date: 2017-07-30

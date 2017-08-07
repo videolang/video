@@ -36,3 +36,16 @@
 (render the-clip
         (make-temporary-file "vidtest~a.mp4")
         #:render-mixin cmdline-mixin)
+
+(let ()
+  (define breaks
+    (multitrack
+     (color "green")
+     (composite-merge 0 0 1/2 1/2)
+     (color "red")))
+  (render breaks "color.mov"
+          #:width 1280
+               #:height 720
+               #:start 0
+               #:end 2
+               #:fps 24))

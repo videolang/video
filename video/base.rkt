@@ -32,6 +32,7 @@
          "surface.rkt"
          (prefix-in core: "private/video.rkt")
          "units.rkt"
+         "private/init.rkt"
          (for-syntax syntax/parse
                      racket/base
                      racket/syntax))
@@ -441,16 +442,24 @@
                                             #:counts (node-counts t2)))
                         (add-vertex! ctx zero-node1)
                         (add-vertex! ctx zero-node2)
-                        (define t1w (get-property t1 "width"))
-                        (define t1h (get-property t1 "height"))
+                        ;; Just pick a size
+                        (log-video-warning
+                         "composite-merge: no resolution on source node, making one up")
+                        (define t1w (get-property t1 "width" 1920))
+                        (define t1h (get-property t1 "height" 1080))
                         (define scale-node2
-                          (mk-filter-node (hash 'video (mk-filter "scale"
-                                                                  (hash "w" (* (- x2 x1) t1w)
-                                                                        "h" (* (- y2 y1) t1h))))
-                                          #:props (node-props t2)
-                                          #:counts (node-counts t2)))
-                        (add-vertex! ctx scale-node2)
-                        (add-directed-edge! ctx zero-node2 scale-node2 1)
+                          (cond
+                            [(and t1w t1h)
+                             (define scale-node2
+                               (mk-filter-node (hash 'video (mk-filter "scale"
+                                                                       (hash "w" (* (- x2 x1) t1w)
+                                                                             "h" (* (- y2 y1) t1h))))
+                                               #:props (node-props t2)
+                                               #:counts (node-counts t2)))
+                             (add-vertex! ctx scale-node2)
+                             (add-directed-edge! ctx zero-node2 scale-node2 1)
+                             scale-node2]
+                            [else zero-node2]))
                         (define overlay
                           (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" (* t1w x1)
                                                                                   "y" (* t1h y1)))
