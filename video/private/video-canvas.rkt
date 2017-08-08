@@ -36,7 +36,7 @@
          ffi/vector
          "../render.rkt"
          (submod "../render.rkt" render-fields)
-         "ffmpeg.rkt"
+         "ffmpeg/main.rkt"
          "init.rkt"
          (submod "init.rkt" portaudio)
          (except-in "ffmpeg-pipeline.rkt" render))

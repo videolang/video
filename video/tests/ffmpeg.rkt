@@ -23,7 +23,7 @@
          (prefix-in video: "../render.rkt")
          (submod "../render.rkt" render-fields)
          (prefix-in video: "../base.rkt")
-         "../private/ffmpeg.rkt"
+         "../private/ffmpeg/main.rkt"
          "../private/ffmpeg-pipeline.rkt"
          "../private/init.rkt"
          "../private/utils.rkt"

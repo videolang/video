@@ -37,7 +37,7 @@
          racket/math
          graph
          "init.rkt"
-         "ffmpeg.rkt")
+         "ffmpeg/main.rkt")
 (provide (all-defined-out))
 
 (define DEFAULT-WIDTH 1920)

@@ -28,4 +28,7 @@
 (define drracket-tool-icons '(#f))
 
 (define test-omit-paths
-  '("private/examples.rkt"))
+;; We do not use most of the 'datatype' fields directly,
+;;   so don't count them in the line count.
+;; This file WILL be run by inclusion with other modules.
+  '("private/ffmpeg/data.rkt"))

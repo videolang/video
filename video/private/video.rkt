@@ -29,7 +29,7 @@
          (prefix-in file: file/convertible)
          graph
          "utils.rkt"
-         "ffmpeg.rkt"
+         "ffmpeg/main.rkt"
          "ffmpeg-pipeline.rkt"
          "init.rkt"
          "units.rkt"

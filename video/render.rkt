@@ -30,7 +30,7 @@
          (only-in pict pict? pict->bitmap)
          racket/async-channel
          "private/init.rkt"
-         "private/ffmpeg.rkt"
+         "private/ffmpeg/main.rkt"
          "private/ffmpeg-pipeline.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt")

@@ -24,7 +24,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
-         "ffmpeg.rkt")
+         "ffmpeg/main.rkt")
 
 (define video-key #"VIDEO-FFMPEG-INIT")
 
