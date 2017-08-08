@@ -41,7 +41,7 @@
   (check-equal? (send p get-fps) 25)
   (send f show #f))
 
-#;
 (let ()
   (define p (new video-player% [video green:vid]))
+  (send p show #t)
   (send p show #f))
