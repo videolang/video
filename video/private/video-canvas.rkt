@@ -16,6 +16,9 @@
    limitations under the License.
 |#
 
+;; The OpenGL use is based off of the OpenGL tutorials found at:
+;; http://www.opengl-tutorial.org/
+
 (provide video-canvas%
          audio-buffer%
          video-canvas-render-mixin)
@@ -90,63 +93,128 @@
  void main(){
   color = texture(myTextureSampler, UV).rgb;
  }})
+    (define vert-shader/legacy
+      @~a{
+ #version 120
+ attribute vec3 vertexPosition_modelspace;
+ attribute vec2 vertexUV;
+ varying vec2 UV;
+ void main(){
+  gl_Position = vec4(vertexPosition_modelspace,1);
+  UV = vertexUV;
+ }})
+    (define frag-shader/legacy
+      @~a{
+ #version 120
+ varying vec2 UV;
+ uniform sampler2D myTextureSampler;
+ void main(){
+  gl_FragColor = texture2D(myTextureSampler, UV);
+ }})
 
+    ;; MUST BE CALLED IN AN OPENGL CONTEXT
+    ;; Sets this canvas' opengl shaders.
+    ;; String String -> Void
+    (define (load-program! vert-shader frag-shader)
+      (define v-shad (glCreateShader GL_VERTEX_SHADER))
+      (define f-shad (glCreateShader GL_FRAGMENT_SHADER))
+      (glShaderSource v-shad 1 (vector vert-shader) (s32vector (string-length vert-shader)))
+      (glCompileShader v-shad)
+      (glShaderSource f-shad 1 (vector frag-shader) (s32vector (string-length frag-shader)))
+      (glCompileShader f-shad)
+      (set! prog (glCreateProgram))
+      (glAttachShader prog v-shad)
+      (glAttachShader prog f-shad)
+      (glLinkProgram prog)
+      (glDetachShader prog v-shad)
+      (glDetachShader prog f-shad)
+      (glDeleteShader v-shad)
+      (glDeleteShader f-shad))
+
+    
+    ;; MUST BE CALLED IN AN OPENGL CONTEXT
+    ;; Generates a vertex buffer that is filled with the contents of `coords`
+    ;; f32vector -> gl-uint
+    (define (gen-vertex-buff coords)
+      (define buff (u32vector-ref (glGenBuffers 1) 0))
+      (glBindBuffer GL_ARRAY_BUFFER buff)
+      (glBufferData GL_ARRAY_BUFFER
+                    (* (compiler-sizeof 'float) (f32vector-length coords))
+                    coords
+                    GL_STATIC_DRAW)
+      buff)
+
+    ;; MUST BE CALLED IN AN OPENGL CONTEXT
+    ;; Generates a texture buffer. Unlike `gen-vertex-buffer`, this buffer
+    ;;   is left empty and will be filled by the data filler callback.
+    ;; Buffer is allocated to be the same size and width of the video-canvas%
+    ;;   class's fields.
+    ;; ->  gl-uint
+    (define (gen-tex-buff)
+      (define buff (u32vector-ref (glGenTextures 1) 0))
+      (glBindTexture GL_TEXTURE_2D buff)
+      (glTexImage2D GL_TEXTURE_2D
+                    0
+                    GL_RGB ; Should probably be given to the class
+                    width
+                    height
+                    0
+                    GL_RGB ; Should probably be given to the class
+                    GL_UNSIGNED_BYTE
+                    #f)
+      (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
+      (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_NEAREST)
+      buff)
+      
+    (define gl-version-type #f)
     (field [buff #f]
+           [buff-id #f]
            [uv-buff #f]
+           [uv-id #f]
            [tex-buff #f]
            [tex-id #f]
            [prog #f])
+    
     (send this with-gl-context
           (λ ()
-            ;; Setup the VAO
-            (define arr (u32vector-ref (glGenVertexArrays 1) 0))
-            (glBindVertexArray arr)
-            ;; Setup the screen coords
-            (set! buff (u32vector-ref (glGenBuffers 1) 0))
-            (glBindBuffer GL_ARRAY_BUFFER buff)
-            (glBufferData GL_ARRAY_BUFFER
-                          (* (compiler-sizeof 'float) (f32vector-length vert-coords))
-                          vert-coords
-                          GL_STATIC_DRAW)
-            ;; Setup the UV coords
-            (set! uv-buff (u32vector-ref (glGenBuffers 1) 0))
-            (glBindBuffer GL_ARRAY_BUFFER uv-buff)
-            (glBufferData GL_ARRAY_BUFFER
-                          (* (compiler-sizeof 'float) (f32vector-length uv-coords))
-                          uv-coords
-                          GL_STATIC_DRAW)
-            ;; Set up a texture buffer (maybe run later)
-            (set! tex-buff (u32vector-ref (glGenTextures 1) 0))
-            (glBindTexture GL_TEXTURE_2D tex-buff)
-            (glTexImage2D GL_TEXTURE_2D
-                          0
-                          GL_RGB ; Should probably be given to the class
-                          width
-                          height
-                          0
-                          GL_RGB ; Should probably be given to the class
-                          GL_UNSIGNED_BYTE
-                          #f)
-            (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
-            (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_NEAREST)
-            ;; Compile and run the shaders
-            (define v-shad (glCreateShader GL_VERTEX_SHADER))
-            (define f-shad (glCreateShader GL_FRAGMENT_SHADER))
-            (glShaderSource v-shad 1 (vector vert-shader) (s32vector (string-length vert-shader)))
-            (glCompileShader v-shad)
-            (glShaderSource f-shad 1 (vector frag-shader) (s32vector (string-length frag-shader)))
-            (glCompileShader f-shad)
-            (set! prog (glCreateProgram))
-            (glAttachShader prog v-shad)
-            (glAttachShader prog f-shad)
-            (glLinkProgram prog)
-            (glDetachShader prog v-shad)
-            (glDetachShader prog f-shad)
-            (glDeleteShader v-shad)
-            (glDeleteShader f-shad)
-            (glUseProgram prog)
-            ;; Setup texture id
-            (set! tex-id (glGetUniformLocation prog "myTextureSampler"))
+            ;; First determin if we got the new or old version of opengl.
+            ;; Assume the newer version because the `opengl` package provided
+            ;; assumes the older version (for error checking).
+            (set! gl-version-type
+                  (with-handlers ([exn:fail? (λ (e) 'modern)])
+                    (if (gl-version-at-least? '(3 3))
+                        'modern
+                        'legacy)))
+
+            (match gl-version-type
+              ['modern
+               ;; Setup the VAO
+               (define arr (u32vector-ref (glGenVertexArrays 1) 0))
+               (glBindVertexArray arr)
+               ;; Setup the coords
+               (set! buff (gen-vertex-buff vert-coords))
+               (set! buff-id 0)
+               (set! uv-buff (gen-vertex-buff uv-coords))
+               (set! buff-id 1)
+               ;; Set up a texture buffer (maybe run later)
+               (set! tex-buff (gen-tex-buff))
+               ;; Compile and run the shaders
+               (load-program! vert-shader frag-shader)
+               (glUseProgram prog)
+               ;; Setup texture id
+               (set! tex-id (glGetUniformLocation prog "myTextureSampler"))]
+              ['legacy
+               ;; Compile up the program
+               ;; (in the legacy config, we compile and then find the attrib locations)
+               (load-program! vert-shader/legacy frag-shader/legacy)
+               ;; Generate vertex buffers and ids
+               (set! buff-id (glGetAttribLocation prog "vertexPosition_modelspace"))
+               (set! buff (gen-vertex-buff vert-coords))
+               (set! uv-id (glGetAttribLocation prog "vertexUV"))
+               (set! uv-buff (gen-vertex-buff uv-coords))
+               ;; Generate texture buffers and ids
+               (set! tex-id (glGetUniformLocation prog "myTextureSampler"))
+               (set! tex-buff (gen-tex-buff))])
             ;; Finilize steps, maybe remove?
             (glViewport 0 0 width height)
             (glClearColor 0.0 0.0 0.0 0.0)))
@@ -158,21 +226,25 @@
     (define/public (draw-frame data-fill-callback)
       (send this with-gl-context
             (λ ()
+              ;; Fill in data
               (data-fill-callback)
+              ;; Draw in the texture data.
+              ;; Unlike the setup, this will be identical for
+              ;;   both legacy and modern.
               (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
               (glUseProgram prog)
               (glActiveTexture GL_TEXTURE0)
               (glBindTexture GL_TEXTURE_2D tex-buff)
               (glUniform1i tex-id 0)
-              (glEnableVertexAttribArray 0)
+              (glEnableVertexAttribArray buff-id)
               (glBindBuffer GL_ARRAY_BUFFER buff)
-              (glVertexAttribPointer 0 3 GL_FLOAT #f 0 #f)
-              (glEnableVertexAttribArray 1)
+              (glVertexAttribPointer buff-id 3 GL_FLOAT #f 0 #f)
+              (glEnableVertexAttribArray uv-id)
               (glBindBuffer GL_ARRAY_BUFFER uv-buff)
-              (glVertexAttribPointer 1 2 GL_FLOAT #f 0 #f)
+              (glVertexAttribPointer uv-id 2 GL_FLOAT #f 0 #f)
               (glDrawArrays GL_TRIANGLE_STRIP 0 4)
-              (glDisableVertexAttribArray 0)
-              (glDisableVertexAttribArray 1)))
+              (glDisableVertexAttribArray buff-id)
+              (glDisableVertexAttribArray uv-id)))
       (send this swap-gl-buffers))
 
     (will-register video-canvas%-executor this video-canvas%-final)))
