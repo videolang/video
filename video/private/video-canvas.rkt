@@ -364,7 +364,7 @@
               ;; Since an error is thrown if no audio devices exist,
               ;; simply turn off audio playing.
               ;; TODO, should test this _before_ starting to play
-              (with-handlers ([exn:fail? (λ (e) (set! play-audio #f))])
+              (with-handlers ([exn:fail? (λ (e) (set! play-audio? #f))])
                 (match (stream-play/unsafe (λ (buff count)
                                              (send audio-buffer feed-samples! buff count #f))
                                            0.1
@@ -376,12 +376,12 @@
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (if play-audio
+                  (if play-audio?
                       (send audio-buffer add-frame out-frame)
                       (av-frame-free out-frame))
                   (loop)))]
              [('audio 'close)
-              (when (and play-audio stop-audio)
+              (when (and play-audio? stop-audio)
                 (stop-audio))]
              [('video 'write)
               (let loop ()
