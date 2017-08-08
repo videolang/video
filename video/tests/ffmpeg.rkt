@@ -29,6 +29,8 @@
          "../private/utils.rkt"
          "test-utils.rkt")
 
+(define-namespace-anchor here-anchor)
+(define here (namespace-anchor->namespace here-anchor))
 (define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 
 ;; Give the logging code a dry run to ensure
@@ -55,4 +57,6 @@
   (define b (file->stream-bundle vid-mp4))
   (define ctx (stream-bundle-avformat-context b))
   (avformat-context->list ctx)
-  (void))
+  (for ([name (in-list _avformat-context-field-names)])
+    (define accessor (eval (string->symbol (format "avformat-context-~a" name)) here))
+    (accessor ctx)))

@@ -26,7 +26,9 @@
          ffi/unsafe/define
          ffi/unsafe/define/conventions
          setup/dirs
-         (for-syntax racket/base)
+         (for-syntax syntax/parse
+                     racket/base
+                     racket/syntax)
          "ffmpeg-lib.rkt")
 
 ;; ===================================================================================================
@@ -1252,6 +1254,17 @@
 
 ;; ===================================================================================================
 
+(define-syntax (define-ffmpeg-cstruct stx)
+  (syntax-parse stx
+    [(_ id ([field-name field-rest ...] ...) rest ...)
+     #:with id-field-names (format-id stx "~a-field-names" #'id)
+     (quasisyntax/loc stx
+       (begin
+         #,(quasisyntax/loc stx
+             (define id-field-names '#,#'(field-name ...)))
+         #,(syntax/loc stx
+             (define-cstruct id ([field-name field-rest ...] ...) rest ...))))]))
+
 (define-cstruct _av-dictionary-entry
   ([key _string]
    [value _string]))
@@ -1340,7 +1353,7 @@
    [codec-tag _pointer]
    [priv-class _pointer]))
 
-(define-cstruct _avformat-context
+(define-ffmpeg-cstruct _avformat-context
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
