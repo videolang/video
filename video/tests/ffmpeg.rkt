@@ -50,3 +50,9 @@
   (send r setup (video:make-render-settings #:destination (make-temporary-file "~a.mp4")))
   (define g (get-field render-graph r))
   (render g))
+
+(let ()
+  (define b (file->stream-bundle vid-mp4))
+  (define ctx (stream-bundle-avformat-context b))
+  (avformat-context->list ctx)
+  (void))

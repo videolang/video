@@ -878,7 +878,9 @@
                              mpeg2ts = #x20000
                              mpeg4systems
                              ffmetadata = #x21000
-                             wrapped-avframe)))
+                             wrapped-avframe)
+                           #:unknown (λ (v)
+                                      (string->symbol (format "unkown-format-id-~a" v)))))
 
 (define _av-duration-estimation-method _fixint)
 
