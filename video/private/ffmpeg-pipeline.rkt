@@ -1318,7 +1318,7 @@
        (λ ()
          (demux-stream
           bundle
-          #:by-index-calleback (filtergraph-insert-packet))))))
+          #:by-index-callback (filtergraph-insert-packet))))))
   (define out-thread
     (thread
      (λ ()
