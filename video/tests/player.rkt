@@ -44,4 +44,11 @@
 (let ()
   (define p (new video-player% [video green:vid]))
   (send p show #t)
+  (send p play)
+  (send p stop)
+  (send p show #f))
+
+(let ()
+  (define p (preview green:vid))
+  (send p stop)
   (send p show #f))
