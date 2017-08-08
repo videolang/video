@@ -341,6 +341,7 @@
     (super-new)
     (inherit-field stop-writing-flag stop-writing-semaphore)
     (define canvas #f)
+    (define play-audio? #t)
     (define audio-buffer (new audio-buffer%))
     (define stop-audio #f)
     (define/override (setup rs)
@@ -360,21 +361,27 @@
                                [type type]))
            (match* (type mode)
              [('audio 'open)
-              (match (stream-play/unsafe (λ (buff count)
-                                           (send audio-buffer feed-samples! buff count #f))
-                                         0.1
-                                         44100)
-                [(list stream-time stats stop)
-                 (set! stop-audio stop)])]
+              ;; Since an error is thrown if no audio devices exist,
+              ;; simply turn off audio playing.
+              ;; TODO, should test this _before_ starting to play
+              (with-handlers ([exn:fail? (λ (e) (set! play-audio #f))])
+                (match (stream-play/unsafe (λ (buff count)
+                                             (send audio-buffer feed-samples! buff count #f))
+                                           0.1
+                                           44100)
+                  [(list stream-time stats stop)
+                   (set! stop-audio stop)]))]
              [('audio 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (send audio-buffer add-frame out-frame)
+                  (if play-audio
+                      (send audio-buffer add-frame out-frame)
+                      (av-frame-free out-frame))
                   (loop)))]
              [('audio 'close)
-              (when stop-audio
+              (when (and play-audio stop-audio)
                 (stop-audio))]
              [('video 'write)
               (let loop ()
