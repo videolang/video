@@ -30,6 +30,7 @@
          racket/async-channel
          (except-in racket/gui/base yield)
          racket/format
+         racket/file
          racket/match
          ffi/unsafe
          ffi/vector
@@ -346,6 +347,7 @@
     (define stop-audio #f)
     (define/override (setup rs)
       (super setup (struct-copy render-settings rs
+                                [destination (make-temporary-file "out~a.raw")]
                                 [pix-fmt 'rgb24]
                                 [sample-fmt 's16]
                                 [sample-rate 44100]
