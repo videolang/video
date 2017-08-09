@@ -29,9 +29,10 @@ matrix:
    - os: linux
      dist: trusty
      sudo: true
-#   - os: osx
+   - os: osx
   allow_failures:
    - env: RACKET_VERSION=HEAD
+   - os: osx
   fast_finish: true
 
 before_install:
