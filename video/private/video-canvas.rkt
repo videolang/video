@@ -196,7 +196,7 @@
                (set! buff (gen-vertex-buff vert-coords))
                (set! buff-id 0)
                (set! uv-buff (gen-vertex-buff uv-coords))
-               (set! buff-id 1)
+               (set! uv-id 1)
                ;; Set up a texture buffer (maybe run later)
                (set! tex-buff (gen-tex-buff))
                ;; Compile and run the shaders
@@ -381,7 +381,10 @@
                   (if play-audio?
                       (send audio-buffer add-frame out-frame)
                       (av-frame-free out-frame))
-                  (loop)))]
+                  (if (call-with-semaphore stop-writing-semaphore
+                                           (λ () (eq? stop-writing-flag 'running)))
+                      (loop)
+                      eof)))]
              [('audio 'close)
               (when (and play-audio? stop-audio)
                 (stop-audio))]
@@ -406,7 +409,8 @@
                              (ptr-add (array-ref (av-frame-data out-frame) 0)
                                       (* i linesize))))))
                   (av-frame-free out-frame)
-                  (when (call-with-semaphore stop-writing-semaphore
-                                             (λ () (eq? stop-writing-flag 'running)))
-                    (loop))))]
+                  (if (call-with-semaphore stop-writing-semaphore
+                                           (λ () (eq? stop-writing-flag 'running)))
+                      (loop)
+                      eof)))]
              [(_ _) (void)])])))))

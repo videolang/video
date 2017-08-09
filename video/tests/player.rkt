@@ -19,8 +19,12 @@
 (require rackunit
          racket/gui/base
          "../player.rkt"
+         "../base.rkt"
          "../private/video-canvas.rkt"
+         "../private/utils.rkt"
          (prefix-in green: "green.vid"))
+
+(define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 
 (let ()
   (define f (new frame% [label "foo"]))
@@ -50,5 +54,17 @@
 
 (let ()
   (define p (preview green:vid))
+  (send p stop)
+  (send p show #f))
+
+(let p ()
+  (define p (preview green:vid))
+  (sleep 3)
+  (send p stop)
+  (send p show #f))
+
+(let p ()
+  (define p (preview (clip vid-mp4)))
+  (sleep 3)
   (send p stop)
   (send p show #f))
