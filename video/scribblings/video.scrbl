@@ -46,39 +46,26 @@
    (elem #:style (style #f (list (color-property c)))
          content))
 
-@colorize[#:color "red"]{
- Video is still an experimental library. While Video's
- surface syntax is unlikely to change, certain core libraries
- might change.}
+@margin-note{Video is still an experimental language. As of
+ v0.2, the underlying library and surface syntax are stable.
+ New functions may be removed or added, but these changes
+ will be documented, and be marked as deprecated before
+ removal. The graphical development environment extension is
+ still under active development and is subject to change.}
 
-Video Language is a DSL for
-editing...videos.@margin-note["Creative name, I know..."]
-Designed with similar designs in mind to Scribble,
-Slideshow, and Pict. It is still a work in progress and the
-interface may or may not change in the near future.
+Video Language (or VidLang, sometimes referred to as just Video)
+is a DSL for editing...videos. It aims to merge the
+capabilities of a traditional graphical non-linear video
+editor (NLVE), with the power of a programming language. The
+current interface is similar to that of HTML, LaTeX, or
+Scribble. VidLang comes with a prototype graphical NLVE for
+DrRacket. This extensions is still experimental and highly
+unstable. The next version of Video will focus on this
+extension and make the tool significantly cleaner and stable.
 
-@(compound-paragraph
-  (style #f '())
-  (list
-   @para{This libraries requires that you have the following
- libraries on your system.}
-   @itemlist[
- #:style 'compact
- @item[@hyperlink["https://mltframework.org/"]{libmlt}]
- @item[@hyperlink["https://ffmpeg.org/"]{ffmpeg/libav}]
- @item[@hyperlink["http://ftp.gnome.org/pub/GNOME/sources/gdk-pixbuf/"]{GDK Pixbuf}]
- @item[@hyperlink["https://frei0r.dyne.org/"]{Frei0r}]
- @item[@hyperlink["https://packages.debian.org/search?keywords=ladspa-sdk"]{ladspa-sdk}]]
-   @para{Eventually Video will take care if
- this for you, but it currently does not.}))
-
-@margin-note{Many of the implementation decisions of this
- library are based on my understanding of
- @hyperlink["https://mltframework.org/"]{libmlt}, and even
- requires the library to be installed on your machine to
- work. Unfortunately, libmlt lacks comprehensive
- documentation. If you see any invalid uses of libmlt, please
- notify me or submit a patch.}
+If you found these docs from the Racket documentation, the
+Video website can be found at @url{http://lang.video}. It includes
+the Video blog, community projects, tutorials, etc.
 
 @table-of-contents[]
 

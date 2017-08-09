@@ -31,7 +31,7 @@
 
 @title{Getting Started}
 
-Video is a functional-declarative language for manipulating
+Video Language (or just Video) is a functional-declarative language for manipulating
 videos from many input sources: images, video files, even
 live streams.
 
@@ -48,11 +48,11 @@ stream. Thus, Video allows authors to write videos in a
 similar fashion to how LaTeX enables authors to write
 documents.
 
-All video programs begin with @code{#lang video}, the
-remaining program is a video description. Each top level
-expression is a @tt{producer}, or something that produces a
-video stream. For example, the @racket[color] producer
-generates a stream of green frames:
+All VidLang programs begin with @code{#lang video}, the
+remaining program is a description of the resulting video.
+Each top level expression is a @tt{producer} which is
+anything that produces a video stream. For example, the
+@racket[color] producer generates a stream of green frames:
 
 @racketmod[
  video (code:comment "green.vid")
@@ -66,8 +66,15 @@ looks something like:
 
 This picture also shows an example of playback controls.
 These are shown whenever previewing a video. The easiest way
-to preview a video is to press the @emph{Preview Video}
-button in the DrRacket toolbar. Note that simply running a
+to preview a video is to press the @onscreen{Preview Video}
+button in the DrRacket toolbar. Alternatively, the
+@exec["raco video"] tool can also preview videos. For
+example, say the above video was saved as
+@filepath["green.vid"], then the preview can be ran with:
+@;
+@nested[#:style 'inset]{@exec["raco video --preview green.vid"]}
+@;
+Note that simply running a
 program is not enough to render a video. Every Video
 programs describes a single @racket[vid] data structure.
 Thus, a renderer (or streamer) can prepare the Video in many
