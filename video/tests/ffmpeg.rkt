@@ -60,3 +60,31 @@
   (for ([name (in-list _avformat-context-field-names)])
     (define accessor (eval (string->symbol (format "avformat-context-~a" name)) here))
     (accessor ctx)))
+
+(let ()
+  (define c (mk-command "str0" "fade"))
+  (command->string c)
+  (define c* (mk-command "str1" "fade" #:flags '(enter) #:arg "arg"))
+  (command->string c*)
+  (void))
+  
+(let ()
+  (define i (mk-interval 5 (list (mk-command "str0" "cat"))))
+  (interval->string i)
+  (define i* (mk-interval 5 (list (mk-command "str1" "app")) #:end 6))
+  (interval->string i*)
+  (void))
+
+(let ()
+  (define tn (mk-trim-node #:start 5 #:end 10))
+  (define rsv (mk-reset-timestamp-video-filter))
+  (define rsa (mk-reset-timestamp-audio-filter))
+  (define rsn (mk-reset-timestamp-node))
+  (void))
+
+(let ()
+  (check-equal? (color->string '(255 0 0))
+                "0xff0000ff")
+  (check-equal? (color->string "green")
+                 "0x00ff00ff"))
+

@@ -172,10 +172,10 @@
   (avfilter-init-str filter-ctx #f))
 
 (struct command (flags target command arg))
-(define (mk-command target command
+(define (mk-command target cmd
                     #:flags [flags #f]
                     #:arg [arg #f])
-  (command flags target command arg))
+  (command flags target cmd arg))
 (define (command->string com)
   (match com
     [(struct* command ([flags flags]
@@ -203,7 +203,7 @@
     [(struct* interval ([start start]
                         [end end]
                         [commands commands]))
-     (string-append start
+     (string-append (format "~a" start)
                     (if end (format "-~a" end) "")
                     " "
                     (string-join (map command->string commands) ","))]))
