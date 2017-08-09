@@ -6,6 +6,8 @@ Commit#: master
 * Transitions now only appear in playlists.
 * Add CI testing for windows builds
 * Add initial opengl bindings for windows. (The Racket ones don't)
+* Add legacy opengl support (for opengl v2.1+)
+* Remove now deprecated MLT bindings.
 
 v0.2-alpha.2
 Date: 2017-07-30
