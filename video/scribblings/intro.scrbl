@@ -192,6 +192,13 @@ their definition.@margin-note{This is also true of functions
 
 @section{Transitions}
 
+Transitions determine how one clip transitions into another
+clip in a playlist. For example, a transition can create a
+fading or swiping effect from one clip to another.
+
+Transitions can be placed directly in a playlist, and
+combine the producers directly before and after them:
+
 @racketmod[
  video
  (clip "ball_drop.mp4" #:start 0 #:end 5)
@@ -211,15 +218,44 @@ their definition.@margin-note{This is also true of functions
              (cc-superimpose (cellophane c (- 1 (/ n 4)))
                              (cellophane g (/ n 4)))])))]
 
-@section{Multitracks}
+Alternatively, transitions can be attached with the
+@racket[#:transitions] keyword. This parameter takes a list
+of transitions that use @racket[#:start] and @racket[#:end]
+to specify what producers it connects:
+
+@racketmod[
+ video
+ (define colored (clip "ball_drop.mp4" #:start 0 #:end 5))
+ (define black+white
+   (clip "ball_drop.mp4" #:start 5 #:end 10
+         #:filters (list (grayscale-filter))))
+ (playlist
+  colored
+  black+white
+  #:transitions (list (fade-transition #:length 2
+                                       #:start colored
+                                       #:en black+white)))]
+
+@section{Multitracks and Merges}
+
+Multitracks play multiple producer simultaneously. In other
+words, while playlists combine producers temporarily,
+multitracks combine them spacial. Because every track
+happens in parallel, only the top most track will be
+rendered.
+
+Merges combine different tracks in a multitrack. These can
+be anything from a video overlay, to a chroma key effect. As
+with playlists, composite merges can be inlined with a
+multitrack's producers:
 
 @racketmod[
  video
  (multitrack
   (blank #f)
-  (composite-transition 0 0 1/2 1)
+  (composite-merge 0 0 1/2 1)
   (clip "spinning_square.mp4")
-  (composite-transition 1/2 0 1/2 1)
+  (composite-merge 1/2 0 1/2 1)
   (clip "dropping_ball.mp4"))]
 
 @inset-flow[
@@ -234,12 +270,12 @@ their definition.@margin-note{This is also true of functions
   bg
   spinning-square
   dropping-ball
-  #:transitions (list (composite-transition 0 0 1/2 1
-                                            #:top spinning-square
-                                            #:bottom bg)
-                      (composite-transition 1/2 0 1/2 1
-                                            #:top dropping-ball
-                                            #:bottom bg)))
+  #:merges (list (composite-merge 0 0 1/2 1
+                                  #:top spinning-square
+                                  #:bottom bg)
+                      (composite-merge 1/2 0 1/2 1
+                                       #:top dropping-ball
+                                       #:bottom bg)))
  (define bg (blank #f))
  (define spinning-square (clip "spinning_square.mp4"))
  (define dropping-ball (clip "dropping_ball.mp4"))]
