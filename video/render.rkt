@@ -355,14 +355,16 @@
             ;;   'consume everything else'
             (define consume-tables
               (match format
-                ['raw (list #f (hash 'audio 1))]
+                ['raw (if (or render-video? render-audio?)
+                          (list #f (hash 'audio 1))
+                          (list #f))]
                 [else (list #f)]))
             (define format-names
               (match format
                 ['raw (list "rawvideo" "s16be")]
                 [_ (list #f)]))
-            (define video-streams 1)
-            (define audio-streams 1)
+            (define video-streams (if render-video? 1 0))
+            (define audio-streams (if render-audio? 1 0))
             (define out-paths
               (for/list ([extension (in-list extensions)])
                 (path->complete-path (or dest (base:format "out.~a" extension)))))
@@ -656,8 +658,8 @@
       (set! render-audio? val)
       (when r
         (setup (struct-copy render-settings current-render-settings
-                            [start (get-current-position)])))
-      (start-rendering))
+                            [start (get-current-position)]))
+        (start-rendering)))
 
     (define/public (render-video val)
       (define r (rendering?))

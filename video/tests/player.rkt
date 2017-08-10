@@ -64,6 +64,15 @@
   (send p show #f))
 
 (let p ()
+  (define p (new video-player% [video green:vid]))
+  (send p show #t)
+  (send p render-audio #f)
+  (send p play)
+  (sleep 1)
+  (send p stop)
+  (send p show #f))
+
+(let p ()
   (define p (preview (clip vid-mp4)))
   (sleep 3)
   (send p stop)
