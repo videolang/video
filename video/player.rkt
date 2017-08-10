@@ -97,7 +97,11 @@
     (define/public (get-position)
       (send render get-current-position))
     (define/public (get-fps)
-      FPS)))
+      FPS)
+    (define/public (render-audio val)
+      (send render render-audio val))
+    (define/public (render-video val)
+      (send render render-video val))))
 
 ;; Probably not threadsafe when changing videos?
 ;; Sadly not entirely sure.
@@ -133,6 +137,10 @@
       (send vps seek pos))
     (define/public (set-speed spd)
       (send vps set-speed spd))
+    (define/public (render-video val)
+      (send vps render-video val))
+    (define/public (render-audio val)
+      (send vps render-audio val))
 
     ;; GUI For Player
     (define screen-row
@@ -213,6 +221,26 @@
            [parent frame-row]
            [label (make-frame-string 0 0)]
            [stretchable-width #t]))
+    (define render-row
+      (new horizontal-pane%
+           [parent this]
+           [alignment '(center center)]))
+    (new check-box%
+         [parent render-row]
+         [label "Render Video"]
+         [value #t]
+         [callback
+          (λ (c e)
+            (define v (send c get-value))
+            (render-video v))])
+    (new check-box%
+         [parent render-row]
+         [label "Render Audio"]
+         [value #t]
+         [callback
+          (λ (c e)
+            (define v (send c get-value))
+            (render-audio v))])
     (define seek-row
       (new horizontal-pane%
            [parent this]

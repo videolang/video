@@ -270,6 +270,9 @@
            [output-node #f]
            [video-start 0]
            [video-end #f])
+
+    (define render-audio? #t)
+    (define render-video? #t)
     
     (define graph-obj #f)
     (define input-bundles #f)
@@ -338,8 +341,12 @@
             ;; If the output type is "raw", generate two feeds, one for audio and one for video
             (define bundle-specs
               (match format
-                ['raw (list 'video 'audio)]
-                [_ (list 'vid+aud)]))
+                ['raw (append (if render-video? (list 'video) '())
+                              (if render-audio? (list 'audio) '()))]
+                [_ (cond [(and render-video? render-audio?) (list 'vid+aud)]
+                         [render-video? (list 'video)]
+                         [render-audio? (list 'audio)]
+                         [else '()])]))
             ;; When outputting multiple streams,
             ;;   every node but the last one must tell
             ;;   what streams they are consuming.
@@ -642,6 +649,26 @@
            (set! stop-writing-flag 'stopped))))
       (void))
 
+    (define/public (render-audio val)
+      (define r (rendering?))
+      (when r
+        (stop-rendering))
+      (set! render-audio? val)
+      (when r
+        (setup (struct-copy render-settings current-render-settings
+                            [start (get-current-position)])))
+      (start-rendering))
+
+    (define/public (render-video val)
+      (define r (rendering?))
+      (when r
+        (stop-rendering))
+      (set! render-audio? val)
+      (when r
+        (setup (struct-copy render-settings current-render-settings
+                            [start (get-current-position)])))
+      (start-rendering))
+
     ;; Seek to a specific position (in seconds). Convience method
     ;;    whose functionality can be duplicated entirely from other methods.
     (define/public (seek position)
@@ -725,6 +752,8 @@
            [stop-rendering (->m void?)]
            [seek (->m (and/c real? (>=/c 0)) void?)]
            [resize (->m (and/c real? positive?) (and/c real? positive?) void?)]
+           [render-audio (->m boolean? void?)]
+           [render-video (->m boolean? void?)]
            [set-speed (->m real? void?)]
            [get-video-graph (->m graph?)]
            [get-render-graph (->m (or/c graph? #f))]
