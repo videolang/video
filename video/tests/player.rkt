@@ -63,7 +63,7 @@
   (send p stop)
   (send p show #f))
 
-(let p ()
+(let ()
   (define p (new video-player% [video green:vid]))
   (send p show #t)
   (send p render-audio #f)
@@ -72,8 +72,23 @@
   (send p stop)
   (send p show #f))
 
-(let p ()
+(let ()
   (define p (preview (clip vid-mp4)))
   (sleep 3)
   (send p stop)
+  (send p show #f))
+
+;; Some stress tests
+(let ()
+  (define vid
+    (multitrack (clip vid-mp4)
+                (overlay-merge 50 50 300 200)
+                (color "green")))
+  (define p (preview vid))
+  (send p stop)
+  (for ([i (in-range 10)])
+    (send p play)
+    (sleep 2)
+    (send p stop)
+    (sleep 0.5))
   (send p show #f))
