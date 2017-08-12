@@ -18,6 +18,7 @@
 
 (require racket/file
          racket/port
+         racket/class
          "../render.rkt"
          "../base.rkt"
          "../private/utils.rkt"
@@ -56,3 +57,14 @@
                   (color "green")
                   (clip vid-mp4))
                  (make-temporary-file "~a.mp4")))
+
+(let ()
+  (define video
+    (color "green"
+           #:properties (hash "start" 10
+                              "end" 20)))
+  (define render (make-object render% video))
+  (send render setup (make-render-settings #:destination (make-temporary-file "tmp~a.mp4")))
+  (send render start-rendering)
+  (sleep 0.1)
+  (send render stop-rendering))

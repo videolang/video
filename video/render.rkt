@@ -591,6 +591,7 @@
              (when (eq? stop-writing-flag 'running)
                (set! stop-writing-flag 'stopping))
              ret)))
+        (log-video-debug "stop-rendering: Previous Render status: ~a" prev-status)
         (match prev-status
           ['stopped (void)]
           ['stopping

@@ -169,6 +169,7 @@
                    r))
   #:subgraph (hash 'video
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
+                                             #;
                                              [ret (if (and length (not (equal? length +inf.0)))
                                                       (hash-set ret "d" length)
                                                       ret)]

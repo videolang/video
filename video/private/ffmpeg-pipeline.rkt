@@ -349,7 +349,9 @@
                   ((callback-ref callback-table type) 'loop obj packet))])
          (av-packet-free packet)
          #t]
-        [else #f]))
+        [else
+         (log-video-info "demux: No more packets to read: ~a" bundle)
+         #f]))
     
     (define/public (close)
       (unless by-index-callback
@@ -616,6 +618,7 @@
              (let loop ([next-packet next-packet])
                (cond [(eof-object? next-packet)
                       (set-remove! remaining-streams min-stream)
+                      (log-video-info "mux: Finished Rendering stream ~a" min-stream)
                       1]
                      [(list? next-packet)
                       (apply + (map loop next-packet))]
@@ -1149,6 +1152,7 @@
   (log-video-debug "Video Graph Created: ~a" (graphviz g))
   (log-video-debug "Filter Graph Created: ~a" g-str)
   (define seek-points (get-seek-point g 0))
+  (log-video-info "Starting Streams at points: ~a" seek-points)
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
