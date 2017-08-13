@@ -648,8 +648,8 @@
        stop-writing-semaphore
        (λ ()
          (when (eq? stop-writing-flag 'stopping)
-           (async-channel-put writing-stopped-signal 'stopped)
-           (set! stop-writing-flag 'stopped))))
+           (async-channel-put writing-stopped-signal 'stopped))
+         (set! stop-writing-flag 'stopped)))
       (void))
 
     (define/public (render-audio val)
