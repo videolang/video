@@ -68,3 +68,14 @@
   (send render start-rendering)
   (sleep 0.1)
   (send render stop-rendering))
+
+(let ()
+  (define video
+    (color "green"
+           #:properties (hash "start" 1
+                              "end" 2)))
+  (define render (make-object render% video))
+  (send render setup (make-render-settings #:destination (make-temporary-file "tmp~a.mp4")))
+  (send render start-rendering)
+  (sleep 0.1)
+  (send render stop-rendering))
