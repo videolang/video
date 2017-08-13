@@ -627,6 +627,7 @@
                (when (call-with-semaphore stop-writing-semaphore
                                           (λ () (eq? stop-writing-flag 'running)))
                  (define out (send mux write-packet))
+                 (sleep 0)
                  (define continue?
                    (and out
                        #;(and (= out 0)
