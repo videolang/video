@@ -236,6 +236,12 @@
   (image circ-png #:properties (hash "length" 500)))
  #:len 1800)
 
+(check-producer
+ (playlist
+   (color "red" #:properties (hash "start" 30 "end" 50))
+   (fade-transition 5)
+   (color "blue" #:properties (hash "start" 10 "end" 20))))
+
 ;; TODO, put defines at end?
 (define (make-talk-video main-talk)
   ;; defines should be after playlist?

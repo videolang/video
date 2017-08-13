@@ -512,8 +512,8 @@
                         (cons track1-copy (cdr prev-nodes))
                         start
                         (- end
-                           (get-property (car prev-nodes) "end")
-                           (get-property (car prev-nodes) "start"))
+                           (- (get-property (car prev-nodes) "end")
+                              (get-property (car prev-nodes) "start")))
                         fps
                         width
                         height

@@ -285,7 +285,7 @@
                                                                    "size" (format "~ax~a"
                                                                                   width height))]
                                                           [r (if (= t-length +inf.0)
-                                                                 r
+                                                                 (hash-set r "d" 9999999)
                                                                  (hash-set r "d" (exact->inexact
                                                                                   t-length)))])
                                                      r))
