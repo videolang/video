@@ -220,6 +220,28 @@
             (glViewport 0 0 width height)
             (glClearColor 0.0 0.0 0.0 0.0)))
 
+    ;; Return the video width for the canvas.
+    ;; (Note that this can technically be different
+    ;;   than the canvas's width.)
+    ;; -> Positive-Integer
+    (define/public (get-video-width)
+      width)
+    
+    ;; Return the video height for the canvas.
+    ;; (Note that this can technically be different
+    ;;   than the canvas's height.)
+    ;; -> Positive-Integer
+    (define/public (get-video-height)
+      height)
+
+    ;; Get both the width and height of the video
+    ;;   being render in this canvas.
+    ;; (Note that this can technically be different
+    ;;   than the canvas's width and height.)
+    ;; -> (Values Positive-Integer Positive-Integer)
+    (define/public (get-dimensions)
+      (values (get-video-width) (get-video-height)))
+
     ;; Draw data to a frame. The data-fill-callback fills the
     ;;   opengl buffers. It has no parameters because that is
     ;;   handled (unsafely) by opengl state.
@@ -345,16 +367,25 @@
     (define play-audio? #t)
     (define audio-buffer (new audio-buffer%))
     (define stop-audio #f)
+    (define width #f)
+    (define height #f)
     (define/override (setup rs)
+      (unless (and width height)
+        (error 'video-canvas-render-mixin
+               "Must call set-canvas before setup"))
       (super setup (struct-copy render-settings rs
                                 [destination (make-temporary-file "out~a.raw")]
                                 [pix-fmt 'rgb24]
+                                [width width]
+                                [height height]
                                 [sample-fmt 's16]
                                 [sample-rate 44100]
                                 [channel-layout 'stereo]
                                 [format 'raw])))
     (define/public (set-canvas c)
-      (set! canvas c))
+      (set! canvas c)
+      (set! width (send c get-video-width))
+      (set! height (send c get-video-height)))
     (define/override (write-output-callback-constructor #:render-status render-status)
       (λ (mode obj)
         (match obj
