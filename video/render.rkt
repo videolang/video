@@ -514,6 +514,7 @@
                (when (call-with-semaphore
                       stop-reading-semaphore
                       (λ () (eq? stop-reading-flag 'running)))
+                 (sleep 0)
                  (define got-data?
                    (send demux wait-for-packet-need 1))
                  (cond [(not got-data?) (loop)]
@@ -537,23 +538,25 @@
     ;; after this method concludes.
     ;; Boolean -> Void
     (define/public (start-rendering [wait? #f])
-      (define reader-currently-running?
+      (define prev-read-status
         (call-with-semaphore
          stop-reading-semaphore
          (λ ()
-           (define ret (eq? stop-reading-flag 'running))
+           (define ret stop-reading-flag)
            (set! stop-reading-flag 'running)
            ret)))
-      (when reader-currently-running?
+      (log-video-debug "start-rendering: Previous reading status: ~a" prev-read-status)
+      (unless (eq? prev-read-status 'stopped)
         (error 'feed-buffers "Reader already running"))
-      (define writer-currently-stopped?
+      (define prev-write-status
         (call-with-semaphore
          stop-writing-semaphore
          (λ ()
-           (define ret (eq? stop-writing-flag 'stopped))
+           (define ret stop-writing-flag)
            (set! stop-writing-flag 'running)
            ret)))
-      (unless writer-currently-stopped?
+      (log-video-debug "start-rendering: Previous writing status: ~a" prev-write-status)
+      (unless (eq? prev-write-status 'stopped)
         (error 'write-output "Already writing output"))
       (call-with-semaphore
        running-lock
@@ -591,7 +594,7 @@
              (when (eq? stop-writing-flag 'running)
                (set! stop-writing-flag 'stopping))
              ret)))
-        (log-video-debug "stop-rendering: Previous Render status: ~a" prev-status)
+        (log-video-debug "stop-rendering: Previous writing status: ~a" prev-status)
         (match prev-status
           ['stopped (void)]
           ['stopping

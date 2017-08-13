@@ -73,7 +73,7 @@
   (define video
     (color "green"
            #:properties (hash "start" 1
-                              "end" 2)))
+                              "end" 1)))
   (define render (make-object render% video))
   (send render setup (make-render-settings #:destination (make-temporary-file "tmp~a.mp4")))
   (send render start-rendering)
