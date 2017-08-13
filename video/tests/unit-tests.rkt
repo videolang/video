@@ -351,3 +351,9 @@
                                        #:filters (list (envelope-filter #:direction 'in
                                                                         #:length 5)))]))
   (send r setup (make-render-settings)))
+
+(let ()
+  (define r (new render% [source (playlist (clip vid-mp4)
+                                           (fade-transition 5)
+                                           (clip circ-png))]))
+  (send r setup (make-render-settings)))

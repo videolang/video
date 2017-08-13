@@ -280,9 +280,15 @@
                         (define t-length (- (+ len-a len-b) fade-length))
                         (define bg-node
                           (mk-filter-node
-                           (hash 'video (mk-filter "color" (hash "color" "black"
-                                                                 "size" (format "~ax~a" width height)
-                                                                 "d" (exact->inexact t-length)))
+                           (hash 'video (mk-filter "color"
+                                                   (let* ([r (hash "color" "black"
+                                                                   "size" (format "~ax~a"
+                                                                                  width height))]
+                                                          [r (if (= t-length +inf.0)
+                                                                 r
+                                                                 (hash-set r "d" (exact->inexact
+                                                                                  t-length)))])
+                                                     r))
                                  'audio (mk-empty-audio-filter #:duration len-a))
                            #:counts (node-counts node-a)))
                         (define pad-a
