@@ -22,6 +22,17 @@
          ffi/unsafe/define
          ffi/unsafe/define/conventions)
 
+(struct exn:ffmpeg exn ())
+(struct exn:ffmpeg:lib exn:ffmpeg ())
+(struct exn:ffmpeg:again exn:ffmpeg ())
+(struct exn:ffmpeg:eof exn:ffmpeg ())
+(struct exn:ffmpeg:flush exn:ffmpeg ())
+(struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
+(struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
+(struct exn:ffmpeg:version exn:ffmpeg ())
+
+;; ===================================================================================================
+
 (define lib-prefix
   (match (system-type 'os)
     ['windows ""]
@@ -108,16 +119,6 @@
 
 ;; ===================================================================================================
 
-(struct exn:ffmpeg exn ())
-(struct exn:ffmpeg:again exn:ffmpeg ())
-(struct exn:ffmpeg:eof exn:ffmpeg ())
-(struct exn:ffmpeg:flush exn:ffmpeg ())
-(struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
-(struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
-(struct exn:ffmpeg:version exn:ffmpeg ())
-
-;; ===================================================================================================
-
 ;; Does a check to ensure that the correct version of FFmpeg is installed. If an invalid
 ;;   version is installed, throw an exception. To be a valid version the `major` field
 ;;   must match EXACTLY, and the minor field must be AT LEAST the specified version.
@@ -128,9 +129,9 @@
     (raise (exn:ffmpeg:version (format "FFmpeg ~a version ~a incompatible with Video" libname version)
                                (current-continuation-marks)))))
 
-(version-check "libavutil" (avutil-version) 55 58)
-(version-check "libavcodec" (avcodec-version) 57 89)
-(version-check "libavformat" (avformat-version) 57 71)
-(version-check "libavfilter" (avfilter-version) 6 82)
-(version-check "libswscale" (swscale-version) 4 6)
-(version-check "libswresample" (swresample-version) 2 7)
+(version-check "libavutil" (avutil-version) 55 34)
+(version-check "libavcodec" (avcodec-version) 57 64)
+(version-check "libavformat" (avformat-version) 57 56)
+(version-check "libavfilter" (avfilter-version) 6 65)
+(version-check "libswscale" (swscale-version) 4 2)
+(version-check "libswresample" (swresample-version) 2 3)

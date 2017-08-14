@@ -734,29 +734,48 @@
                       frame/nb-samples
                       (av-frame-alloc)))
     (av-buffersink-get-samples ptr frame samples))
-  (define-avfilter av-buffersink-get-type (_fun _avfilter-context-pointer -> _avmedia-type))
-  (define-avfilter av-buffersink-get-time-base (_fun _avfilter-context-pointer -> _avrational))
+
+  ;; The following functions were defined in ffmpeg 3.3, but we don't
+  ;;    *need* them if they are not available.
+  ;; We keep them around because they are going to be slightly more accurate
+  ;;    than pre-computing the result.
+  ;; The make-fail is applied to the these defines rather than the define-ff-definer
+  ;;    because we want to check for the other functions eagerly.
+  (define-avfilter av-buffersink-get-type (_fun _avfilter-context-pointer -> _avmedia-type)
+    #:make-fail make-not-available)
+  (define-avfilter av-buffersink-get-time-base (_fun _avfilter-context-pointer -> _avrational)
+    #:make-fail make-not-available)
   (define (av-buffersink-get-format ptr [type #f])
-    (define-avfilter av-buffersink-get-format (_fun _avfilter-context-pointer -> _int))
+    (define-avfilter av-buffersink-get-format (_fun _avfilter-context-pointer -> _int)
+      #:make-fail make-not-available)
     (define ret (av-buffersink-get-format ptr))
     (define type* (or type (av-buffersink-get-type)))
     (match type*
       ['video (cast ret _int _avpixel-format)]
       ['audio (cast ret _int _avsample-format)]
       ['raw ret]))
-  (define-avfilter av-buffersink-get-frame-rate (_fun _avfilter-context-pointer -> _avrational))
-  (define-avfilter av-buffersink-get-w (_fun _avfilter-context-pointer -> _int))
-  (define-avfilter av-buffersink-get-h (_fun _avfilter-context-pointer -> _int))
+  (define-avfilter av-buffersink-get-frame-rate (_fun _avfilter-context-pointer -> _avrational)
+    #:make-fail make-not-available)
+  (define-avfilter av-buffersink-get-w (_fun _avfilter-context-pointer -> _int)
+    #:make-fail make-not-available)
+  (define-avfilter av-buffersink-get-h (_fun _avfilter-context-pointer -> _int)
+    #:make-fail make-not-available)
   (define-avfilter av-buffersink-get-sample-aspect-ratio
-  (_fun _avfilter-context-pointer -> _avrational))
+    (_fun _avfilter-context-pointer -> _avrational)
+    #:make-fail make-not-available)
   (define-avfilter av-buffersink-get-channels
-    (_fun _avfilter-context-pointer -> _int))
+    (_fun _avfilter-context-pointer -> _int)
+    #:make-fail make-not-available)
   (define-avfilter av-buffersink-get-channel-layout
-    (_fun _avfilter-context-pointer -> _av-channel-layout))
+    (_fun _avfilter-context-pointer -> _av-channel-layout)
+    #:make-fail make-not-available)
   (define-avfilter av-buffersink-get-sample-rate
-    (_fun _avfilter-context-pointer -> _int))
+    (_fun _avfilter-context-pointer -> _int)
+    #:make-fail make-not-available)
   (define-avfilter av-buffersink-get-hw-frames-ctx
-    (_fun _avfilter-context-pointer -> _avbuffer-ref-pointer))
+    (_fun _avfilter-context-pointer -> _avbuffer-ref-pointer)
+    #:make-fail make-not-available)
+  
   (define-avfilter av-buffersink-set-frame-size (_fun _avfilter-context-pointer _uint -> _void))
   (define-avfilter av-buffersink-params-alloc (_fun -> _av-buffersink-params-pointer))
   (define-avfilter av-abuffersink-params-alloc (_fun -> _av-buffersink-aparams-pointer))
