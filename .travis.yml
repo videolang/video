@@ -21,8 +21,7 @@ env:
     # - RACKET_VERSION=6.8
     # - RACKET_VERSION=RELEASE
     # - RACKET_VERSION=6.9
-     - RACKET_VERSION=6.10 WITH_FFMPEG="no"
-     - RACKET_VERSION=6.10 WITH_FFMPEG="yes"
+     - RACKET_VERSION=6.10
      - RACKET_VERSION=HEAD
 
 matrix:
@@ -37,7 +36,7 @@ matrix:
   fast_finish: true
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" && "$WITH_FFMPEG" == "yes" ]]; then sudo cat .travis-scripts/setup-linux.sh | bash; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo cat .travis-scripts/setup-linux.sh | bash; fi
   # racket
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git clone https://github.com/greghendershott/travis-racket.git ~/travis-racket; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat ~/travis-racket/install-racket.sh | bash; fi # pipe to bash not sh!
