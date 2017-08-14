@@ -36,6 +36,7 @@
          racket/system
          racket/math
          graph
+         "log.rkt"
          "init.rkt"
          "ffmpeg/main.rkt")
 (provide (all-defined-out))

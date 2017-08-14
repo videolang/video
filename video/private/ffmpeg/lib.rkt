@@ -20,7 +20,11 @@
 (require racket/match
          ffi/unsafe
          ffi/unsafe/define
-         ffi/unsafe/define/conventions)
+         ffi/unsafe/define/conventions
+         "../log.rkt"
+         (for-syntax syntax/parse
+                     racket/syntax
+                     racket/base))
 
 (struct exn:ffmpeg exn ())
 (struct exn:ffmpeg:lib exn:ffmpeg ())
@@ -38,6 +42,23 @@
     ['windows ""]
     [_ "lib"]))
 
+(define-syntax (define-ffmpeg-ffi-definer stx)
+  (syntax-parse stx
+    [(_ name:id lib rest ...)
+     #:with def-name (format-id stx "define-~a" #'name)
+     (if (eq? (syntax-e #'lib) #f)
+         #`(define-syntax (def-name stx)
+             (syntax-parse stx
+               [(_ n:id . the-rest)
+                #'(define n
+                    (raise (exn:ffmpeg:lib (format "FFmpeg not installed : ~a" #,(syntax-e #'name))
+                                           (current-continuation-marks))))]))
+         #'(define-ffi-definer name lib rest ...))]))
+
+(define (ffmpeg-not-installed)
+  (log-video-error "FFmpeg NOT installed.")
+  #f)
+
 ;; The ordering of these libraries matters.
 ;; This is the order of dependencies so that Racket can
 ;; resolve it.
@@ -46,23 +67,28 @@
    ['macosx (ffi-lib (string-append lib-prefix "openh264") "4")]
    [_ (void)]))
 (define avutil-lib
-  (ffi-lib (string-append lib-prefix "avutil") "55"))
+  (ffi-lib (string-append lib-prefix "avutil") "55"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avutil avutil-lib
   #:make-c-id convention:hyphen->underscore)
 (define swresample-lib
-  (ffi-lib (string-append lib-prefix "swresample") "2"))
+  (ffi-lib (string-append lib-prefix "swresample") "2"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
 (define swscale-lib
-  (ffi-lib (string-append lib-prefix "swscale") "4"))
+  (ffi-lib (string-append lib-prefix "swscale") "4"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-swscale swscale-lib
   #:make-c-id convention:hyphen->underscore)
 (define avcodec-lib
-  (ffi-lib (string-append lib-prefix "avcodec") "57"))
+  (ffi-lib (string-append lib-prefix "avcodec") "57"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avcodec avcodec-lib
   #:make-c-id convention:hyphen->underscore)
 (define avformat-lib
-  (ffi-lib (string-append lib-prefix "avformat") "57"))
+  (ffi-lib (string-append lib-prefix "avformat") "57"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
 (match (system-type 'os)
@@ -74,7 +100,8 @@
    (void)]
   [_ (void)])
 (define avfilter-lib
-  (ffi-lib (string-append lib-prefix "avfilter") "6"))
+  (ffi-lib (string-append lib-prefix "avfilter") "6"
+           #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avfilter avfilter-lib
   #:make-c-id convention:hyphen->underscore)
 

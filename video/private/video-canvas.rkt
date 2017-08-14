@@ -34,6 +34,7 @@
          racket/match
          ffi/unsafe
          ffi/vector
+         "log.rkt"
          "../render.rkt"
          (submod "../render.rkt" render-fields)
          "ffmpeg/main.rkt"

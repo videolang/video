@@ -33,6 +33,7 @@
          (prefix-in core: "private/video.rkt")
          "units.rkt"
          "private/init.rkt"
+         "private/log.rkt"
          (for-syntax syntax/parse
                      racket/base
                      racket/syntax))

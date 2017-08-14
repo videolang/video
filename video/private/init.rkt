@@ -58,9 +58,6 @@
    ;(av-log-set-callback callback-proc)
    ))
 
-;; Logging messages can be sent here.
-(define-logger video)
-
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
 (module* portaudio racket

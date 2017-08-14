@@ -35,6 +35,7 @@
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt")
          "private/utils.rkt"
+         "private/log.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax

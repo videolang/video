@@ -27,6 +27,7 @@
          "../private/ffmpeg-pipeline.rkt"
          "../private/init.rkt"
          "../private/utils.rkt"
+         "../private/log.rkt"
          "test-utils.rkt")
 
 (define-namespace-anchor here-anchor)
