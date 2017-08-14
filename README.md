@@ -1,10 +1,12 @@
 Video
 =====
-Video is a DSL for describing videos. It is still very much in development and backwards breaking changes are made frequently.
+Video is a DSL for describing videos. It is still under heavy development. The API is becoming more stable. Features may get deprecated, but will be marked well before remove. (See the `CONTRIBUTING.md` file for details.) This ReadMe is for stable builds of video except for the *Nightly Development Badges* section.
 
+# Nightly Development Badges
 [![Build Status](https://travis-ci.org/videolang/video.svg?branch=master)](https://travis-ci.org/videolang/video)
 [![Build status](https://ci.appveyor.com/api/projects/status/f2t9op5dflo67ls4?svg=true)](https://ci.appveyor.com/project/LeifAndersen/video)
 [![Coverage Status](https://coveralls.io/repos/github/videolang/video/badge.svg?branch=master)](https://coveralls.io/github/videolang/video?branch=master)
+[![Scribble](https://img.shields.io/badge/Docs-Scribble-blue.svg)](http://docs.racket-lang.org/video@video-unstable/index.html)
 [![Project Stats](https://www.openhub.net/p/video/widgets/project_thin_badge.gif)](https://www.openhub.net/p/video)
 
 # Website
