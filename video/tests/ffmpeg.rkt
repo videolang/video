@@ -89,3 +89,29 @@
   (check-equal? (color->string "green")
                  "0x00ff00ff"))
 
+
+(let ()
+  (define b (mk-stream-bundle))
+  (check-true (stream-bundle? b))
+  (define ci (mk-codec-obj))
+  (check-true (codec-obj? ci)))
+
+(let ()
+  (filter->string
+   (mk-filter "myfilter"
+              (hash "a" '("b" "c" "d")
+                    "e" (mk-duration 5)
+                    "f" (mk-interval 8 '()))))
+  (void))
+
+(let ()
+  (convert-dict (hash "a" "b" "c" "d"))
+  (void))
+
+(let ()
+  (define g (avfilter-graph-alloc))
+  (filter->avfilter
+   (mk-filter "trim" (hash "start" 3 "end" 42))
+   g)
+  (avfilter-graph-free g)
+  (void))
