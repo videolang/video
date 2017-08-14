@@ -247,28 +247,31 @@
     ;;   handled (unsafely) by opengl state.
     ;; -> Void
     (define/public (draw-frame data-fill-callback)
-      (send this with-gl-context
-            (λ ()
-              ;; Fill in data
-              (data-fill-callback)
-              ;; Draw in the texture data.
-              ;; Unlike the setup, this will be identical for
-              ;;   both legacy and modern.
-              (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
-              (glUseProgram prog)
-              (glActiveTexture GL_TEXTURE0)
-              (glBindTexture GL_TEXTURE_2D tex-buff)
-              (glUniform1i tex-id 0)
-              (glEnableVertexAttribArray buff-id)
-              (glBindBuffer GL_ARRAY_BUFFER buff)
-              (glVertexAttribPointer buff-id 3 GL_FLOAT #f 0 #f)
-              (glEnableVertexAttribArray uv-id)
-              (glBindBuffer GL_ARRAY_BUFFER uv-buff)
-              (glVertexAttribPointer uv-id 2 GL_FLOAT #f 0 #f)
-              (glDrawArrays GL_TRIANGLE_STRIP 0 4)
-              (glDisableVertexAttribArray buff-id)
-              (glDisableVertexAttribArray uv-id)))
-      (send this swap-gl-buffers))
+      (with-handlers ([exn:fail? (λ (e)
+                                   (log-video-warning "OpenGL Error ~a" e)
+                                   (void))])
+        (send this with-gl-context
+              (λ ()
+                ;; Fill in data
+                (data-fill-callback)
+                ;; Draw in the texture data.
+                ;; Unlike the setup, this will be identical for
+                ;;   both legacy and modern.
+                (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+                (glUseProgram prog)
+                (glActiveTexture GL_TEXTURE0)
+                (glBindTexture GL_TEXTURE_2D tex-buff)
+                (glUniform1i tex-id 0)
+                (glEnableVertexAttribArray buff-id)
+                (glBindBuffer GL_ARRAY_BUFFER buff)
+                (glVertexAttribPointer buff-id 3 GL_FLOAT #f 0 #f)
+                (glEnableVertexAttribArray uv-id)
+                (glBindBuffer GL_ARRAY_BUFFER uv-buff)
+                (glVertexAttribPointer uv-id 2 GL_FLOAT #f 0 #f)
+                (glDrawArrays GL_TRIANGLE_STRIP 0 4)
+                (glDisableVertexAttribArray buff-id)
+                (glDisableVertexAttribArray uv-id)))
+        (send this swap-gl-buffers)))
 
     (will-register video-canvas%-executor this video-canvas%-final)))
 
