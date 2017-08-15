@@ -796,8 +796,6 @@
                [(= ret 0) (void)]
                [else (error 'buffersrc-add-frame "~a : ~a" ret (convert-err ret))])))
   (define-avfilter av-buffersrc-get-nb-failed-requests (_fun _avfilter-context-pointer -> _int))
-  (define-avfilter avfilter-configuration (_fun -> _string))
-  (define-avfilter avfilter-license (_fun -> _string))
   (define-avfilter avfilter-init-str
     (_fun _avfilter-context-pointer _string -> [ret : _int]
           -> (cond
@@ -823,10 +821,8 @@
 (module avdevice racket/base
   (provide (all-defined-out))
   (require (submod ".." bindings))
-  
-  (define-avdevice avdevice-register-all (_fun -> _void))
 
-  (define-avdevice avdevice-configuration (_fun -> _string))
+  (define-avdevice avdevice-register-all (_fun -> _void))
 
   (define-avdevice av-input-audio-device-next
     (_fun _av-input-format-pointer/null -> _av-input-format-pointer/null))

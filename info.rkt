@@ -49,3 +49,5 @@
 (define version "0.2")
 (define pkg-authors '(leif))
 (define pkg-desc "Video Language")
+
+(define install-collection "private/install.rkt")

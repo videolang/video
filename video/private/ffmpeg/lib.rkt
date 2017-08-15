@@ -38,6 +38,7 @@
 ;; ===================================================================================================
 
 (define ffmpeg-min-version "3.2")
+(define ffmpeg-rec-version "3.3")
 
 (define lib-prefix
   (match (system-type 'os)
@@ -145,12 +146,26 @@
 ;; ===================================================================================================
 
 (define-avutil avutil-version (_fun -> _version))
+(define-avutil avutil-license (_fun -> _string))
+(define-avutil avutil-configuration (_fun -> _string))
 (define-swresample swresample-version (_fun -> _version))
+(define-swresample swresample-license (_fun -> _string))
+(define-swresample swresample-configuration (_fun -> _string))
 (define-swscale swscale-version (_fun -> _version))
+(define-swscale swscale-license (_fun -> _string))
+(define-swscale swscale-configuration (_fun -> _string))
 (define-avcodec avcodec-version (_fun -> _version))
+(define-avcodec avcodec-license (_fun -> _string))
+(define-avcodec avcodec-configuration (_fun -> _string))
 (define-avformat avformat-version (_fun -> _version))
+(define-avformat avformat-license (_fun -> _string))
+(define-avformat avformat-configuration (_fun -> _string))
 (define-avfilter avfilter-version (_fun -> _version))
+(define-avfilter avfilter-license (_fun -> _string))
+(define-avfilter avfilter-configuration (_fun -> _string))
 (define-avdevice avdevice-version (_fun -> _version))
+(define-avdevice avdevice-license (_fun -> _string))
+(define-avdevice avdevice-configuration (_fun -> _string))
 
 ;; ===================================================================================================
 
