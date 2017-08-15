@@ -55,6 +55,7 @@
    (av-register-all)
    (avfilter-register-all)
    (avformat-network-init)
+   (avdevice-register-all)
    ;(av-log-set-callback callback-proc)
    ))
 

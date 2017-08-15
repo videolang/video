@@ -33,6 +33,7 @@
                 "bitsyntax"
                 "opengl"
                 "portaudio"
+                "net-lib"
                 ("graph" "0.3.1")
                 ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
                 ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")

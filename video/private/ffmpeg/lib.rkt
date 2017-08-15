@@ -37,6 +37,8 @@
 
 ;; ===================================================================================================
 
+(define ffmpeg-min-version "3.2")
+
 (define lib-prefix
   (match (system-type 'os)
     ['windows ""]
@@ -69,27 +71,27 @@
 (define avutil-lib
   (ffi-lib (string-append lib-prefix "avutil") "55"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-avutil avutil-lib
+(define-ffmpeg-ffi-definer define-avutil avutil-lib
   #:make-c-id convention:hyphen->underscore)
 (define swresample-lib
   (ffi-lib (string-append lib-prefix "swresample") "2"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-swresample swresample-lib
+(define-ffmpeg-ffi-definer define-swresample swresample-lib
   #:make-c-id convention:hyphen->underscore)
 (define swscale-lib
   (ffi-lib (string-append lib-prefix "swscale") "4"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-swscale swscale-lib
+(define-ffmpeg-ffi-definer define-swscale swscale-lib
   #:make-c-id convention:hyphen->underscore)
 (define avcodec-lib
   (ffi-lib (string-append lib-prefix "avcodec") "57"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-avcodec avcodec-lib
+(define-ffmpeg-ffi-definer define-avcodec avcodec-lib
   #:make-c-id convention:hyphen->underscore)
 (define avformat-lib
   (ffi-lib (string-append lib-prefix "avformat") "57"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-avformat avformat-lib
+(define-ffmpeg-ffi-definer define-avformat avformat-lib
   #:make-c-id convention:hyphen->underscore)
 (match (system-type 'os)
   ['windows
@@ -102,7 +104,12 @@
 (define avfilter-lib
   (ffi-lib (string-append lib-prefix "avfilter") "6"
            #:fail ffmpeg-not-installed))
-(define-ffi-definer define-avfilter avfilter-lib
+(define-ffmpeg-ffi-definer define-avfilter avfilter-lib
+  #:make-c-id convention:hyphen->underscore)
+(define avdevice-lib
+  (ffi-lib (string-append lib-prefix "avdevice") "57"
+           #:fail ffmpeg-not-installed))
+(define-ffmpeg-ffi-definer define-avdevice avdevice-lib
   #:make-c-id convention:hyphen->underscore)
 
 ;; ===================================================================================================
@@ -143,6 +150,7 @@
 (define-avcodec avcodec-version (_fun -> _version))
 (define-avformat avformat-version (_fun -> _version))
 (define-avfilter avfilter-version (_fun -> _version))
+(define-avdevice avdevice-version (_fun -> _version))
 
 ;; ===================================================================================================
 
@@ -153,8 +161,11 @@
 (define (version-check libname version major minor)
   (unless (and (= (version-major version) major)
                (>= (version-minor version) minor))
-    (raise (exn:ffmpeg:version (format "FFmpeg ~a version ~a incompatible with Video" libname version)
-                               (current-continuation-marks)))))
+    (raise (exn:ffmpeg:version
+            (format (string-append "FFmpeg ~a version ~a incompatible with Video. "
+                                   "Ensure you are using FFmpeg version ~a or higher")
+                    libname version ffmpeg-min-version)
+            (current-continuation-marks)))))
 
 (version-check "libavutil" (avutil-version) 55 34)
 (version-check "libavcodec" (avcodec-version) 57 64)
@@ -162,3 +173,4 @@
 (version-check "libavfilter" (avfilter-version) 6 65)
 (version-check "libswscale" (swscale-version) 4 2)
 (version-check "libswresample" (swresample-version) 2 3)
+(version-check "libavdevice" (avdevice-version) 57 1)

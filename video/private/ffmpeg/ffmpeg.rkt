@@ -817,3 +817,14 @@
 
 (require 'avfilter)
 (provide (all-from-out 'avfilter))
+
+;; ===================================================================================================
+
+(module avdevice racket/base
+  (provide (all-defined-out))
+  (require (submod ".." bindings))
+  
+  (define-avdevice avdevice-register-all (_fun -> _void)))
+
+(require 'avdevice)
+(provide (all-from-out 'avdevice))
