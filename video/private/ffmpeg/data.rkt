@@ -810,3 +810,16 @@
    [pcr-pid _int]))
 
 (define-cpointer-type _avoption-pointer)
+
+(define-cstruct _avdevice-info
+  ([device-name _pointer]
+   [device-description _pointer]))
+
+(define-cstruct _avdevice-info-list
+  ([devices-data _pointer]
+   [nb-devices _pointer]
+   [default-device _int]))
+(define (avdevice-devices v)
+  (cblock->list (avdevice-info-list-devices-data v)
+                _avdevice-info-pointer
+                (avdevice-info-list-nb-devices v)))

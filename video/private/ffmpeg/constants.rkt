@@ -122,7 +122,16 @@
                                  (if (integer? a) a (char->integer b))
                                  (if (integer? a) a (char->integer c))
                                  (if (integer? a) a (char->integer d)))
-                          #t))
+                          #t
+                          #f))
+
+(define (MK-BE-TAG [a #\space] [b #\space] [c #\space] [d #\space])
+  (integer-bytes->integer (bytes (if (integer? a) a (char->integer a))
+                                 (if (integer? a) a (char->integer b))
+                                 (if (integer? a) a (char->integer c))
+                                 (if (integer? a) a (char->integer d)))
+                          #t
+                          #f))
 
 (define (FFERRTAG [a #\space] [b #\space] [c #\space] [d #\space])
   (- (MK-TAG a b c d)))
@@ -1240,3 +1249,29 @@
            debug = 48
            trace = 56
            max-offset = ,(- 56 -8))))
+
+(define _av-app->dev-message-type
+  (_enum `(none = ,(MK-BE-TAG #\N #\O #\N #\E)
+           window-size = ,(MK-BE-TAG #\G #\E #\O #\M)
+           window-repaint = ,(MK-BE-TAG #\R #\E #\P #\A)
+           pause = ,(MK-BE-TAG #\P #\A #\U #\space)
+           play = ,(MK-BE-TAG #\P #\L #\A #\Y)
+           toggle-pause = ,(MK-BE-TAG #\P #\A #\U #\T)
+           set-volume = ,(MK-BE-TAG #\S #\V #\O #\L)
+           mute = ,(MK-BE-TAG #\space #\M #\U #\T)
+           unmute = ,(MK-BE-TAG #\U #\M #\U #\T)
+           toggle-mute = ,(MK-BE-TAG #\T #\M #\U #\T)
+           get-volume = ,(MK-BE-TAG #\G #\V #\O #\L)
+           get-mute = ,(MK-BE-TAG #\G #\M #\U #\T))))
+
+(define _av-dev->app-message-type
+  (_enum `(none = ,(MK-BE-TAG #\N #\O #\N #\E)
+           create-window-buffer = ,(MK-BE-TAG #\B #\C #\R #\E)
+           prepare-window-buffer = ,(MK-BE-TAG #\B #\P #\R #\E)
+           display-window-buffer = ,(MK-BE-TAG #\B #\D #\I #\S)
+           buffer-overflow = ,(MK-BE-TAG #\B #\O #\F #\L)
+           buffer-underflow = ,(MK-BE-TAG #\B #\U #\F #\L)
+           buffer-readable = ,(MK-BE-TAG #\B #\R #\D #\space)
+           buffer-writable = ,(MK-BE-TAG #\B #\W #\D #\space)
+           mute-state-changed = ,(MK-BE-TAG #\C #\M #\U #\T)
+           volume-level-changed = ,(MK-BE-TAG #\C #\V #\O #\L))))

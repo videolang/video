@@ -824,7 +824,15 @@
   (provide (all-defined-out))
   (require (submod ".." bindings))
   
-  (define-avdevice avdevice-register-all (_fun -> _void)))
+  (define-avdevice avdevice-register-all (_fun -> _void))
+  
+  (define-avdevice avdevice-list-devices
+    (_fun _avformat-context-pointer [out : (_ptr o _avdevice-info-list-pointer)] -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [else (error 'avdevice-list-devices "~a : ~a" ret (convert-err ret))])))
+  (define-avdevice avdevice-free-list-devices
+    (_fun (_ptr i _avdevice-info-list-pointer/null) -> _void)))
 
 (require 'avdevice)
 (provide (all-from-out 'avdevice))
