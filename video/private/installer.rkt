@@ -50,7 +50,7 @@
   (version-check "libavfilter" (avfilter-version) 6 82)
   (check-license "libavfilter" (avfilter-license))
   (version-check "libswscale" (swscale-version) 4 6)
-  (check-license "libswscale" (scscale-license))
+  (check-license "libswscale" (swscale-license))
   (version-check "libswresample" (swresample-version) 2 7)
   (check-license "libswresample" (swresample-license))
   (version-check "libavdevice" (avdevice-version) 57 6)
