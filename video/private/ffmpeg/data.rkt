@@ -823,3 +823,24 @@
   (cblock->list (avdevice-info-list-devices-data v)
                 _avdevice-info-pointer
                 (avdevice-info-list-nb-devices v)))
+
+(define-cstruct _avdevice-rect
+  ([x _int]
+   [y _int]
+   [width _int]
+   [height _int]))
+
+(define-cstruct _avdevice-capabilities-query
+  ([av-class _avclass-pointer/null]
+   [device-context _avformat-context-pointer/null]
+   [codec _avcodec-id]
+   [sample-format _avsample-format]
+   [pixel-format _avpixel-format]
+   [sample-rate _int]
+   [channels _int]
+   [channel-layout _int64]
+   [window-width _int]
+   [window-height _int]
+   [frame-width _int]
+   [frame-height _int]
+   [fps _avrational]))

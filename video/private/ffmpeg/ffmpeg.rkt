@@ -825,6 +825,38 @@
   (require (submod ".." bindings))
   
   (define-avdevice avdevice-register-all (_fun -> _void))
+
+  (define-avdevice avdevice-configuration (_fun -> _string))
+
+  (define-avdevice av-input-audio-device-next
+    (_fun _av-input-format-pointer/null -> _av-input-format-pointer/null))
+  (define-avdevice av-input-video-device-next
+    (_fun _av-input-format-pointer/null -> _av-input-format-pointer/null))
+  (define-avdevice av-output-audio-device-next
+    (_fun _av-output-format-pointer/null -> _av-output-format-pointer/null))
+  (define-avdevice av-output-video-device-next
+    (_fun _av-output-format-pointer/null -> _av-output-format-pointer/null))
+
+  (define-avdevice avdevice-app-to-dev-control-message
+    (_fun _avformat-context-pointer _av-app->dev-message-type _pointer _size
+          -> [ret : _int]
+          -> (cond [(>= ret 0) (void)]
+                   [else
+                    (error 'avdevice-app-to-dev-control-message "~a : ~a" ret (convert-err ret))])))
+  (define-avdevice avdevice-dev-to-app-control-message
+    (_fun _avformat-context-pointer _av-dev->app-message-type _pointer _size
+          -> [ret : _int]
+          -> (cond [(>= ret 0) (void)]
+                   [else
+                    (error 'avdevice-dev-to-app-control-message "~a : ~a" ret (convert-err ret))])))
+
+  (define-avdevice avdevice-capabilities-create
+    (_fun [out : (_ptr o _avdevice-capabilities-query-pointer)] _avformat-context-pointer _pointer
+          -> [ret : _int]
+          -> (cond [(>= ret 0) out]
+                   [else (error 'avdevice-capabilities-create "~a : ~a" ret (convert-err ret))])))
+  (define-avdevice avdevice-capabilities-free
+    (_fun (_ptr i _avdevice-capabilities-query-pointer/null) _avformat-context-pointer -> _void))
   
   (define-avdevice avdevice-list-devices
     (_fun _avformat-context-pointer [out : (_ptr o _avdevice-info-list-pointer)] -> [ret : _int]
