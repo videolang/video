@@ -298,6 +298,12 @@
     (define/public (dump-info [testfile #f])
       (av-dump-format avformat 0 testfile 0))
 
+    (define/public (list-devices)
+      (define dev (avdevice-list-devices avformat))
+      (define ret (avdevice-info-list-devices dev))
+      (avdevice-free-list-devices dev)
+      ret)
+
     ;; Takes an optional timeout in seconds. Returns true if data is found
     ;;   or false if timed out (if timeout provided).
     ;; (U Number #f) -> Boolean
@@ -556,6 +562,12 @@
     (define file (stream-bundle-file bundle))
     (define format (avformat-context-oformat output-context))
     (define streams (stream-bundle-streams bundle))
+
+    (define/public (list-devices)
+      (define dev (avdevice-list-devices output-context))
+      (define ret (avdevice-info-list-devices dev))
+      (avdevice-free-list-devices dev)
+      ret)
     
     (define/public (init)
       (define options (convert-dict (stream-bundle-options-dict bundle)))

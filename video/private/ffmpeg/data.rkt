@@ -819,7 +819,7 @@
   ([devices-data _pointer]
    [nb-devices _pointer]
    [default-device _int]))
-(define (avdevice-devices v)
+(define (avdevice-info-list-devices v)
   (cblock->list (avdevice-info-list-devices-data v)
                 _avdevice-info-pointer
                 (avdevice-info-list-nb-devices v)))
