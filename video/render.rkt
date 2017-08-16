@@ -281,25 +281,16 @@
 
     (define current-render-status (mk-render-status-box))
 
-    (field [running-lock (make-semaphore 1)]
-           [reading-thread #f]
-           [writing-thread #f])
-
+    ;; Flag states:
+    ;; #f - The reader/writer can continue running
+    ;; #t - The reader/writer should make a best effort attempt to close down
+    (field [reading-thread #f]
+           [writing-thread #f]
+           [stop-rendering-flag #f])
 
     (define current-render-settings-lock (make-semaphore 1))
     (define current-render-settings (make-render-settings))
 
-    ;; Flag states:
-    ;;   - running : Actively reading/writing
-    ;;   - stopping : Actively reading/writing, requested to stop asap
-    ;;   - stopped : No longer reading/writing
-    ;; Must always use call-with-semaphore before modifying the status flag.
-    (field [stop-reading-flag 'stopped]
-           [reading-stopped-signal (make-async-channel)]
-           [stop-reading-semaphore (make-semaphore 1)]
-           [stop-writing-flag 'stopped]
-           [writing-stopped-signal (make-async-channel)]
-           [stop-writing-semaphore (make-semaphore 1)])
 
     ;; Copy this renderer, that way it can be
     ;; setup to multiple profiles
@@ -512,10 +503,8 @@
                                 [by-index-callback callback]))
              (send demux init)
              (let loop ()
-               (when (call-with-semaphore
-                      stop-reading-semaphore
-                      (λ () (eq? stop-reading-flag 'running)))
-                 (sleep 0)
+               (sleep 0)
+               (unless stop-rendering-flag
                  (define got-data?
                    (send demux wait-for-packet-need 1))
                  (cond [(not got-data?) (loop)]
@@ -523,12 +512,6 @@
                        [else (void)])))
              (send demux close)))))
       (for-each thread-wait threads)
-      (call-with-semaphore
-       stop-reading-semaphore
-       (λ ()
-         (when (eq? stop-reading-flag 'stopping)
-           (async-channel-put reading-stopped-signal 'stopped))
-         (set! stop-reading-flag 'stopped)))
       (void))
 
     ;; Asynchronous thread to start-rendering.
@@ -539,41 +522,21 @@
     ;; after this method concludes.
     ;; Boolean -> Void
     (define/public (start-rendering [wait? #f])
-      (define prev-read-status
-        (call-with-semaphore
-         stop-reading-semaphore
-         (λ ()
-           (define ret stop-reading-flag)
-           (set! stop-reading-flag 'running)
-           ret)))
-      (log-video-debug "start-rendering: Previous reading status: ~a" prev-read-status)
-      (unless (eq? prev-read-status 'stopped)
+      (define prev-rendering-status
+        (or (and reading-thread (not (thread-dead? reading-thread)))
+            (and writing-thread (not (thread-dead? reading-thread)))))
+      (when prev-rendering-status
         (error 'feed-buffers "Reader already running"))
-      (define prev-write-status
-        (call-with-semaphore
-         stop-writing-semaphore
-         (λ ()
-           (define ret stop-writing-flag)
-           (set! stop-writing-flag 'running)
-           ret)))
-      (log-video-debug "start-rendering: Previous writing status: ~a" prev-write-status)
-      (unless (eq? prev-write-status 'stopped)
-        (error 'write-output "Already writing output"))
-      (call-with-semaphore
-       running-lock
-       (λ ()
-         (set! reading-thread (thread (λ () (feed-buffers))))
-         (set! writing-thread (thread (λ () (write-output))))))
+      (set! stop-rendering-flag #f)
+      (set! reading-thread (thread (λ () (feed-buffers))))
+      (set! writing-thread (thread (λ () (write-output))))
       (when wait?
         (wait-for-rendering)))
 
     ;; Wait for rendering to finish, then return.
     (define/public (wait-for-rendering)
-      (call-with-semaphore
-       running-lock
-       (λ ()
-         (and writing-thread (thread-wait writing-thread))
-         (and reading-thread (thread-wait reading-thread))))
+      (and writing-thread (thread-wait writing-thread))
+      (and reading-thread (thread-wait reading-thread))
       (void))
 
     ;; Used for early termination of `feed-buffers`.
@@ -585,26 +548,10 @@
     ;; WARNING: While this method _is_ threadsafe, it is
     ;;   possible to start re-running before thread begins again, depending
     ;;   on your use of the other methods.
-    (define/public (stop-rendering)
-      (let loop ()
-        (define prev-status
-          (call-with-semaphore
-           stop-writing-semaphore
-           (λ ()
-             (define ret stop-writing-flag)
-             (when (eq? stop-writing-flag 'running)
-               (set! stop-writing-flag 'stopping))
-             ret)))
-        (log-video-debug "stop-rendering: Previous writing status: ~a" prev-status)
-        (match prev-status
-          ['stopped (void)]
-          ['stopping
-           (sleep 1)
-           (loop)]
-          ['running
-           (async-channel-get writing-stopped-signal)
-           (void)]))
-      (wait-for-rendering))
+    (define/public (stop-rendering [wait #t])
+      (set! stop-rendering-flag #t)
+      (when wait
+        (wait-for-rendering)))
 
     (define/public (write-output-callback-constructor #:render-status render-status)
       (filtergraph-next-packet #:render-status render-status))
@@ -625,36 +572,14 @@
              (send mux open)
              (send mux write-header)
              (let loop ()
-               (when (call-with-semaphore stop-writing-semaphore
-                                          (λ () (eq? stop-writing-flag 'running)))
-                 (define out (send mux write-packet))
-                 (sleep 0)
-                 (define continue?
-                   (and out
-                       #;(and (= out 0)
-                            (call-with-semaphore stop-reading-semaphore
-                                                 (λ () (eq? stop-reading-flag 'stopped))))))
+               (sleep 0)
+               (unless stop-rendering-flag
+                 (define continue? (send mux write-packet))
                  (when continue?
                    (loop))))
              (send mux write-trailer)
              (send mux close)))))
       (map thread-wait threads)
-      (define wait-for-reading?
-        (call-with-semaphore
-         stop-reading-semaphore
-         (λ ()
-           (define reading? (eq? stop-reading-flag 'running))
-           (when reading?
-             (set! stop-reading-flag 'stopping))
-           reading?)))
-      (when wait-for-reading?
-        (async-channel-get reading-stopped-signal))
-      (call-with-semaphore
-       stop-writing-semaphore
-       (λ ()
-         (when (eq? stop-writing-flag 'stopping)
-           (async-channel-put writing-stopped-signal 'stopped))
-         (set! stop-writing-flag 'stopped)))
       (void))
 
     (define/public (render-audio val)
@@ -721,12 +646,9 @@
     ;; Remember that, depending on how you call these methods, it could
     ;;    start rendering after it returns `#f`
     (define/public (rendering?)
-      (call-with-semaphore
-       running-lock
-       (λ ()
-         (or (and reading-thread (thread-running? reading-thread))
-             (and writing-thread (thread-running? writing-thread))))))
-       
+      (or (and reading-thread (thread-running? reading-thread))
+          (and writing-thread (thread-running? writing-thread))))
+    
     ;; Possible Results:
     ;; #t   : Rendering
     ;; #f   : Not Rendering
@@ -787,21 +709,15 @@
     video-end
     render-graph
     output-node
-    running-lock
     reading-thread
     writing-thread
+    stop-rendering-flag
     current-render-settings-lock
     current-render-settings
 
     feed-buffers-callback-constructor
     feed-buffers
     write-output-callback-constructor
-    write-output
-    
-    stop-reading-flag
-    reading-stopped-signal
-    stop-reading-semaphore
-    stop-writing-flag
-    writing-stopped-signal
-    stop-writing-semaphore))
+    write-output))
+
 (require 'render-fields)

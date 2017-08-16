@@ -366,7 +366,7 @@
 (define video-canvas-render-mixin
   (mixin (render<%>) ()
     (super-new)
-    (inherit-field stop-writing-flag stop-writing-semaphore)
+    (inherit-field stop-rendering-flag)
     (define canvas #f)
     (define play-audio? #t)
     (define audio-buffer (new audio-buffer%))
@@ -416,10 +416,9 @@
                   (if play-audio?
                       (send audio-buffer add-frame out-frame)
                       (av-frame-free out-frame))
-                  (if (call-with-semaphore stop-writing-semaphore
-                                           (λ () (eq? stop-writing-flag 'running)))
-                      (loop)
-                      eof)))]
+                  (if stop-rendering-flag
+                      eof
+                      (loop))))]
              [('audio 'close)
               (when (and play-audio? stop-audio)
                 (stop-audio))]
@@ -444,8 +443,7 @@
                              (ptr-add (array-ref (av-frame-data out-frame) 0)
                                       (* i linesize))))))
                   (av-frame-free out-frame)
-                  (if (call-with-semaphore stop-writing-semaphore
-                                           (λ () (eq? stop-writing-flag 'running)))
-                      (loop)
-                      eof)))]
+                  (if stop-rendering-flag
+                      eof
+                      (loop))))]
              [(_ _) (void)])])))))
