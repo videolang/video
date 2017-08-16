@@ -63,7 +63,7 @@ DrRacket. This extensions is still experimental and highly
 unstable. The next version of Video will focus on this
 extension and make the tool significantly cleaner and stable.
 
-If you found these docs from the Racket documentation, the
+In case you found these docs from the Racket website, the
 Video website can be found at @url{http://lang.video}. It includes
 the Video blog, community projects, tutorials, etc.
 

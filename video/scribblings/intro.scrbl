@@ -50,7 +50,7 @@ documents.
 
 All VidLang programs begin with @code{#lang video}, the
 remaining program is a description of the resulting video.
-Each top level expression is a @tt{producer} which is
+Each top level expression is a @deftech["producer"] which is
 anything that produces a video stream. For example, the
 @racket[color] producer generates a stream of green frames:
 
@@ -88,10 +88,12 @@ shows the resulting structure:
             ;(playlist (color "green")))]
             (displayln "#<playlist>"))]
 
-The @racket[color] function creates a producer of an
-indeterminate length.@margin-note{Although the length can be
- set with the @racket[#:length] keyword.} Another function,
-@racket[clip] does create a producer with a bound length.
+The @racket[color] function creates an infinitely long
+@tech["producer"]. The @tech["producer"]'s length can optionally be set
+explicitly with its @tech["properties"]. If the length is
+not set, the @tech["producer"]s length will automatically set itself
+to fit the surrounding context. Another function,
+@racket[clip] does create a @tech["producer"] from a file:
 
 @racketmod[
  video
@@ -100,13 +102,13 @@ indeterminate length.@margin-note{Although the length can be
 @inset-flow[
  (apply playlist-timeline the-rr-clip)]
 
-Clips can be further cut with the @racket[#:start] and @racket[#:end] keywords:
+Like @racket[color], clips can also set their length with @tech["properties"]
 
 @racketmod[
  video
  (clip "spinning_square.mp4"
-       #:start 2
-       #:end 8)]
+       #:properties (hash "start" 2
+                          "end" 8))]
 
 @inset-flow[
  (apply playlist-timeline
@@ -114,12 +116,12 @@ Clips can be further cut with the @racket[#:start] and @racket[#:end] keywords:
 
 @section{Filters}
 
-Filters can be attached to every producer. These filters
+@deftech["Filters"] can be attached to every producer. These filters
 modify the producers behavior: turning it grayscale,
 changing the aspect ratio, etc. The @racket[attach-filter]
-function attaches filters to a list. For example, we can use
-the @racket[grayscale-filter] to remove the color from the
-rotating square clip earlier.
+function attaches filters to an existing producer. For
+example, we can use the @racket[grayscale-filter] to remove
+the color from the rotating square clip earlier:
 
 @racketmod[
  video
@@ -238,16 +240,16 @@ to specify what producers it connects:
 
 @section{Multitracks and Merges}
 
-Multitracks play multiple producer simultaneously. In other
-words, while playlists combine producers temporarily,
-multitracks combine them spacial. Because every track
+@deftech["Multitracks"] play multiple producer simultaneously. In other
+words, while @tech["playlists"] combine producers temporarily,
+@tech["multitracks"] combine them spacial. Because every track
 happens in parallel, only the top most track will be
 rendered.
 
-Merges combine different tracks in a multitrack. These can
+Merges combine different tracks in a @tech["multitrack"]. These can
 be anything from a video overlay, to a chroma key effect. As
-with playlists, composite merges can be inlined with a
-multitrack's producers:
+with @tech["playlists"], composite merges can be inlined with a
+@tech["multitrack"]'s producers:
 
 @racketmod[
  video
@@ -285,6 +287,8 @@ multitrack's producers:
         (for/list ([r (in-list the-rr-clip)]
                    [b (in-list the-ball-drop)])
           (shot (hc-append r b))))]
+
+@section{Video Properties}
 
 @section[#:tag "raco-video"]{Command Line Interaction}
 
