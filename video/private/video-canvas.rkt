@@ -248,17 +248,21 @@
     ;;   handled (unsafely) by opengl state.
     ;; -> Void
     (define/public (draw-frame data-fill-callback)
+      (define callback-error? #f)
       (with-handlers ([exn:fail? (λ (e)
+                                   (when callback-error?
+                                     (raise e))
                                    (log-video-warning "OpenGL Error ~a" e)
                                    (void))])
         (send this with-gl-context
               (λ ()
+                (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
                 ;; Fill in data
-                (data-fill-callback)
+                (with-handlers ([exn:fail? (λ (e) (set! callback-error? #t) (raise e))])
+                  (data-fill-callback))
                 ;; Draw in the texture data.
                 ;; Unlike the setup, this will be identical for
                 ;;   both legacy and modern.
-                (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
                 (glUseProgram prog)
                 (glActiveTexture GL_TEXTURE0)
                 (glBindTexture GL_TEXTURE_2D tex-buff)
@@ -293,6 +297,54 @@
       (will-execute video-canvas%-executor)
       (loop)))))
 
+;; Handles the video buffer for the video canvas.
+;; Ensures that they are drawn based on video's timestamps.
+(define video-buffer%
+  (class object%
+    (super-new)
+    (define canvas #f)
+    (define buff (make-async-channel))
+    (define curr-frame #f)
+
+    ;; Set the buffer's canvas.
+    (define/public (set-canvas c)
+      (set! canvas c))
+    
+    ;; Adds a frame to the buffer's internal queue.
+    (define/public (add-frame frame)
+      (async-channel-put buff frame))
+    
+    ;; Grab the next frame from the queue
+    (define/public (read-frame [block #t])
+      (when curr-frame
+        (av-frame-free curr-frame))
+      (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
+      (unless curr-frame
+        (log-video-debug "Videobuffer: No frame currently in queue")))
+
+    (define/public (draw-frame [block #t])
+      (unless canvas
+        (error 'video-buffer "Must set canvas before calling draw-frame"))
+      (let/ec return
+        (read-frame block) ;; XXX Need to check PTS!
+        (unless curr-frame
+          (return))
+        (define linesize (array-ref (av-frame-linesize curr-frame) 0))
+        (send canvas draw-frame
+              (λ ()
+                (for ([i (in-range (av-frame-height curr-frame))])
+                  (glTexSubImage2D
+                   GL_TEXTURE_2D
+                   0
+                   0
+                   i
+                   (av-frame-width curr-frame)
+                   1
+                   GL_RGB
+                   GL_UNSIGNED_BYTE
+                   (ptr-add (array-ref (av-frame-data curr-frame) 0)
+                            (* i linesize))))))))))
+
 ;; Handles the audio buffer for the video canvas
 ;; Based on the portaudio library.
 (define audio-buffer%
@@ -303,7 +355,7 @@
     (define sample-offset 0)
     (define frame-size #f)
 
-    ;; Add a frame to the buffer queue
+    ;; Add a frame to the buffer's internal queue
     (define/public (add-frame frame)
       (async-channel-put buff frame))
 
@@ -368,9 +420,13 @@
     (super-new)
     (inherit-field stop-rendering-flag)
     (define canvas #f)
+    (define play-video? #t)
     (define play-audio? #t)
     (define audio-buffer (new audio-buffer%))
+    (define video-buffer (new video-buffer%))
     (define stop-audio #f)
+    (define video-thread #f)
+    (define stop-video-thread-flag #f)
     (define width #f)
     (define height #f)
     (define/override (setup rs)
@@ -388,6 +444,7 @@
                                 [format 'raw])))
     (define/public (set-canvas c)
       (set! canvas c)
+      (send video-buffer set-canvas c)
       (set! width (send c get-video-width))
       (set! height (send c get-video-height)))
     (define/override (write-output-callback-constructor #:render-status render-status)
@@ -422,28 +479,26 @@
              [('audio 'close)
               (when (and play-audio? stop-audio)
                 (stop-audio))]
+             [('video 'open)
+              (set! video-thread
+                    (thread
+                     (λ ()
+                       (let loop ()
+                         (unless stop-video-thread-flag
+                           (send video-buffer draw-frame)
+                           (sleep 0.01)
+                           (loop))))))]
              [('video 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (define linesize (array-ref (av-frame-linesize out-frame) 0))
-                  (send canvas draw-frame
-                        (λ ()
-                          (for ([i (in-range (avcodec-context-height ctx))])
-                            (glTexSubImage2D
-                             GL_TEXTURE_2D
-                             0
-                             0
-                             i
-                             (avcodec-context-width ctx)
-                             1
-                             GL_RGB
-                             GL_UNSIGNED_BYTE
-                             (ptr-add (array-ref (av-frame-data out-frame) 0)
-                                      (* i linesize))))))
-                  (av-frame-free out-frame)
+                  (if play-video?
+                      (send video-buffer add-frame out-frame)
+                      (av-frame-free out-frame))
                   (if stop-rendering-flag
                       eof
                       (loop))))]
+             [('video 'close)
+              (set! stop-video-thread-flag #t)]
              [(_ _) (void)])])))))
