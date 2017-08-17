@@ -309,7 +309,7 @@
     (define curr-frame #f)
     (define time-base #f)
     (define fps #f)
-    (define start-time (current-innexact-milliseconds))
+    (define start-time (current-inexact-milliseconds))
 
     ;; Set the buffer's canvas.
     (define/public (set-canvas c)
@@ -326,7 +326,7 @@
 
     ;; Set the start time. The current time is based on (current-innexact-milliseconds)
     ;; The difference determins what time of the stream should be played
-    (define/public (set-start-time [t (current-innexact-milliseconds)])
+    (define/public (set-start-time [t (current-inexact-milliseconds)])
       (set! start-time t))
     
     ;; Adds a frame to the buffer's internal queue.
