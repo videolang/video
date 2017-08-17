@@ -203,13 +203,15 @@
               (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max))))
               (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
-      (define len (or (send vps get-video-length) 1000000))
-      (define frame (floor (* seek-bar-max (/ (send vps get-position) len))))
-      (send seek-bar set-value frame)
-      (send seek-message set-label (make-frame-string frame len))
-      (send play/pause-button set-label (if (eq? (send vps get-status) 'playing)
-                                            pause-label
-                                            play-label)))
+      (match (send vps get-status)
+        ['playing
+         (define len (or (send vps get-video-length) 1000000))
+         (define frame (floor (* seek-bar-max (/ (send vps get-position) len))))
+         (send seek-bar set-value frame)
+         (send seek-message set-label (make-frame-string frame len))
+         (send play/pause-button set-label pause-label)]
+        [_
+         (send play/pause-button set-label play-label)]))
     (define/private (make-frame-string frame len)
       (format "Frame: ~a/~a" frame len))
     (define frame-row

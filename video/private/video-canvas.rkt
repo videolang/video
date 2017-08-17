@@ -330,16 +330,12 @@
     ;; Flush the buffers (when stream is paused)
     ;; Try-get until #f, which works because the buffer
     ;;   only contains frames.
-    (define/public (flush-buffer)
+    (define/pubment (flush-buffer)
       (let loop ()
         (define maybe-frame (async-channel-try-get buff))
         (when maybe-frame
           (av-frame-free maybe-frame)
-          (loop)))
-      (call-with-semaphore
-       curr-frame-lock
-       (λ ()
-         (set! curr-frame #f))))))
+          (loop))))))
 
 ;; Handles the video buffer for the video canvas.
 ;; Ensures that they are drawn based on video's timestamps.
@@ -348,13 +344,9 @@
 (define video-buffer%
   (class buffer%
     (super-new)
+    (init-field canvas)
     (inherit-field buff curr-frame curr-frame-lock)
-    (define canvas #f)
 
-    ;; Set the buffer's canvas.
-    (define/public (set-canvas c)
-      (set! canvas c))
-    
     ;; Grab the next frame from the queue
     (define/public (read-frame [block #t])
       (call-with-semaphore
@@ -472,8 +464,8 @@
     (define canvas #f)
     (define play-video? #t)
     (define play-audio? #t)
-    (define audio-buffer (new audio-buffer%))
-    (define video-buffer (new video-buffer%))
+    (define audio-buffer #f)
+    (define video-buffer #f)
     (define stop-audio #f)
     (define video-thread #f)
     (define stop-video-thread-flag #f)
@@ -494,7 +486,6 @@
                                 [format 'raw])))
     (define/public (set-canvas c)
       (set! canvas c)
-      (send video-buffer set-canvas c)
       (set! width (send c get-video-width))
       (set! height (send c get-video-height)))
     (define/override (write-output-callback-constructor #:render-status render-status)
@@ -505,6 +496,7 @@
                                [type type]))
            (match* (type mode)
              [('audio 'open)
+              (set! audio-buffer (new audio-buffer%))
               ;; Since an error is thrown if no audio devices exist,
               ;; simply turn off audio playing.
               ;; TODO, should test this _before_ starting to play
@@ -533,8 +525,10 @@
               (when (and play-audio? stop-audio)
                 (stop-audio)
                 (set! stop-audio #f)
-                (send audio-buffer flush-buffer))]
+                #;(send audio-buffer flush-buffer)) ;;  <-- XXX YAY MEMORY LEAKS!!!
+              (set! audio-buffer #f)]
              [('video 'open)
+              (set! video-buffer (new video-buffer% [canvas canvas]))
               (set! stop-video-thread-flag #f)
               (set! video-thread
                     (thread
@@ -559,5 +553,6 @@
               (set! stop-video-thread-flag #t)
               (and video-thread (thread-wait video-thread))
               (when play-video?
-                (send video-buffer flush-buffer))]
+                (send video-buffer flush-buffer))
+              (set! video-buffer #f)]
              [(_ _) (void)])])))))
