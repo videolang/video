@@ -299,16 +299,35 @@
 
 ;; Handles the video buffer for the video canvas.
 ;; Ensures that they are drawn based on video's timestamps.
+;; Uses (current-innexact-milliseconds) to determine the speed that it should
+;;    be playing at.
 (define video-buffer%
   (class object%
     (super-new)
     (define canvas #f)
     (define buff (make-async-channel))
     (define curr-frame #f)
+    (define time-base #f)
+    (define fps #f)
+    (define start-time (current-innexact-milliseconds))
 
     ;; Set the buffer's canvas.
     (define/public (set-canvas c)
       (set! canvas c))
+
+    ;; Set the timebase for the frame's PTSs.
+    (define/public (set-timebase tb)
+      (set! time-base tb))
+
+    ;; Sets the fps for this buffer. This determines roughly how long
+    ;; it should sleep between refreshes.
+    (define/public (set-fps f)
+      (set! fps f))
+
+    ;; Set the start time. The current time is based on (current-innexact-milliseconds)
+    ;; The difference determins what time of the stream should be played
+    (define/public (set-start-time [t (current-innexact-milliseconds)])
+      (set! start-time t))
     
     ;; Adds a frame to the buffer's internal queue.
     (define/public (add-frame frame)
