@@ -270,16 +270,14 @@ server to combine producers in a @tech["playlist"]. However,
 
 @section{Multitracks and Merges}
 
-@deftech["Multitracks"] play multiple producer simultaneously. In other
-words, while @tech["playlists"] combine producers temporarily,
-@tech["multitracks"] combine them spacial. Because every track
-happens in parallel, only the top most track will be
-rendered.
-
-Merges combine different tracks in a @tech["multitrack"]. These can
-be anything from a video overlay, to a chroma key effect. As
-with @tech["playlists"], composite merges can be inlined with a
-@tech["multitrack"]'s producers:
+@deftech["Multitracks"] play multiple producer
+simultaneously. Unlike in a @tech["playlist"], only the top
+most track will be rendered. @deftech["Merges"] combine
+different tracks in a @racket[multitrack]. These can be
+anything from a video overlay, to a chroma key effect. As
+with @tech["transitions"] in @tech["playlists"], composite
+@tech["merges"] can be inlined with the @tech["producers"]
+in the @tech["multitrack"]'s.
 
 @racketmod[
  video
@@ -289,12 +287,16 @@ with @tech["playlists"], composite merges can be inlined with a
   (clip "spinning_square.mp4")
   (composite-merge 1/2 0 1/2 1)
   (clip "dropping_ball.mp4"))]
-
 @inset-flow[
  (apply playlist-timeline
         (for/list ([r (in-list the-rr-clip)]
                    [b (in-list the-ball-drop)])
           (shot (hc-append r b))))]
+
+@tech["Merges"] can also be listed separately with the
+@racket[#:merges] keyword. This keyword takes a list of
+@tech["merges"] that specify their associated tracks with
+the @racket[#:top] and @racket[#:bottom] keywords:
 
 @racketmod[
  video
@@ -311,7 +313,6 @@ with @tech["playlists"], composite merges can be inlined with a
  (define bg (blank #f))
  (define spinning-square (clip "spinning_square.mp4"))
  (define dropping-ball (clip "dropping_ball.mp4"))]
-
 @inset-flow[
  (apply playlist-timeline
         (for/list ([r (in-list the-rr-clip)]
@@ -320,6 +321,25 @@ with @tech["playlists"], composite merges can be inlined with a
 
 @section{Video Properties}
 
+Every video object contains a set of run-time
+@deftech["properties"], which are a @racket[hash] mapping
+@[string]s to any value. They can be set with the
+@racket[#:properties] keyword and retrieved with the
+@racket[get-property] function:
+
+@racketmod[
+ video
+ (define the-ultimate-color
+   (color "green"
+          #:properties (hash "the-ultimate-property" 42)))
+ (get-property the-ultimate-color
+               "the-ultimate-property") (code:comment "=> 42")]
+
+Some properties are implicitly associated with an object by
+the Video runtime. Such as the width and height of an image,
+or the length of a clip. For example, the following module
+will play the first half of the @filepath{epic.mp4} movie.
+
 @section[#:tag "raco-video"]{Command Line Interaction}
 
 The @exec{raco video} tool is the most simple way to render
@@ -327,5 +347,6 @@ video files. To get a list of its current set of features, run:
 
 @nested[@exec{raco video --help}]
 
-By default, @exec{raco video} will open up a Video file in a
-preview window.
+By default, @exec{raco video} will render your file to a
+pre-specified format. You can also open up a preview window
+playing the program with the @DFlag{preview} flag.

@@ -21,11 +21,7 @@
          racket/path
          racket/match
          "render.rkt"
-         ;(prefix-in mp4: "render/mp4.rkt")
-         ;(prefix-in jpg: "render/jpg.rkt")
-         ;(prefix-in png: "render/png.rkt")
-         ;(prefix-in xml: "render/xml.rkt")
-         #;"player.rkt")
+         "player.rkt")
 
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
@@ -35,6 +31,7 @@
 (define output-end (make-parameter #f))
 (define output-verbose (make-parameter #f))
 (define output-silent (make-parameter #f))
+(define output-preview? (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -71,6 +68,8 @@
                          (output-verbose #t)]
      [("-q" "--silent") "Do not print any output, used for scripts"
                         (output-silent #t)]
+     [("-p" "--preview") "Preview the output in a player"
+                         (output-preview? #t)]
      #:args (video)
      video))
 
@@ -85,20 +84,24 @@
       ["png" png:render-mixin]
       ["xml" xml:render-mixin]
       [_ #f]))
-  
-  (match (output-type)
-    [_ ;(or "png" "jpg" "mp4" "xml")
-     (render/pretty video (output-path)
-                    #:start (output-start)
-                    #:end (output-end)
-                    #:width (output-width)
-                    #:height (output-height)
-                    #:render-mixin render-mixin
-                    #:mode (cond
-                             [(output-silent) 'silent]
-                             [(output-verbose) 'verbose]
-                             [else #f]))]))
-     #|
+
+  (cond
+    [(output-preview?)
+     (preview video)]
+    [else
+     (match (output-type)
+       [_ ;(or "png" "jpg" "mp4" "xml")
+        (render/pretty video (output-path)
+                       #:start (output-start)
+                       #:end (output-end)
+                       #:width (output-width)
+                       #:height (output-height)
+                       #:render-mixin render-mixin
+                       #:mode (cond
+                                [(output-silent) 'silent]
+                                [(output-verbose) 'verbose]
+                                [else #f]))])]))
+#|
      (newline)
      (let loop ()
        (let ()
