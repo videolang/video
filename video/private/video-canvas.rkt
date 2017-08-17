@@ -327,16 +327,17 @@
     (define/public (add-frame frame)
       (async-channel-put buff frame))
 
+    (define/public (read-frame [block #t])
+      (error 'buffer "Must be implemented by specific buffer."))
+
     ;; Flush the buffers (when stream is paused)
     ;; Try-get until #f, which works because the buffer
     ;;   only contains frames.
     (define/pubment (flush-buffer)
       (let loop ()
-        (define maybe-frame (async-channel-try-get buff))
-        (when maybe-frame
-          (av-frame-free maybe-frame)
+        (when (send this read-frame #f)
           (loop))))))
-
+  
 ;; Handles the video buffer for the video canvas.
 ;; Ensures that they are drawn based on video's timestamps.
 ;; Uses (current-innexact-milliseconds) to determine the speed that it should
@@ -348,7 +349,7 @@
     (inherit-field buff curr-frame curr-frame-lock)
 
     ;; Grab the next frame from the queue
-    (define/public (read-frame [block #t])
+    (define/override (read-frame [block #t])
       (call-with-semaphore
        curr-frame-lock
        (λ ()
@@ -356,7 +357,8 @@
            (av-frame-free curr-frame))
          (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
          (unless curr-frame
-           (log-video-debug "Buffer: No frame currently in queue")))))
+           (log-video-debug "Buffer: No frame currently in queue"))
+         (not (not curr-frame)))))
     
     (define/public (draw-frame [block #t])
       (unless canvas
@@ -398,7 +400,7 @@
     ;; Optionally block until the next frame comes in.
     ;; Only sets the current frame to #f if block is set to #f.
     ;; Boolean -> (void)
-    (define/public (read-frame [block #t])
+    (define/override (read-frame [block #t])
       (call-with-semaphore
        curr-frame-lock
        (λ ()
@@ -410,7 +412,8 @@
          (set! frame-size
                (and curr-frame
                     (av-frame-nb-samples curr-frame)))
-         (set! sample-offset 0))))
+         (set! sample-offset 0)
+         (not (not curr-frame)))))
 
     ;; UNSAFE METHOD
     ;; Feed `count` samples into the `buffer` given.
@@ -505,7 +508,8 @@
                                              (log-video-error "Cought error: ~a" e)
                                              (set! play-audio? #f))])
                   (match (stream-play/unsafe (λ (buff count)
-                                               (send audio-buffer feed-samples! buff count #f))
+                                               (when audio-buffer
+                                                 (send audio-buffer feed-samples! buff count #f)))
                                              0.1
                                              44100)
                     [(list stream-time stats stop)
@@ -522,11 +526,11 @@
                       eof
                       (loop))))]
              [('audio 'close)
+              (send audio-buffer flush-buffer)
+              (set! audio-buffer #f)
               (when (and play-audio? stop-audio)
                 (stop-audio)
-                (set! stop-audio #f)
-                #;(send audio-buffer flush-buffer)) ;;  <-- XXX YAY MEMORY LEAKS!!!
-              (set! audio-buffer #f)]
+                (set! stop-audio #f))]
              [('video 'open)
               (set! video-buffer (new video-buffer% [canvas canvas]))
               (set! stop-video-thread-flag #f)
