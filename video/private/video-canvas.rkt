@@ -304,6 +304,7 @@
     (super-new)
     (field [buff (make-async-channel)]
            [curr-frame #f]
+           [curr-frame-lock (make-semaphore 1)]
            [time-base #f]
            [fps #f]
            [start-time (current-inexact-milliseconds)])
@@ -331,8 +332,14 @@
     ;;   only contains frames.
     (define/public (flush-buffer)
       (let loop ()
-        (when (async-channel-try-get buff)
-          (loop))))))
+        (define maybe-frame (async-channel-try-get buff))
+        (when maybe-frame
+          (av-frame-free maybe-frame)
+          (loop)))
+      (call-with-semaphore
+       curr-frame-lock
+       (λ ()
+         (set! curr-frame #f))))))
 
 ;; Handles the video buffer for the video canvas.
 ;; Ensures that they are drawn based on video's timestamps.
@@ -341,7 +348,7 @@
 (define video-buffer%
   (class buffer%
     (super-new)
-    (inherit-field buff curr-frame)
+    (inherit-field buff curr-frame curr-frame-lock)
     (define canvas #f)
 
     ;; Set the buffer's canvas.
@@ -350,41 +357,47 @@
     
     ;; Grab the next frame from the queue
     (define/public (read-frame [block #t])
-      (when curr-frame
-        (av-frame-free curr-frame))
-      (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
-      (unless curr-frame
-        (log-video-debug "Videobuffer: No frame currently in queue")))
-
+      (call-with-semaphore
+       curr-frame-lock
+       (λ ()
+         (when curr-frame
+           (av-frame-free curr-frame))
+         (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
+         (unless curr-frame
+           (log-video-debug "Buffer: No frame currently in queue")))))
+    
     (define/public (draw-frame [block #t])
       (unless canvas
         (error 'video-buffer "Must set canvas before calling draw-frame"))
       (let/ec return
         (read-frame block) ;; XXX Need to check PTS!
-        (unless curr-frame
-          (return))
-        (define linesize (array-ref (av-frame-linesize curr-frame) 0))
-        (send canvas draw-frame
-              (λ ()
-                (for ([i (in-range (av-frame-height curr-frame))])
-                  (glTexSubImage2D
-                   GL_TEXTURE_2D
-                   0
-                   0
-                   i
-                   (av-frame-width curr-frame)
-                   1
-                   GL_RGB
-                   GL_UNSIGNED_BYTE
-                   (ptr-add (array-ref (av-frame-data curr-frame) 0)
-                            (* i linesize))))))))))
+        (call-with-semaphore
+         curr-frame-lock
+         (λ ()
+           (unless curr-frame
+             (return))
+           (define linesize (array-ref (av-frame-linesize curr-frame) 0))
+           (send canvas draw-frame
+                 (λ ()
+                   (for ([i (in-range (av-frame-height curr-frame))])
+                     (glTexSubImage2D
+                      GL_TEXTURE_2D
+                      0
+                      0
+                      i
+                      (av-frame-width curr-frame)
+                      1
+                      GL_RGB
+                      GL_UNSIGNED_BYTE
+                      (ptr-add (array-ref (av-frame-data curr-frame) 0)
+                               (* i linesize))))))))))))
 
 ;; Handles the audio buffer for the video canvas
 ;; Based on the portaudio library.
 (define audio-buffer%
   (class buffer%
     (super-new)
-    (inherit-field buff curr-frame)
+    (inherit-field buff curr-frame curr-frame-lock)
     (define sample-offset 0)
     (define frame-size #f)
 
@@ -394,15 +407,18 @@
     ;; Only sets the current frame to #f if block is set to #f.
     ;; Boolean -> (void)
     (define/public (read-frame [block #t])
-      (when curr-frame
-        (av-frame-free curr-frame))
-      (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
-      (unless curr-frame
-        (log-video-debug "Audiobuffer: No frame currently in queue"))
-      (set! frame-size
-            (and curr-frame
-                 (av-frame-nb-samples curr-frame)))
-      (set! sample-offset 0))
+      (call-with-semaphore
+       curr-frame-lock
+       (λ ()
+         (when curr-frame
+           (av-frame-free curr-frame))
+         (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
+         (unless curr-frame
+           (log-video-debug "Audiobuffer: No frame currently in queue"))
+         (set! frame-size
+               (and curr-frame
+                    (av-frame-nb-samples curr-frame)))
+         (set! sample-offset 0))))
 
     ;; UNSAFE METHOD
     ;; Feed `count` samples into the `buffer` given.
@@ -412,34 +428,39 @@
       (let/ec return
         (let loop ([pos 0])
           (define needed-samples (- count pos))
+          (define samples-left #f)
+          (define samples-to-get #f)
           (unless (<= needed-samples 0)
             (when (or (not frame-size)
                       (not sample-offset)
                       (= (- frame-size sample-offset) 0)) ; <-- (= samples-left 0)
               (read-frame block))
-            (unless curr-frame
-              #;
-              (memset buffer
-                      pos
-                      0
-                      needed-samples
-                      _int32)
-              ;(set! sample-offset #f)
-              (return))
-            (define samples-left (- frame-size sample-offset))
-            (when (= samples-left 0)
-              (return))
-            (define samples-to-get (min samples-left needed-samples))
-            (memcpy buffer
-                    pos
-                    (ptr-ref (av-frame-extended-data curr-frame) _pointer 0)
-                    sample-offset
-                    samples-to-get
-                    _int32)
-            (set! sample-offset (+ sample-offset samples-to-get))
-            (unless (= samples-to-get needed-samples)
-              (read-frame block)
-              (loop (+ pos samples-to-get)))))
+            (call-with-semaphore
+             curr-frame-lock
+             (λ ()
+               (unless curr-frame
+                 #;
+                 (memset buffer
+                         pos
+                         0
+                         needed-samples
+                         _int32)
+                 ;(set! sample-offset #f)
+                 (return))
+               (set! samples-left (- frame-size sample-offset))
+               (set! samples-to-get (min samples-left needed-samples))
+               (when (= samples-left 0)
+                 (return))
+               (memcpy buffer
+                       pos
+                       (ptr-ref (av-frame-extended-data curr-frame) _pointer 0)
+                       sample-offset
+                       samples-to-get
+                       _int32)
+               (set! sample-offset (+ sample-offset samples-to-get))))
+               (unless (= samples-to-get needed-samples)
+                 (read-frame block)
+                 (loop (+ pos samples-to-get)))))
         (void)))))
 
 ;; Similar to the Video Renderer, however adds `set-canvas` method for Video
@@ -487,13 +508,16 @@
               ;; Since an error is thrown if no audio devices exist,
               ;; simply turn off audio playing.
               ;; TODO, should test this _before_ starting to play
-              (with-handlers ([exn:fail? (λ (e) (set! play-audio? #f))])
-                (match (stream-play/unsafe (λ (buff count)
-                                             (send audio-buffer feed-samples! buff count #f))
-                                           0.1
-                                           44100)
-                  [(list stream-time stats stop)
-                   (set! stop-audio stop)]))]
+              (when play-audio?
+                (with-handlers ([exn:fail? (λ (e)
+                                             (log-video-error "Cought error: ~a" e)
+                                             (set! play-audio? #f))])
+                  (match (stream-play/unsafe (λ (buff count)
+                                               (send audio-buffer feed-samples! buff count #f))
+                                             0.1
+                                             44100)
+                    [(list stream-time stats stop)
+                     (set! stop-audio stop)])))]
              [('audio 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
@@ -507,9 +531,11 @@
                       (loop))))]
              [('audio 'close)
               (when (and play-audio? stop-audio)
-                (stop-audio))
-              (send audio-buffer flush-buffer)]
+                (stop-audio)
+                (set! stop-audio #f)
+                (send audio-buffer flush-buffer))]
              [('video 'open)
+              (set! stop-video-thread-flag #f)
               (set! video-thread
                     (thread
                      (λ ()
@@ -532,5 +558,6 @@
              [('video 'close)
               (set! stop-video-thread-flag #t)
               (and video-thread (thread-wait video-thread))
-              (send video-buffer flush-buffer)]
+              (when play-video?
+                (send video-buffer flush-buffer))]
              [(_ _) (void)])])))))
