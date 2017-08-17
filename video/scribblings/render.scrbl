@@ -1,4 +1,4 @@
-#lang scribble/manual
+#lang reader "viddoclang.rkt"
 
 @;{
    Copyright 2016-2017 Leif Andersen
@@ -15,28 +15,6 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 }
-
-@require[scribble/core
-         scribble/example
-         racket/sandbox
-         (except-in pict table)
-         video/init
-         video/private/utils
-         video/private/surface
-         video/render
-         @for-label[(except-in racket/base filter)
-                    racket/contract/base
-                    racket/set
-                    racket/hash
-                    (except-in racket/class field)
-                    racket/gui/base
-                    racket/draw
-                    video/init
-                    video/base
-                    video/core
-                    video/render
-                    video/player
-                    video/init]]
 
 @title{Rendering}
 @defmodule[video/render]

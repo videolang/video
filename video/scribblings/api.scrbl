@@ -1,4 +1,4 @@
-#lang scribble/manual
+#lang reader "viddoclang.rkt"
 
 @;{
    Copyright 2016-2017 Leif Andersen
@@ -16,32 +16,12 @@
    limitations under the License.
 }
 
-@require[scribble/core
-         scribble/example
-         racket/sandbox
-         (except-in pict table)
-         video/private/utils
-         video/private/surface
-         @for-label[(except-in racket/base filter)
-                    racket/contract/base
-                    racket/set
-                    racket/hash
-                    (except-in racket/class field)
-                    racket/gui/base
-                    racket/draw
-                    video/base
-                    video/core
-                    video/render
-                    video/player
-                    video/init]]
-
-
 @title{Video API}
 
 @defmodule[video/base]
 
-Note that not all of the functions in this module are
-currently documented.
+Functions that are deprecated and will be removed or altered
+in a backwards compatible breaking way are marked with DEPRECATED in red.
 
 @section{Bundled Producers}
 

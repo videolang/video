@@ -42,7 +42,8 @@
                      "racket-doc"
                      "gui-doc"
                      "draw-doc"
-                     "ppict"))
+                     "ppict"
+                     "reprovide-lang"))
 
 ;; video/version has the actual version. This one might get out of date
 ;;   durring pre-releases.

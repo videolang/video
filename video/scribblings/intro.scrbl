@@ -1,4 +1,4 @@
-#lang scribble/manual
+#lang reader "viddoclang.rkt"
 
 @;{
    Copyright 2016-2017 Leif Andersen
@@ -15,16 +15,6 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 }
-
-@require[pict
-         video/private/utils
-         scribble/example
-         racket/sandbox
-         racket/list
-         racket/math
-         "utils.rkt"
-         @for-label[video
-                    video/base]]
 
 @(define vid-eval
    (make-base-eval '(begin (require video/base))))
