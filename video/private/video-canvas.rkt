@@ -256,13 +256,13 @@
                                    (void))])
         (send this with-gl-context
               (λ ()
-                (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
                 ;; Fill in data
                 (with-handlers ([exn:fail? (λ (e) (set! callback-error? #t) (raise e))])
                   (data-fill-callback))
                 ;; Draw in the texture data.
                 ;; Unlike the setup, this will be identical for
                 ;;   both legacy and modern.
+                (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
                 (glUseProgram prog)
                 (glActiveTexture GL_TEXTURE0)
                 (glBindTexture GL_TEXTURE_2D tex-buff)
@@ -297,23 +297,16 @@
       (will-execute video-canvas%-executor)
       (loop)))))
 
-;; Handles the video buffer for the video canvas.
-;; Ensures that they are drawn based on video's timestamps.
-;; Uses (current-innexact-milliseconds) to determine the speed that it should
-;;    be playing at.
-(define video-buffer%
+;; An abstract buffer. Holds the common parts of
+;;    video-buffer%'s and audio-buffer%'s implementation.
+(define buffer%
   (class object%
     (super-new)
-    (define canvas #f)
-    (define buff (make-async-channel))
-    (define curr-frame #f)
-    (define time-base #f)
-    (define fps #f)
-    (define start-time (current-inexact-milliseconds))
-
-    ;; Set the buffer's canvas.
-    (define/public (set-canvas c)
-      (set! canvas c))
+    (field [buff (make-async-channel)]
+           [curr-frame #f]
+           [time-base #f]
+           [fps #f]
+           [start-time (current-inexact-milliseconds)])
 
     ;; Set the timebase for the frame's PTSs.
     (define/public (set-timebase tb)
@@ -328,10 +321,32 @@
     ;; The difference determins what time of the stream should be played
     (define/public (set-start-time [t (current-inexact-milliseconds)])
       (set! start-time t))
-    
-    ;; Adds a frame to the buffer's internal queue.
+
+    ;; Add a frame to the buffer's internal queue
     (define/public (add-frame frame)
       (async-channel-put buff frame))
+
+    ;; Flush the buffers (when stream is paused)
+    ;; Try-get until #f, which works because the buffer
+    ;;   only contains frames.
+    (define/public (flush-buffer)
+      (let loop ()
+        (when (async-channel-try-get buff)
+          (loop))))))
+
+;; Handles the video buffer for the video canvas.
+;; Ensures that they are drawn based on video's timestamps.
+;; Uses (current-innexact-milliseconds) to determine the speed that it should
+;;    be playing at.
+(define video-buffer%
+  (class buffer%
+    (super-new)
+    (inherit-field buff curr-frame)
+    (define canvas #f)
+
+    ;; Set the buffer's canvas.
+    (define/public (set-canvas c)
+      (set! canvas c))
     
     ;; Grab the next frame from the queue
     (define/public (read-frame [block #t])
@@ -367,16 +382,11 @@
 ;; Handles the audio buffer for the video canvas
 ;; Based on the portaudio library.
 (define audio-buffer%
-  (class object%
+  (class buffer%
     (super-new)
-    (define buff (make-async-channel))
-    (define curr-frame #f)
+    (inherit-field buff curr-frame)
     (define sample-offset 0)
     (define frame-size #f)
-
-    ;; Add a frame to the buffer's internal queue
-    (define/public (add-frame frame)
-      (async-channel-put buff frame))
 
     ;; Read the next frame from the queue, discarding
     ;;   the old current-frame if it exists.
@@ -497,14 +507,15 @@
                       (loop))))]
              [('audio 'close)
               (when (and play-audio? stop-audio)
-                (stop-audio))]
+                (stop-audio))
+              (send audio-buffer flush-buffer)]
              [('video 'open)
               (set! video-thread
                     (thread
                      (λ ()
                        (let loop ()
                          (unless stop-video-thread-flag
-                           (send video-buffer draw-frame)
+                           (send video-buffer draw-frame #f)
                            (sleep 0.01)
                            (loop))))))]
              [('video 'write)
@@ -519,5 +530,7 @@
                       eof
                       (loop))))]
              [('video 'close)
-              (set! stop-video-thread-flag #t)]
+              (set! stop-video-thread-flag #t)
+              (and video-thread (thread-wait video-thread))
+              (send video-buffer flush-buffer)]
              [(_ _) (void)])])))))
