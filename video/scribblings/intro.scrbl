@@ -142,28 +142,44 @@ An alternative approach would be to use the
 @section{Playlists}
 
 Video shines when combining multiple producers. The language
-provides two ways of combining producers, @emph{playlists}
-and @emph{multitracks}. To a first approximation, playlists
-run producers sequentially, while multitracks play them together.
+provides two ways of combining producers,
+@deftech["playlists"] and @tech["multitracks"]. To a first
+approximation, @tech["playlists"] run producers
+sequentially, while @tech["multitracks"] play them
+simultaneously.
 
-Playlists are the simpler form, with each module being an
-implicit playlist.
+Every Video module is implicitly a @tech["playlist"].
+Alternatively, @tech["playlists"] can be created with the
+@racket[playlist] function.
 
 @racketmod[
  video
- (clip "spinning_square.mp4" #:start 0 #:end 4)
- (clip "spinning_square.mp4" #:start 0 #:end 4
+ (clip "spinning_square.mp4"
+       #:properties (hash "start" 0 "end" 4))
+ (clip "spinning_square.mp4"
+       #:properties (hash "start" 0 "end" 4)
        #:filters (list (grayscale-filter)))]
 @inset-flow[
  (apply playlist-timeline
         (append (slice the-rr-clip 0 4)
                 (slice the-grr-clip 4 8)))]
+@racketmod[
+ video
+ (playlist
+  (clip "spinning_square.mp4"
+        #:properties (hash "start" 0 "end" 4))
+  (clip "spinning_square.mp4"
+        #:properties (hash "start" 0 "end" 4)
+        #:filters (list (grayscale-filter))))]
+@inset-flow[
+ (apply playlist-timeline
+        (append (slice the-rr-clip 0 4)
+                (slice the-grr-clip 4 8)))]
 
-Playlists are themselves producers. As such,
-@racket[playlist] can also append multiple playlists
+@tech["Playlists"] are themselves producers. As such, the
+@racket[playlist] function also serves to append multiple playlists
 together. This example combines the playlist from above with
 another similar clip of a ball dropping:
-
 
 @racketmod[
  video
@@ -171,13 +187,17 @@ another similar clip of a ball dropping:
  ball-movie
  (define square-movie
    (playlist
-    (clip "spinning_square.mp4" #:start 0 #:end 2)
-    (clip "spinning_square.mp4" #:start 2 #:end 4
+    (clip "spinning_square.mp4"
+          #:properties (hash "start" 0 "end" 2))
+    (clip "spinning_square.mp4"
+          #:properties (hash "start" 2 "end" 4)
           #:filters (list (grayscale-filter)))))
  (define ball-movie
    (playlist
-    (clip "ball_drop.mp4" #:start 0 #:end 2)
-    (clip "ball_drop.mp4" #:start 2 #:end 4
+    (clip "ball_drop.mp4"
+          #:properties (hash "start" 0 "end" 2))
+    (clip "ball_drop.mp4"
+          #:properties (hash "start" 2 "end" 4)
           #:filters (list (grayscale-filter)))))]
 @inset-flow[
  (apply playlist-timeline
@@ -190,11 +210,12 @@ This clip also introduces @racket[define] in Video. Unlike
 many other @racket[racket]-based languages, module level
 variables are defined for the whole module, not just after
 their definition.@margin-note{This is also true of functions
- created with @racket[λ/video] and @racket[define/video].}
+ created with @racket[λ/video] and @racket[define/video]. But
+ this feature is experimental.}
 
 @section{Transitions}
 
-Transitions determine how one clip transitions into another
+@deftech["Transitions"] determine how one clip transitions into another
 clip in a playlist. For example, a transition can create a
 fading or swiping effect from one clip to another.
 
@@ -203,9 +224,11 @@ combine the producers directly before and after them:
 
 @racketmod[
  video
- (clip "ball_drop.mp4" #:start 0 #:end 5)
- (fade-transition #:length 2)
- (clip "ball_drop.mp4" #:start 5 #:end 10
+ (clip "ball_drop.mp4"
+       #:properties (hash "start" 0 "end" 5))
+ (fade-transition 2)
+ (clip "ball_drop.mp4"
+       #:properties (hash "start" 5 "end" 10)
        #:filters (list (grayscale-filter)))]
 @inset-flow[
  (apply playlist-timeline
@@ -220,23 +243,30 @@ combine the producers directly before and after them:
              (cc-superimpose (cellophane c (- 1 (/ n 4)))
                              (cellophane g (/ n 4)))])))]
 
-Alternatively, transitions can be attached with the
+Alternatively, @tech["transitions"] can be attached with the
 @racket[#:transitions] keyword. This parameter takes a list
-of transitions that use @racket[#:start] and @racket[#:end]
+of @tech["transitions"] that use @racket[#:start] and @racket[#:end]
 to specify what producers it connects:
 
 @racketmod[
  video
- (define colored (clip "ball_drop.mp4" #:start 0 #:end 5))
+ (define colored
+   (clip "ball_drop.mp4"
+         #:properties (hash "start" 0 "end" 5)))
  (define black+white
-   (clip "ball_drop.mp4" #:start 5 #:end 10
+   (clip "ball_drop.mp4"
+         #:properties (hash "start" 5 "end" 10)
          #:filters (list (grayscale-filter))))
  (playlist
   colored
   black+white
-  #:transitions (list (fade-transition #:length 2
+  #:transitions (list (fade-transition 2
                                        #:start colored
-                                       #:en black+white)))]
+                                       #:end black+white)))]
+
+@tech["Transitions"] themselves are not @tech["producers"], but
+server to combine producers in a @tech["playlist"]. However,
+@tech["properties"] can still be attached to a @tech["transition"].
 
 @section{Multitracks and Merges}
 
