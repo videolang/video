@@ -17,7 +17,7 @@ Video is a DSL for describing videos. It is still under heavy development. The A
 
 ## Stable
 [![Build Status](https://travis-ci.org/videolang/video.svg?branch=stable)](https://travis-ci.org/videolang/video)
-[![Coverage Status](https://coveralls.io/repos/github/videolang/video/badge.svg?branch=stable)](https://coveralls.io/github/videolang/video?branch=testing)
+[![Coverage Status](https://coveralls.io/repos/github/videolang/video/badge.svg?branch=stable)](https://coveralls.io/github/videolang/video?branch=stable)
 [![Scribble](https://img.shields.io/badge/Docs-Scribble-blue.svg)](http://docs.racket-lang.org/video@video/index.html)
 
 # Website
