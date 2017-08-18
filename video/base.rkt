@@ -61,24 +61,24 @@
 
   ;; Creates a blank video, for offsetting
   ;;  clips in a playlist
-  [blank (-> (or/c nonnegative-integer? #f) (or/c blank? producer?))]
+  [blank (->* () ((or/c nonnegative-integer? #f)) (or/c blank? producer?))]
   
   ;; Creates a producer that plays a clip from a file
   [clip (->producer [(or/c path-string? path?)]
                     [])]
 
   ;; Creates a producer that is a solid color
+  ;; TODO: Must be more precise
+  ;;   * If argument 2 is provided, argument 3 must be as well
+  ;;   * If argument 2 and 3 are provided, argumet one must be a byte
   [color (->producer [(or/c string? (is-a?/c color%)
-                            (list/c byte? byte? byte?))]
-                     [])]
+                            (list/c byte? byte? byte?)
+                            byte?)]
+                     [byte? byte?])]
 
   ;; Create a producer that is the same as the other producer but with one or more
   ;; filters attached to it
   [attach-filter (-> service? filter? ... producer?)]
-
-  ;; Creates a clip who's producer is path
-  [image (->producer [(or/c path-string? path-for-some-system?)]
-                     [])]
 
   ;; Creates a fading transition from a start to end clip
   [fade-transition (->transition []
@@ -138,7 +138,7 @@
 
   external-video)
 
-(define (blank length)
+(define (blank [length #f])
   (if length
       (make-blank #:prop (hash "start" 0
                                "end" length))
@@ -152,12 +152,7 @@
              #:prop (or properties (hash))
              #:filters (or filters '())))
 
-(define (image path
-               #:filters [filters #f]
-               #:properties [properties #f])
-  (clip path #:filters filters #:properties properties))
-
-(define-producer (color c)
+(define-producer (color c [c2 #f] [c3 #f])
   #:user-properties prop
   #:properties (λ (r)
                  (let* ([r (cond
@@ -169,7 +164,7 @@
                              [else (dict-set r "end" +inf.0)])])
                    r))
   #:subgraph (hash 'video
-                   (mk-filter "color" (let* ([ret (hash "c" (color->string c))]
+                   (mk-filter "color" (let* ([ret (hash "c" (color->string c c2 c3))]
                                              #;
                                              [ret (if (and length (not (equal? length +inf.0)))
                                                       (hash-set ret "d" length)
@@ -182,6 +177,12 @@
                                         ret))
                    'audio
                    (mk-empty-audio-filter #:duration length))
+  (when (or (and c2 (not c3))
+            (and (not c2) c3)
+            (and c2 c3 (not (byte? c))))
+    (error 'color
+           "Invalid combination of arguments: c1 ~a; c2 ~a; c3 ~a"
+           c c2 c3))
   (define length (or (dict-ref prop "length" #f)
                      (and (dict-ref prop "start" #f)
                           (dict-ref prop "end" #f)

@@ -1,3 +1,3 @@
 #lang video
 
-(image "circ.png" #:properties (hash "length" 200))
+(clip "circ.png" #:properties (hash "length" 200))

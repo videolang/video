@@ -17,15 +17,20 @@
 }
 
 @(require reprovide/reprovide)
-@(reprovide (except-in scribble/manual/lang inset-flow)
+@(reprovide (except-in scribble/manual/lang
+                       inset-flow
+                       image)
             (except-in scribble/manual inset-flow)
             (except-in scribble/core table)
+            (except-in pict
+                       colorize
+                       clip
+                       blank)
             scribble/example
             racket/sandbox
-            (except-in pict table)
+            video/base
+            video/surface
             video/private/utils
-            video/private/surface
-            pict
             racket/sandbox
             racket/list
             racket/math
@@ -44,5 +49,8 @@
                        video/render
                        video/player
                        video/init))
+@(provide (all-defined-out))
 
-
+@(define video-evaluator
+   (make-base-eval
+    '(require video/base)))

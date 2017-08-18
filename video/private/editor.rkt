@@ -608,9 +608,9 @@
       (define file (symbol->string (syntax-e stx)))
       (define constructor
         (match (path-get-extension file)
-          ['png image]
-          ['gif image]
-          ['jpg image]
+          ;['png image]
+          ;['gif image]
+          ;['jpg image]
           ['mp4 clip]
           [_ clip]))
       (datum->syntax #f

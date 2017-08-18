@@ -22,6 +22,7 @@
          ppict/tag
          racket/math
          scribble/manual
+         (except-in scribble/core table)
          racket/list)
 
 (define (playlist-timeline #:distance [distance 5]
@@ -99,3 +100,10 @@
 
 (define (slice lst n m)
   (take (drop lst n) (- m n)))
+
+(define (colorize #:color c . content)
+  (elem #:style (style #f (list (color-property c)))
+        content))
+
+(define (deprecated-text . content)
+  (bold (larger (apply colorize #:color "red" content))))

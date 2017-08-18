@@ -35,6 +35,9 @@
 
 ;; Constants for future tests -------------------------------------------------
 
+;; These were sperate in v0.1. TODO, properly remove image
+(define image clip)
+
 (define circ-png (build-path video-dir "examples/circ.png"))
 (define vid-mp4 (build-path video-dir "examples/vid.mp4"))
 (define circ-img (image circ-png))

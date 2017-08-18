@@ -21,29 +21,32 @@
 @defmodule[video/base]
 
 Functions that are deprecated and will be removed or altered
-in a backwards compatible breaking way are marked with DEPRECATED in red.
+in a backwards compatible breaking way are marked as
+@deprecated-text["DEPRECATED"] in red.
 
 @section{Bundled Producers}
 
-@defproc[(blank [length (or/c integer? #f)]) producer?]{
+@defproducer[(blank [length (or/c integer? #f) #f])]{
  Creates a blank producer of @racket[length] clips.
 
  If @racket[length] is @racket[#f], then the producer
- generates as many blank frames as its surrounding @racket[multitrack] requires.}
+ generates as many blank frames as its surrounding @racket[multitrack] requires.
+
+ @examples[#:eval video-evaluator
+           (blank)
+           (blank 10)]}
 
 @defproducer[(color [color (or/c string?
                                  (is-a?/c color%)
                                  (list/c byte? byte? byte?))])]{
  Creates a producer that is a solid color.
- @examples[(eval:alts (color "green") (void))
-           (eval:alts (color "yellow" #:length 10) (void))
-           (eval:alts (color 255 255 0) (void))]}
+ @examples[#:eval video-evaluator
+           (color "green")
+           (color "yellow" #:properties (hash "length" 10))
+           (color 255 255 0)]}
 
-@defproducer[(image [file (or/c path-string? path?)])]{
- Creates a producer that is a still image.}
-              
 @defproducer[(clip [file (or/c path-string? path?)])]{
- Creates a producer from a video file.}
+ Creates a producer from a video or image file.}
 
 @section{Video Compositing}
 
@@ -52,7 +55,10 @@ in a backwards compatible breaking way are marked with DEPRECATED in red.
                    [#:start start (or/c nonnegative-integer? #f) #f]
                    [#:end end (or/c nonnegative-integer? #f) #f]
                    [#:length length (or/c nonnegative-integer? #f) #f])
-         producer?]
+         producer?]{
+ Creates a @tech["playlist"] out of the given producers.
+           
+}
 
 @defproc[(multitrack [producer producer?] ...
                      [#:transitions transitions (listof field-element?) '()]

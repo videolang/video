@@ -138,6 +138,7 @@
                          kw-args)))))
 
 ;; Constructor for video objects
+(define current-detailed-printing? (make-parameter #f))
 (define-syntax subclass-empty '(() () ()))
 (define-syntax (define-constructor stx)
   (syntax-parse stx
@@ -165,9 +166,11 @@
               (make-constructor-style-printer
                (λ (obj) '#,#'name)
                (λ (obj)
-                 (list #,@(for/list ([i (in-list all-structs)]
-                                     [j (in-list all-ids)])
-                            #`(#,(format-id stx "~a-~a" i j) obj))))))]
+                 (if (current-detailed-printing?)
+                     (list #,@(for/list ([i (in-list all-structs)]
+                                         [j (in-list all-ids)])
+                                #`(#,(format-id stx "~a-~a" i j) obj)))
+                     (list)))))]
            #:methods gen:video-ops
            [(define (copy-video-op v to-copy)
               (name

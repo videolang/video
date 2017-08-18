@@ -871,11 +871,13 @@
                   #:props props
                   #:counts counts))
 
-(define (color->string color)
+(define (color->string color [c2 #f] [c3 #f])
   (define c*
-    (match color
-      [`(,r ,g ,b) (make-object color% r g b)]
-      [_ (make-object color% color)]))
+    (if (and c2 c3)
+        (make-object color% color c2 c3)
+        (match color
+          [`(,r ,g ,b) (make-object color% r g b)]
+          [_ (make-object color% color)])))
   (format "0x~a~a~a~a"
           (number->2string (send c* red))
           (number->2string (send c* green))
