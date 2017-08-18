@@ -75,8 +75,8 @@
 
 (define the-ball-drop (ball-drop-clip 10))
 
-(define (inset-flow n)
-  (nested #:style 'inset n))
+(define (inset-flow . n)
+  (apply nested #:style 'inset n))
 
 (define (grayscale-pict s)
   (define buf (pict->argb-pixels s))
@@ -107,3 +107,6 @@
 
 (define (deprecated-text . content)
   (bold (larger (apply colorize #:color "red" content))))
+
+(define (note-text . content)
+  (bold (apply elem #:style (style #f (list (background-color-property "yellow"))) content)))

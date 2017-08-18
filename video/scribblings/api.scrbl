@@ -22,9 +22,7 @@
 
 Functions that are deprecated and will be removed or altered
 in a backwards compatible breaking way are marked as
-deprecated with a yellow
-@bold{@elem[#:style (style #f (list (background-color-property "yellow")))]{
-  NOTE}} label.
+deprecated with a yellow @note-text{NOTE} label.
 
 @section{Bundled Producers}
 
@@ -141,10 +139,18 @@ deprecated with a yellow
 
 @deftransition[(fade-transition)]
 
-@defmerge[(composite-merge [x (or/c (between/c 0 1) pixel?)]
-                           [y (or/c (between/c 0 1) pixel?)]
-                           [width (or/c (between/c 0 1) pixel?)]
-                           [height (or/c (between/c 0 1) pixel?)])]{
+@section{Bundled Merges}
+
+@defmerge[(overlay-merge [x number?]
+                         [y number?]
+                         [width number?]
+                         [height number?])]
+}
+
+@defmerge[(composite-merge [x (between/c 0 1)]
+                           [y (between/c 0 1)]
+                           [width (between/c 0 1)]
+                           [height (between/c 0 1)])]{
                                 
  The @racket[x] and @racket[y] coordinates specify the top-left point of
  overlayed image. If a @racket[pixel?] struct is provided
@@ -158,6 +164,7 @@ deprecated with a yellow
 
 @section{Bundled Filters}
 
+@defproc[(sepia-filter) filter?]
 @defproc[(grayscale-filter) filter?]
 
 @section{Properties}
@@ -200,12 +207,24 @@ but some common ones are: @racket["length"],
                        [key string?]
                        [value any/c])
          producer?]{
-}
+
+ Functionally sets the property @racket[key] to
+ @racket[value] in @racket[producer]. The original video
+ remains unmodified, and a new one is returned with the
+ value.
+
+ Similar to @racket[dict-set].}
 
 @defproc[(remove-property [producer properties?]
                           [key string?])
          producer?]{
-}
+                    
+ Removes an explicit @tech["property"] @racket[key] stored
+ in @racket[producer]. This will not remove any implicitly
+ stored properties. If an explicit property is
+ shadowing the implicit one, the value changes to the implicit one.
+
+ Similar to @racket[dict-remove].}
 
 @section{Misc. Functions}
 
@@ -214,7 +233,10 @@ but some common ones are: @racket["length"],
  @racket[vid] values in place of @racket[external-video].}
 
 @section{Alternate Units}
-
 @defmodule[video/units]
 
+@inset-flow{@note-text{NOTE} This module is still highly
+ experimental. The API @deprecated-text{WILL} break.}
+
 @defstruct[pixel ([value nonnegative-integer?])]
+@defstruct[seconds ([value number?])]
