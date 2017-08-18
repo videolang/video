@@ -41,7 +41,7 @@ documents.
 All VidLang programs begin with the language declaration @code{#lang video}; and the
 remaining program below is a description of the resulting video, written in expressions.
 
-Each top level expression is a @deftech["producer"] which is
+Each top-level expression is a @deftech["producer"], which is
 anything that produces a video stream. For example, the
 @racket[color] producer generates a stream of green frames:
 
