@@ -38,8 +38,9 @@ stream. Thus, Video allows authors to write videos in a
 similar fashion to how LaTeX enables authors to write
 documents.
 
-All VidLang programs begin with @code{#lang video}, the
-remaining program is a description of the resulting video.
+All VidLang programs begin with the language declaration @code{#lang video}; and the
+remaining program below is a description of the resulting video, written in expressions.
+
 Each top level expression is a @deftech["producer"] which is
 anything that produces a video stream. For example, the
 @racket[color] producer generates a stream of green frames:
