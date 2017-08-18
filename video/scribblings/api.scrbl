@@ -38,34 +38,72 @@ in a backwards compatible breaking way are marked as
 
 @defproducer[(color [color (or/c string?
                                  (is-a?/c color%)
-                                 (list/c byte? byte? byte?))])]{
+                                 (list/c byte? byte? byte?)
+                                 byte?)]
+                    [c2 (or/c byte? #f) #f]
+                    [c3 (or/c byte? #f) #f])]{
  Creates a producer that is a solid color.
+
+ The given color can be a string from
+ @racket[color-database<%>], a @racket[color%] object, a list
+ of three bytes, or thee seperate bytes.
+
+ If a byte is given for @racket[color], then @racket[c2] and
+ @racket[c3] must also contain a byte. Otherwise @racket[c2]
+ and @racket[c3] must be @racket[#f].
+ 
  @examples[#:eval video-evaluator
            (color "green")
            (color "yellow" #:properties (hash "length" 10))
            (color 255 255 0)]}
 
 @defproducer[(clip [file (or/c path-string? path?)])]{
- Creates a producer from a video or image file.}
+ Creates a producer from a video or image file.
+
+ @examples[#:eval video-evaluator
+           (clip "groovy.mp4")
+           (clip "fancy.png")]}
 
 @section{Video Compositing}
 
-@defproc[(playlist [producer producer?] ...
+@defproc[(playlist [producer (or/c producer? transition?)] ...
                    [#:transitions transitions (listof field-element?) '()]
-                   [#:start start (or/c nonnegative-integer? #f) #f]
-                   [#:end end (or/c nonnegative-integer? #f) #f]
-                   [#:length length (or/c nonnegative-integer? #f) #f])
+                   [#:properties properties (dictof string? any/c) (hash)])
          producer?]{
- Creates a @tech["playlist"] out of the given producers.
-           
-}
+                    
+ Creates a @tech["playlist"] out of the given
+ @tech["producers"]. The first and last element of the list
+ must be @tech["producers"]. Additionally, no two @tech["transitions"] can
+ appear without a producer in between them.
 
-@defproc[(multitrack [producer producer?] ...
+ @examples[#:eval video-evaluator
+           (playlist)
+           (playlist (color "blue"))
+           (playlist (color "green" #:properties (hash "length" 10))
+                     (fade-transition 42)
+                     (clip "movie.mp4"))]}
+
+@defproc[(multitrack [producer (or/c producer? merge?)] ...
                      [#:transitions transitions (listof field-element?) '()]
-                     [#:start start (or/c nonnegative-integer? #f) #f]
-                     [#:end end (or/c nonnegative-integer? #f) #f]
-                     [#:length length (or/c nonnegative-integer? #f) #f])
-         producer?]
+                     [#:properties properties (dictof string? any/c) (hash)])
+         producer?]{
+
+ Creates a @tech["multitrack"]. This form is syntactically
+ similar to @racket[playlist], but the result renders clips
+ in parallel rather than sequentially. Additionally,
+ @tech["multitracks"] contain @tech["merges"] instead of
+ @tech["transitions"].
+
+ As with @racket[playlist], the first and last elements must
+ be @tech["producers"], and no two @tech["merges"] can appear
+ without a @tech["producer"] between them.
+
+ @examples[#:eval video-evaluator
+           (multitrack)
+           (multitrack (clip "hyper.mp4"))
+           (multitrack (color "black")
+                       (overlay-transition 10 10 50 50)
+                       (clip "space.mp4"))]}
 
 @defproc[(attach-filter [producer producer?]
                         [filter filter?] ...)
