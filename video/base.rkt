@@ -122,7 +122,7 @@
 
   ;; Get a property associated with a properties struct
   [get-property (->* [properties? string?]
-                     [symbol?]
+                     [(-> any/c)]
                      any/c)]
 
   ;; Generate a new video with a new in-out

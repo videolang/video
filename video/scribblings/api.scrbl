@@ -22,7 +22,9 @@
 
 Functions that are deprecated and will be removed or altered
 in a backwards compatible breaking way are marked as
-@deprecated-text["DEPRECATED"] in red.
+deprecated with a yellow
+@bold{@elem[#:style (style #f (list (background-color-property "yellow")))]{
+  NOTE}} label.
 
 @section{Bundled Producers}
 
@@ -107,12 +109,33 @@ in a backwards compatible breaking way are marked as
 
 @defproc[(attach-filter [producer producer?]
                         [filter filter?] ...)
-         producer?]
+         producer?]{
+
+ Attach a new filter to an existing producer. Unlike the
+ @racket[#:filters] keyword, this procedure will create a new
+ producer identical to the old one, but with a filter attached to it.
+
+ @examples[#:eval video-evaluator
+           (attach-filter (clip "dance.wmv")
+                          (grayscale-filter))
+           (let ()
+             (define auto (clip "driving.mov"))
+             (attach-filter auto
+                            (sepia-filter)))]}
 
 @defproc[(cut-producer [producer producer?]
                        [#:start start (or/c nonnegative-integer? #f) #f]
                        [#:end end (or/c nonnegative-integer? #f) #f])
-         producer?]
+         producer?]{
+
+ Create a producer identical to
+ @racket[producer], but trimmed based on @racket[#:start] and
+ @racket[#:end].
+
+ @deprecated[#:what "function"
+             @racket[set-property]]{
+                                    
+  This function may be removed or moved to a convenience library.}}
 
 @section{Bundled Transitions}
 
@@ -148,28 +171,36 @@ but some common ones are: @racket["length"],
 @racket["width"], and @racket["height"].
 
 @defproc[(get-property [producer video?]
-                       [key string?])
+                       [key string?]
+                       [fail-thunk (-> any/c) (λ () (error ...))])
          any/c]{
- Gets the attached property associated with the producer.
+                
+ Gets the attached @tech["property"]
+ associated with @racket[producer]. Similar to
+ @racket[dict-get].
 
- If an explicit property was given for @racket[key] to the producer when it
- is created, that is returned first.
+ If an explicit property was given for @racket[key] to the
+ @tech["producer"] when it is created, that is returned
+ first.
 
  If no explicit property was given for @racket[key], then it
  searches for an innate property.
 
  If no explicit or innate property is associated with the
- producer, an error is thrown.}
+ producer, then @racket[fail-thunk] is called. By default, @racket[fail-thunk] throws an error.
 
-@defproc[(producer-length [producer video?])
-         number?]{
- Determines the length of the producer in frames.
+ @examples[#:eval video-evaluator
+           (get-property (color "blue")
+                         "length")
+           (eval:error
+            (get-property (color "green")
+                          "not-a-property"))]}
 
- Note that this function will be removed in future versions
- of Video. And will be replaced with @racket[get-property]
- once it has been thoroughly tested.
- 
- @racket[producer] is the video who's length will be tested.}
+@defproc[(set-property [producer video?]
+                       [key string?]
+                       [value any/c])
+         producer?]{
+}
 
 @section{Misc. Functions}
 
