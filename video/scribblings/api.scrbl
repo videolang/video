@@ -102,7 +102,7 @@ in a backwards compatible breaking way are marked as
            (multitrack)
            (multitrack (clip "hyper.mp4"))
            (multitrack (color "black")
-                       (overlay-transition 10 10 50 50)
+                       (overlay-merge 10 10 50 50)
                        (clip "space.mp4"))]}
 
 @defproc[(attach-filter [producer producer?]
