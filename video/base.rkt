@@ -125,6 +125,9 @@
                      [(-> any/c)]
                      any/c)]
 
+  ;; Remove a explicit property associated with a properties sturct.
+  [remove-property (-> properties? string? properties?)]
+
   ;; Generate a new video with a new in-out
   [cut-producer (->* [producer?]
                      [#:start (or/c nonnegative-integer? #f)
@@ -256,10 +259,6 @@
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
   (copy-video obj #:filters new-filters))
-
-(define (set-property obj key val)
-  (define new-props (hash-set (properties-prop obj) key val))
-  (copy-video obj #:prop new-props))
 
 (define-transition (fade-transition [fade-length 1])
   #:properties (λ (prop)

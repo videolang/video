@@ -170,7 +170,7 @@ producers will have different types of innate properties,
 but some common ones are: @racket["length"],
 @racket["width"], and @racket["height"].
 
-@defproc[(get-property [producer video?]
+@defproc[(get-property [producer properties?]
                        [key string?]
                        [fail-thunk (-> any/c) (λ () (error ...))])
          any/c]{
@@ -196,9 +196,14 @@ but some common ones are: @racket["length"],
             (get-property (color "green")
                           "not-a-property"))]}
 
-@defproc[(set-property [producer video?]
+@defproc[(set-property [producer properties?]
                        [key string?]
                        [value any/c])
+         producer?]{
+}
+
+@defproc[(remove-property [producer properties?]
+                          [key string?])
          producer?]{
 }
 

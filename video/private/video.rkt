@@ -161,6 +161,10 @@
        (begin
          (struct name #,@(if (identifier? #'super*) (list #'super*) '())
            (ids ...)
+           #:methods gen:dict
+           [(define dict-ref get-property)
+            (define dict-set set-property)
+            (define dict-remove remove-property)]
            #:methods gen:custom-write
            [(define write-proc
               (make-constructor-style-printer
@@ -214,10 +218,9 @@
                (name #,@(map (curry datum->syntax stx) all-ids))))
          (define-syntax new-supers '#,(list all-structs all-ids all-defaults))))]))
 
-;; Structs
-(define-constructor video #f () ())
-
-(define-constructor properties video ([prop (hash)]) ())
+;; Properties functions
+;; These need to come above the structs so they can take advantage of the
+;;   gen:prop interface.
 
 (struct not-found-key ())
 (define (get-property dict key
@@ -250,6 +253,17 @@
            (dict-ref new-dict key default))
          maybe-val)]
     [else (dict-ref the-dict key default)]))
+(define (set-property obj key val)
+  (define new-props (hash-set (properties-prop obj) key val))
+  (copy-video obj #:prop new-props))
+(define (remove-property obj key)
+  (define new-props (hash-remove (properties-prop obj) key))
+  (copy-video obj #:prop new-props))
+
+;; Structs
+(define-constructor video #f () ())
+
+(define-constructor properties video ([prop (hash)]) ())
 
 (define-constructor service properties ([filters '()]) ())
 
