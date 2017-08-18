@@ -61,5 +61,5 @@ after_success:
  - raco setup --check-pkg-deps --pkgs video
  - raco pkg install --deps search-auto cover cover-codecov cover-coveralls
  - raco cover -b -f codecov -f coveralls -d $TRAVIS_BUILD_DIR/coverage .
- - raco pkg isntall --deps search-auto doc-cover
+ - raco pkg install --deps search-auto doc-coverage
  - raco doc-coverage video/main
