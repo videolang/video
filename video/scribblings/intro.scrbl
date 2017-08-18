@@ -55,20 +55,21 @@ looks something like:
 @(inset-flow
   (scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3))
 
-This picture also shows an example of playback controls.
-These are shown whenever previewing a video. The easiest way
+This picture also shows an example of the playback controls, which
+are shown whenever previewing a video. The easiest way
 to preview a video is to press the @onscreen{Preview Video}
-button in the DrRacket toolbar. Alternatively, the
+button (@(bitmap (build-path video-dir "scribblings" "preview.png")))
+in the DrRacket toolbar. Alternatively, the
 @exec["raco video"] tool can also preview videos. For
 example, say the above video was saved as
-@filepath["green.vid"], then the preview can be ran with:
+@filepath["green.vid"]. Then the preview can be run with:
 @;
 @nested[#:style 'inset]{@exec["raco video --preview green.vid"]}
 @;
 Note that simply running a
 program is not enough to render a video. Every Video
-programs describes a single @racket[vid] data structure.
-Thus, a renderer (or streamer) can prepare the Video in many
+program describes a single @racket[vid] data structure;
+thus, a renderer (or streamer) can prepare the video in many
 different formats. Additionally, Video programs can include
 the @racket[vid] structure from other programs. Evaluating
 @racket[vid] in DrRacket's REPL after running the module
