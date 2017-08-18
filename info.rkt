@@ -44,6 +44,8 @@
                      "draw-doc"
                      "ppict"
                      "reprovide-lang"))
+(define test-deps '("cover"
+                    "doc-cover"))
 
 ;; video/version has the actual version. This one might get out of date
 ;;   durring pre-releases.
