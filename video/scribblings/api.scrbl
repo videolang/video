@@ -166,6 +166,18 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @defproc[(sepia-filter) filter?]
 @defproc[(grayscale-filter) filter?]
+@defproc[(color-channel-mixer-filter [table (hash/c string? (between/c -2 2))])
+         filter?]
+@defproc[(envelope-filter [#:length length nonnegative-integer?]
+                          [#:direction direction (or/c 'in 'out)])
+         filter?]
+@defproc[(mux-filter [#:type type (or/c 'v 'video 'a 'audio)]
+                     [#:index index exact-nonnegative-integer?])
+         filter?]
+@defproc[(scale-filter [x (and/c real? positive?)]
+                       [y (and/c real? positive?)])
+         filter?]{
+ @deprecated-text{Not implemented yet!}}
 
 @section{Properties}
 

@@ -45,22 +45,12 @@
     ['windows ""]
     [_ "lib"]))
 
-(define-syntax (define-ffmpeg-ffi-definer stx)
-  (syntax-parse stx
-    [(_ name:id lib rest ...)
-     #:with def-name (format-id stx "define-~a" #'name)
-     (if (eq? (syntax-e #'lib) #f)
-         #`(define-syntax (def-name stx)
-             (syntax-parse stx
-               [(_ n:id . the-rest)
-                #'(define n
-                    (raise (exn:ffmpeg:lib (format "FFmpeg not installed : ~a" #,(syntax-e #'name))
-                                           (current-continuation-marks))))]))
-         #'(define-ffi-definer name lib rest ...))]))
-
 (define (ffmpeg-not-installed)
   (log-video-error "FFmpeg NOT installed.")
   #f)
+
+(define ((error-not-installed name) . rest)
+  (error name "FFmpeg not installed"))
 
 ;; The ordering of these libraries matters.
 ;; This is the order of dependencies so that Racket can
@@ -72,27 +62,32 @@
 (define avutil-lib
   (ffi-lib (string-append lib-prefix "avutil") "55"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-avutil avutil-lib
+(define-ffi-definer define-avutil avutil-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define swresample-lib
   (ffi-lib (string-append lib-prefix "swresample") "2"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-swresample swresample-lib
+(define-ffi-definer define-swresample swresample-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define swscale-lib
   (ffi-lib (string-append lib-prefix "swscale") "4"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-swscale swscale-lib
+(define-ffi-definer define-swscale swscale-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avcodec-lib
   (ffi-lib (string-append lib-prefix "avcodec") "57"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-avcodec avcodec-lib
+(define-ffi-definer define-avcodec avcodec-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avformat-lib
   (ffi-lib (string-append lib-prefix "avformat") "57"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-avformat avformat-lib
+(define-ffi-definer define-avformat avformat-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (match (system-type 'os)
   ['windows
@@ -105,12 +100,14 @@
 (define avfilter-lib
   (ffi-lib (string-append lib-prefix "avfilter") "6"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-avfilter avfilter-lib
+(define-ffi-definer define-avfilter avfilter-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avdevice-lib
   (ffi-lib (string-append lib-prefix "avdevice") "57"
            #:fail ffmpeg-not-installed))
-(define-ffmpeg-ffi-definer define-avdevice avdevice-lib
+(define-ffi-definer define-avdevice avdevice-lib
+  #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 
 ;; ===================================================================================================
@@ -169,23 +166,44 @@
 
 ;; ===================================================================================================
 
-;; Does a check to ensure that the correct version of FFmpeg is installed. If an invalid
-;;   version is installed, throw an exception. To be a valid version the `major` field
-;;   must match EXACTLY, and the minor field must be AT LEAST the specified version.
-;; Version Int Int -> Void
-(define (version-check libname version major minor)
-  (unless (and (= (version-major version) major)
-               (>= (version-minor version) minor))
-    (raise (exn:ffmpeg:version
-            (format (string-append "FFmpeg ~a version ~a incompatible with Video. "
-                                   "Ensure you are using FFmpeg version ~a or higher")
-                    libname version ffmpeg-min-version)
-            (current-continuation-marks)))))
+(define (ffmpeg-installed?)
+  (and avutil-lib
+       swresample-lib
+       swscale-lib
+       avcodec-lib
+       avfilter-lib
+       avformat-lib
+       avdevice-lib))
 
-(version-check "libavutil" (avutil-version) 55 34)
-(version-check "libavcodec" (avcodec-version) 57 64)
-(version-check "libavformat" (avformat-version) 57 56)
-(version-check "libavfilter" (avfilter-version) 6 65)
-(version-check "libswscale" (swscale-version) 4 2)
-(version-check "libswresample" (swresample-version) 2 3)
-(version-check "libavdevice" (avdevice-version) 57 1)
+;; Does a check to ensure that the correct version of FFmpeg is installed. If an invalid
+;;   version is installed, return #f, otherwise return #t. To be a valid version the `major` field
+;;   must match EXACTLY, and the minor field must be AT LEAST the specified version.
+;; Version Int Int -> Boolean
+(define (version-check libname version major minor)
+  (and (= (version-major version) major)
+               (>= (version-minor version) minor)))
+
+;; Check to ensure that ffmpeg meets the minimum required version.
+;; returns #t if it does, otherwise returns #f.
+;; -> Boolean
+(define (ffmpeg-min-version?)
+  (and (version-check "libavutil" (avutil-version) 55 34)
+       (version-check "libavcodec" (avcodec-version) 57 64)
+       (version-check "libavformat" (avformat-version) 57 56)
+       (version-check "libavfilter" (avfilter-version) 6 65)
+       (version-check "libswscale" (swscale-version) 4 2)
+       (version-check "libswresample" (swresample-version) 2 3)
+       (version-check "libavdevice" (avdevice-version) 57 1)))
+
+;; Test to see if FFMPEG meets the recommended versions.
+;; Video should work with versions lower than this, but will not
+;;   perform as well
+;; -> Boolean
+(define (ffmpeg-recommended-version?)
+  (and (version-check "libavutil" (avutil-version) 55 58)
+       (version-check "libavcodec" (avcodec-version) 57 89)
+       (version-check "libavformat" (avformat-version) 57 71)
+       (version-check "libavfilter" (avfilter-version) 6 82)
+       (version-check "libswscale" (swscale-version) 4 6)
+       (version-check "libswresample" (swresample-version) 2 7)
+       (version-check "libavdevice" (avdevice-version) 57 6)))
