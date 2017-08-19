@@ -123,6 +123,13 @@
    [codec-tag _pointer]
    [priv-class _pointer]))
 
+(define-ffmpeg-cstruct _avchapter
+  ([id _int]
+   [time-base _avrational]
+   [start _int64]
+   [end _int64]
+   [metadata _av-dictionary-pointer/null]))
+
 (define-ffmpeg-cstruct _avformat-context
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
@@ -151,7 +158,7 @@
    [max-index-size _uint]
    [max-picture-buffer _uint]
    [nb-chapters _uint]
-   [chapters _pointer]
+   [chapters-data _pointer]
    [metadata _pointer]
    [start-time-realtime _int64]
    [fps-probe-size _int]
@@ -197,6 +204,10 @@
   (cblock->list (avformat-context-streams-data v)
                 _avstream-pointer
                 (avformat-context-nb-streams v)))
+(define (avformat-context-chapters v)
+  (cblock->list (avformat-context-chapters-data v)
+                _avchapter-pointer
+                (avformat-context-nb-chapters v)))
 
 (define _avrational
   (let ()
