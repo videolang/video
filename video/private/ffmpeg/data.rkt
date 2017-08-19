@@ -147,6 +147,12 @@
    [start _int64]
    [end _int64]
    [metadata _av-dictionary-pointer/null]))
+(define (mk-avchapter #:id [id 0]
+                      #:time-base [tb 0]
+                      #:start [s 0]
+                      #:end [e 0]
+                      #:metadata [m #f])
+  (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
   ([av-class _pointer]
@@ -226,6 +232,9 @@
   (cblock->list (avformat-context-chapters-data v)
                 _avchapter-pointer
                 (avformat-context-nb-chapters v)))
+(define (set-avformat-context-chapters! v ch)
+  (set-avformat-context-nb-chapters! v (length ch))
+  (set-avformat-context-chapters-data! v (list->cblock ch _avchapter)))
 
 (define-cstruct _avbuffer-ref
   ([buffer _pointer]

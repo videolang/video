@@ -97,6 +97,9 @@
                              (between/c 0 1)]
                             [])]
 
+  ;; Returns the same producer converted to a chapter
+  [chapter (-> producer? producer?)]
+
   #| TODO
   ;; Creates a swiping transition from a start clip to an
   ;;   end clip
@@ -577,6 +580,13 @@
                          #:sinks node
                          #:prop (node-props prev)))
   (make-filter #:subgraph envelope-proc))
+
+(define (chapter prod)
+  (set-property
+   prod "chapters"
+   (cons (make-chapter (get-property prod "start")
+                       (get-property prod "end"))
+         (get-property prod "chapters"))))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)

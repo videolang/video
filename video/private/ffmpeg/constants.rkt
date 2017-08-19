@@ -882,7 +882,9 @@
                            #:unknown (λ (v)
                                       (string->symbol (format "unkown-format-id-~a" v)))))
 
-(define _av-duration-estimation-method _fixint)
+(define _av-duration-estimation-method (_enum '(pts
+                                                stream
+                                                bitrate)))
 
 (define _avmedia-type (_enum '(unknown = -1
                                video

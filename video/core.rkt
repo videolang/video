@@ -30,6 +30,8 @@
   copy-video
   make-video
   video?
+  make-chapter
+  chapter?
   make-properties
   properties?
   make-service

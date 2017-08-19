@@ -39,6 +39,10 @@
                      racket/function
                      syntax/parse))
 
+(struct render-properties (chapters))
+(define (mk-render-properties #:chapters [c '()])
+  (render-properties c))
+
 (define (mk-render-graph) (weighted-graph/directed '()))
 (define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
@@ -263,6 +267,17 @@
 ;; Structs
 (define-constructor video #f () ())
 
+(define-constructor chapter video ([start #f]
+                                   [end #f])
+  ())
+
+;; Helper function to updated a list of chapters to be offset by their clip.
+(define (update-chapters-list chapters offset)
+  (for/list ([c (in-list chapters)])
+    (copy-video c
+                #:start (+ offset (chapter-start c))
+                #:end (+ offset (chapter-end c)))))
+
 (define-constructor properties video ([prop (hash)]) ())
 
 (define-constructor service properties ([filters '()]) ())
@@ -465,7 +480,7 @@
               #:start 0
               #:end (get-property (first elements) "pre-length")))]
       [else (list)]))
-  (define post-list
+ (define post-list
     (cond
       [(empty? elements) (list)]
       [(transition? (last elements))
@@ -483,7 +498,7 @@
   ;; Otherwise just add the compiled filter to the list.
   ;; Invariant assumed: Transitions are never the first or last filters in a list.
   ;; Invariant assumed: No two transitions happen side by side.
-  (define-values (rev-trans-vids rev-trans-nodes start end fps width height counts)
+  (define-values (rev-trans-vids rev-trans-nodes start end fps width height counts chapters)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
                [start 0]
@@ -491,7 +506,8 @@
                [fps 0]
                [width 0]
                [height 0]
-               [counts (hash)])
+               [counts (hash)]
+               [chapters '()])
               ([i (in-list elements*)]
                [index (in-naturals)])
       (match i
@@ -510,14 +526,16 @@
                 (define sink (video-subgraph-sinks track1-subgraph))
                 (graph-union! (current-render-graph) (video-subgraph-graph track1-subgraph))
                 (add-directed-edge! (current-render-graph) track1-copy source 2)
+                (define clip-offset (- length-track1))
                 (values (cons i prev-vids)
                         (list* track1-copy sink (cdr prev-nodes))
                         start
-                        (- end length-track1)
+                        (+ end clip-offset)
                         fps
                         width
                         height
-                        (hash-union counts (node-counts (car prev-nodes) #:combine max)))]
+                        (hash-union counts (node-counts (car prev-nodes) #:combine max))
+                        (update-chapters-list chapters clip-offset))]
                [else
                 (define sink
                   (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
@@ -525,16 +543,18 @@
                                   #:counts (node-counts (car prev-nodes))))
                 (add-vertex! (current-render-graph) sink)
                 (add-directed-edge! (current-render-graph) track1-copy sink 2)
+                (define clip-offset ;; Double `-` for clarity
+                  (- (- (get-property (car prev-nodes) "end")
+                        (get-property (car prev-nodes) "start"))))
                 (values (cons i prev-vids)
                         (cons track1-copy (cdr prev-nodes))
                         start
-                        (- end
-                           (- (get-property (car prev-nodes) "end")
-                              (get-property (car prev-nodes) "start")))
+                        (+ end clip-offset)
                         fps
                         width
                         height
-                        counts)])]
+                        counts
+                        (update-chapters-list chapters clip-offset))])]
         [_
          (define pre-node (convert i))
          (define node
@@ -600,6 +620,13 @@
                         'track2-subgraph track2-subgraph)]
                  [else pre-node]))
          (cond [(dict? node)
+                (define clip-offset
+                  (- (if (dict-ref node 'combined-subgraph)
+                      (get-property (dict-ref node 'combined-subgraph) "length")
+                      0)
+                     (if (dict-ref node 'track2-subgraph)
+                         (get-property (dict-ref node 'track2-subgraph) "length")
+                         0)))
                 (values (cons i prev-vids)
                         (append
                          (append
@@ -611,27 +638,26 @@
                               '()))
                          (cdr prev-nodes))
                         start
-                        (+ end
-                           (if (dict-ref node 'combined-subgraph)
-                               (get-property (dict-ref node 'combined-subgraph) "length")
-                               0)
-                           (- (if (dict-ref node 'track2-subgraph)
-                                  (get-property (dict-ref node 'track2-subgraph) "length")
-                                  0)))
+                        (+ end clip-offset)
                         fps
                         width
                         height
-                        counts)]
+                        counts
+                        (append (get-property pre-node "chapters" '())
+                                (update-chapters-list chapters clip-offset)))]
                [else
                 (define props (node-props node))
+                (define clip-offset (- (dict-ref props "end") (dict-ref props "start")))
                 (values (cons i prev-vids)
                         (cons node prev-nodes)
                         start
-                        (+ end (- (dict-ref props "end") (dict-ref props "start")))
+                        (+ end clip-offset)
                         (max fps (dict-ref props "fps" 0))
                         (max width (dict-ref props "width" 0))
                         (max height (dict-ref props "height" 0))
-                        (hash-union counts (node-counts pre-node) #:combine max))])])))
+                        (hash-union counts (node-counts pre-node) #:combine max)
+                        (append (get-property pre-node "chapters" '())
+                                (update-chapters-list chapters clip-offset)))])])))
   (define transition-nodes (reverse rev-trans-nodes))
   (define transition-videos (reverse rev-trans-vids))
   ;; Remove now unneded transitions
