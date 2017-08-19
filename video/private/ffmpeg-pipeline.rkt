@@ -55,14 +55,6 @@
 ;;  for debug purposes.
 (define ffmpeg (find-executable-path "ffmpeg"))
 
-;; FFmpeg 3.3 added a few functions we would like to use.
-;; We can compute them on the video side, but its better to
-;;   use ffmpeg when possible.
-(define the-avfilter-version (avfilter-version))
-(define ffmpeg-legacy?
-  (and (= (version-major the-avfilter-version) 6)
-       (< (version-minor the-avfilter-version) 82)))
-
 ;; ===================================================================================================
 
 (struct stream-bundle (raw-streams
