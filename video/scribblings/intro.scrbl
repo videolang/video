@@ -41,8 +41,7 @@ documents.
 All VidLang programs begin with the language declaration @code{#lang video}; and the
 remaining program below is a description of the resulting video, written in expressions.
 
-Each top-level expression is a @deftech["producer"], which is
-anything that produces a video stream. For example, the
+Each top-level expression is a @tech["producer"], which produces a video stream. For example, the
 @racket[color] producer generates a stream of green frames:
 
 @racketmod[
@@ -59,7 +58,9 @@ This picture also shows an example of the playback controls, which
 are shown whenever previewing a video. The easiest way
 to preview a video is to press the @onscreen{Preview Video}
 button (@(bitmap (build-path video-dir "scribblings" "preview.png")))
-in the DrRacket toolbar. Alternatively, the
+in the DrRacket toolbar.
+
+Alternatively, the
 @exec["raco video"] tool can also preview videos. For
 example, say the above video was saved as
 @filepath["green.vid"]. Then the preview can be run with:
@@ -80,12 +81,15 @@ shows the resulting structure:
             ;(playlist (color "green")))]
             (displayln "#<playlist>"))]
 
+@section{Producers}
+A @deftech["producer"] is anything that produces a video stream.
+
 The @racket[color] function creates an infinitely long
-@tech["producer"]. The @tech["producer"]'s length can optionally be set
+@tech["producer"]. The @tech["producer"]'s length---or number of frames---can optionally be set
 explicitly with its @tech["properties"]. If the length is
-not set, the @tech["producer"]s length will automatically set itself
+not set, the @tech["producer"]'s length will automatically set itself
 to fit the surrounding context. Another function,
-@racket[clip] does create a @tech["producer"] from a file:
+@racket[clip], creates a @tech["producer"] from a file:
 
 @racketmod[
  video
