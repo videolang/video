@@ -138,28 +138,17 @@ in a list of filters to apply.
 
 @section{Playlists}
 
-Video shines when combining multiple producers. The language
-provides two ways of combining producers,
+Video shines when combining multiple @tech["producer"]s. The language
+provides two ways of combining producers:
 @deftech["playlists"] and @tech["multitracks"]. To a first
 approximation, @tech["playlists"] run producers
-sequentially, while @tech["multitracks"] play them
+sequentially, while multitracks play them
 simultaneously.
 
-Every Video module is implicitly a @tech["playlist"].
-Alternatively, @tech["playlists"] can be created with the
+Every Video module is implicitly a playlist.
+Alternatively, playlists can be created with the
 @racket[playlist] function.
 
-@racketmod[
- video
- (clip "spinning_square.mp4"
-       #:properties (hash "start" 0 "end" 4))
- (clip "spinning_square.mp4"
-       #:properties (hash "start" 0 "end" 4)
-       #:filters (list (grayscale-filter)))]
-@inset-flow[
- (apply playlist-timeline
-        (append (slice the-rr-clip 0 4)
-                (slice the-grr-clip 4 8)))]
 @racketmod[
  video
  (playlist
