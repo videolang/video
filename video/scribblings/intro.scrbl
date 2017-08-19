@@ -199,6 +199,59 @@ their definition.@margin-note{This is also true of functions
  created with @racket[λ/video] and @racket[define/video]. But
  this feature is experimental.}
 
+
+@section{Multitracks and Merges}
+
+@deftech["Multitracks"] play multiple producer
+simultaneously. Unlike in a @tech["playlist"], only the top
+most track will be rendered. @deftech["Merges"] combine
+different tracks in a @racket[multitrack]. These can be
+anything from a video overlay, to a chroma key effect. As
+with @tech["transitions"] in @tech["playlists"], composite
+@tech["merges"] can be inlined with the @tech["producers"]
+in the @tech["multitrack"]'s.
+
+@racketmod[
+ video
+ (multitrack
+  (blank #f)
+  (composite-merge 0 0 1/2 1)
+  (clip "spinning_square.mp4")
+  (composite-merge 1/2 0 1/2 1)
+  (clip "dropping_ball.mp4"))]
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
+
+@tech["Merges"] can also be listed separately with the
+@racket[#:merges] keyword. This keyword takes a list of
+@tech["merges"] that specify their associated tracks with
+the @racket[#:top] and @racket[#:bottom] keywords:
+
+@racketmod[
+ video
+ (multitrack
+  bg
+  spinning-square
+  dropping-ball
+  #:merges (list (composite-merge 0 0 1/2 1
+                                  #:top spinning-square
+                                  #:bottom bg)
+                      (composite-merge 1/2 0 1/2 1
+                                       #:top dropping-ball
+                                       #:bottom bg)))
+ (define bg (blank #f))
+ (define spinning-square (clip "spinning_square.mp4"))
+ (define dropping-ball (clip "dropping_ball.mp4"))]
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
+
+
 @section{Transitions}
 
 @deftech["Transitions"] determine how one clip transitions into another
@@ -254,56 +307,6 @@ to specify what producers it connects:
 server to combine producers in a @tech["playlist"]. However,
 @tech["properties"] can still be attached to a @tech["transition"].
 
-@section{Multitracks and Merges}
-
-@deftech["Multitracks"] play multiple producer
-simultaneously. Unlike in a @tech["playlist"], only the top
-most track will be rendered. @deftech["Merges"] combine
-different tracks in a @racket[multitrack]. These can be
-anything from a video overlay, to a chroma key effect. As
-with @tech["transitions"] in @tech["playlists"], composite
-@tech["merges"] can be inlined with the @tech["producers"]
-in the @tech["multitrack"]'s.
-
-@racketmod[
- video
- (multitrack
-  (blank #f)
-  (composite-merge 0 0 1/2 1)
-  (clip "spinning_square.mp4")
-  (composite-merge 1/2 0 1/2 1)
-  (clip "dropping_ball.mp4"))]
-@inset-flow[
- (apply playlist-timeline
-        (for/list ([r (in-list the-rr-clip)]
-                   [b (in-list the-ball-drop)])
-          (shot (hc-append r b))))]
-
-@tech["Merges"] can also be listed separately with the
-@racket[#:merges] keyword. This keyword takes a list of
-@tech["merges"] that specify their associated tracks with
-the @racket[#:top] and @racket[#:bottom] keywords:
-
-@racketmod[
- video
- (multitrack
-  bg
-  spinning-square
-  dropping-ball
-  #:merges (list (composite-merge 0 0 1/2 1
-                                  #:top spinning-square
-                                  #:bottom bg)
-                      (composite-merge 1/2 0 1/2 1
-                                       #:top dropping-ball
-                                       #:bottom bg)))
- (define bg (blank #f))
- (define spinning-square (clip "spinning_square.mp4"))
- (define dropping-ball (clip "dropping_ball.mp4"))]
-@inset-flow[
- (apply playlist-timeline
-        (for/list ([r (in-list the-rr-clip)]
-                   [b (in-list the-ball-drop)])
-          (shot (hc-append r b))))]
 
 @section{Video Properties}
 
