@@ -98,7 +98,7 @@ to fit the surrounding context. Another function,
 @inset-flow[
  (apply playlist-timeline the-rr-clip)]
 
-Like @racket[color], clips can also set their length with @tech["properties"]
+Like @racket[color], clips can also set their length with @tech["properties"]:
 
 @racketmod[
  video
