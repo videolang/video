@@ -50,14 +50,14 @@
   (void))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
-(void
- (unless (register-process-global video-key (cast 1 _racket _pointer))
-   (av-register-all)
-   (avfilter-register-all)
-   (avformat-network-init)
-   (avdevice-register-all)
-   ;(av-log-set-callback callback-proc)
-   ))
+(when (ffmpeg-installed?)
+  (unless (register-process-global video-key (cast 1 _racket _pointer))
+    (av-register-all)
+    (avfilter-register-all)
+    (avformat-network-init)
+    (avdevice-register-all)
+    ;(av-log-set-callback callback-proc)
+    ))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
