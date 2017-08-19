@@ -147,7 +147,7 @@ simultaneously.
 
 Every Video module is implicitly a playlist.
 Alternatively, playlists can be created with the
-@racket[playlist] function.
+@racket[playlist] function, which encapsulates a subset of producers.
 
 @racketmod[
  video
@@ -202,14 +202,13 @@ their definition.@margin-note{This is also true of functions
 
 @section{Multitracks and Merges}
 
-@deftech["Multitracks"] play multiple producer
-simultaneously. Unlike in a @tech["playlist"], only the top
-most track will be rendered. @deftech["Merges"] combine
+@deftech["Multitracks"] play multiple @tech["producer"]s
+simultaneously. Unlike a @tech["playlist"], only the top-most track will be rendered. @deftech["Merges"] combine
 different tracks in a @racket[multitrack]. These can be
-anything from a video overlay, to a chroma key effect. As
+anything from a video overlay to a chroma key effect. As
 with @tech["transitions"] in @tech["playlists"], composite
 @tech["merges"] can be inlined with the @tech["producers"]
-in the @tech["multitrack"]'s.
+in the @tech["multitrack"]s.
 
 @racketmod[
  video
