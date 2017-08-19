@@ -49,7 +49,7 @@
   (log-video-error "FFmpeg NOT installed.")
   #f)
 
-(define ((error-not-installed name) . rest)
+(define (((error-not-installed name)) . rest)
   (error name "FFmpeg not installed"))
 
 ;; The ordering of these libraries matters.
