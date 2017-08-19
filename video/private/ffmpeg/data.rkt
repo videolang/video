@@ -35,6 +35,24 @@
          #,(syntax/loc stx
              (define-cstruct id ([field-name field-rest ...] ...) rest ...))))]))
 
+
+(define _avrational
+  (let ()
+    (define-cstruct _avrational
+      ([num _int]
+       [den _int]))
+    (make-ctype _avrational
+                (λ (x)
+                  (make-avrational (numerator x)
+                                   (denominator x)))
+                (λ (x)
+                  (when (= (avrational-den x) 0)
+                    (error 'avrational "Invalid AVRational ~a/~a"
+                           (avrational-num x)
+                           (avrational-den x)))
+                  (/ (avrational-num x)
+                     (avrational-den x))))))
+
 (define-cstruct _av-dictionary-entry
   ([key _string]
    [value _string]))
@@ -208,23 +226,6 @@
   (cblock->list (avformat-context-chapters-data v)
                 _avchapter-pointer
                 (avformat-context-nb-chapters v)))
-
-(define _avrational
-  (let ()
-    (define-cstruct _avrational
-      ([num _int]
-       [den _int]))
-    (make-ctype _avrational
-                (λ (x)
-                  (make-avrational (numerator x)
-                                   (denominator x)))
-                (λ (x)
-                  (when (= (avrational-den x) 0)
-                    (error 'avrational "Invalid AVRational ~a/~a"
-                           (avrational-num x)
-                           (avrational-den x)))
-                  (/ (avrational-num x)
-                     (avrational-den x))))))
 
 (define-cstruct _avbuffer-ref
   ([buffer _pointer]
