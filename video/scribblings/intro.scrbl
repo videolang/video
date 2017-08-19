@@ -164,8 +164,8 @@ Alternatively, playlists can be created with the
 
 @tech["Playlists"] are themselves producers. As such, the
 @racket[playlist] function also serves to append multiple playlists
-together. This example combines the playlist from above with
-another similar clip of a ball dropping:
+together. This example sequentially combines the playlist from above with
+another, similar clip of a ball dropping:
 
 @racketmod[
  video
@@ -193,7 +193,7 @@ another similar clip of a ball dropping:
                 (slice the-grall-drop 2 4)))]
 
 This clip also introduces @racket[define] in Video. Unlike
-many other @racket[racket]-based languages, module level
+many other @racket[racket]-based languages, module-level
 variables are defined for the whole module, not just after
 their definition.@margin-note{This is also true of functions
  created with @racket[λ/video] and @racket[define/video]. But
