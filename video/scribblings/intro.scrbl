@@ -89,7 +89,7 @@ The @racket[color] function creates an infinitely long
 explicitly with its @tech["properties"]. If the length is
 not set, the @tech["producer"]'s length will automatically set itself
 to fit the surrounding context. Another function,
-@racket[clip], creates a @tech["producer"] from a file:
+@racket[clip], creates a @tech["producer"] from a multimedia file:
 
 @racketmod[
  video
@@ -112,12 +112,12 @@ Like @racket[color], clips can also set their length with @tech["properties"]:
 
 @section{Filters}
 
-@deftech["Filters"] can be attached to every producer. These filters
-modify the producers behavior: turning it grayscale,
+@deftech["Filters"] can be attached to every @tech["producer"]. These filters
+modify the @tech["producer"]'s behavior: turning it grayscale,
 changing the aspect ratio, etc. The @racket[attach-filter]
-function attaches filters to an existing producer. For
+function attaches filters to an existing @tech["producer"]. For
 example, we can use the @racket[grayscale-filter] to remove
-the color from the rotating square clip earlier:
+the color from the rotating square clip shown earlier:
 
 @racketmod[
  video
@@ -127,7 +127,8 @@ the color from the rotating square clip earlier:
  (apply playlist-timeline (map (compose frame grayscale-pict) the-rr-clip))]
 
 An alternative approach would be to use the
-@racket[#:filters] keyword associated with producers.
+@racket[#:filters] keyword associated with @tech["producer"]s, which takes
+in a list of filters to apply.
 
 @racketmod[
  video
