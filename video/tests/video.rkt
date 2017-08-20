@@ -18,7 +18,8 @@
 
 (require rackunit
          (prefix-in file: file/convertible)
-         "../private/video.rkt")
+         "../private/video.rkt"
+         (prefix-in surf: "../base.rkt"))
 
 (let ()
   (define-constructor new-video #f () ())
@@ -49,4 +50,13 @@
   (make-playlist)
   (make-multitrack)
   (make-field-element)
+  (make-chapter)
   (void))
+
+(let ()
+  (define c (surf:color "blue" #:properties (hash "bluecolor" 42)))
+  (define long-c (remove-property c "bluecolor"))
+  (check-true (dict-has-key? c "bluecolor"))
+  (check-false (dict-has-key? long-c "bluecolor"))
+  (check-equal? (get-property c "bluecolor") 42)
+  (check-equal? (get-property long-c "bluecolor" (λ () 1337)) 1337))

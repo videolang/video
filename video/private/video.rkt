@@ -39,10 +39,6 @@
                      racket/function
                      syntax/parse))
 
-(struct render-properties (chapters))
-(define (mk-render-properties #:chapters [c '()])
-  (render-properties c))
-
 (define (mk-render-graph) (weighted-graph/directed '()))
 (define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
