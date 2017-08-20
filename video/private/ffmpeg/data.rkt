@@ -232,9 +232,12 @@
   (cblock->list (avformat-context-chapters-data v)
                 _avchapter-pointer
                 (avformat-context-nb-chapters v)))
+;; MUST keep key until the GC is allowed to reclaim list.
 (define (set-avformat-context-chapters! v ch)
+  (define key (list->cblock ch _avchapter))
   (set-avformat-context-nb-chapters! v (length ch))
-  (set-avformat-context-chapters-data! v (list->cblock ch _avchapter)))
+  (set-avformat-context-chapters-data! v key)
+  key)
 
 (define-cstruct _avbuffer-ref
   ([buffer _pointer]

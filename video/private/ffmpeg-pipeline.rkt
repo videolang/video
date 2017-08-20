@@ -600,7 +600,16 @@
       (unless (set-member? (av-output-format-flags format) 'nofile)
         (set-avformat-context-pb!
          output-context (avio-open (avformat-context-pb output-context) file 'write))))
-  
+
+    ;; Set the chapters. We have to keep this key otherwise
+    ;;   the GC will collect the struct. The GC can have its way
+    ;;   once THIS class has been deallocated. (Or once another chapters
+    ;;   list is set).
+    (define chapters-key #f)
+    (define/public (set-chapters ch)
+      (define key (set-avformat-context-chapters! output-context ch))
+      (set! chapters-key key))
+
     (define remaining-streams (mutable-set))
     (define/public (write-header)
       (avformat-write-header output-context #f)

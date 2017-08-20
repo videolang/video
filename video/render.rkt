@@ -570,6 +570,18 @@
                               [by-index-callback proc]))
              (send mux init)
              (send mux open)
+             (send mux set-chapters
+                   (for/list ([chap (in-list (video:get-property video-sink "chapters" '()))]
+                              [id (in-naturals)])
+                     (define start (inexact->exact (video:chapter-start chap)))
+                     (define end (inexact->exact (video:chapter-end chap)))
+                     (define base (gcd start end))
+                     (define start-num (exact-floor (* base start)))
+                     (define end-num (exact-floor (* base end)))
+                     (make-avchapter #:start start-num
+                                     #:end end-num
+                                     #:time-base (/ 1 base)
+                                     #:id id)))
              (send mux write-header)
              (let loop ()
                (sleep 0)
