@@ -406,6 +406,7 @@
   (define fpix-fmt #f)
   (define fsample-fmt #f)
   (define fsample-rate #f)
+  (define fchapters (dict-ref prop "chapters" '()))
   (define count-tab (make-hash))
   (define error-when-mismatch? #f) ;; For debugging
   (define-syntax-rule (set!/error var val comp)
@@ -456,7 +457,8 @@
                                              "fps" (or ffps 0)
                                              "pix-fmt" fpix-fmt
                                              "sample-fmt" fsample-fmt
-                                             "sample-rate" fsample-rate)))
+                                             "sample-rate" fsample-rate
+                                             "chapters" fchapters)))
   (add-vertex! (current-render-graph) node)
   node)
 
@@ -741,7 +743,8 @@
                                   "end" end
                                   "fps" fps
                                   "width" width
-                                  "height" height)
+                                  "height" height
+                                  "chapters" chapters)
                     #:counts counts))
   (add-vertex! (current-render-graph) the-buffer)
   (add-directed-edge! (current-render-graph) the-playlist the-buffer 1)

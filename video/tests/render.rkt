@@ -79,3 +79,10 @@
   (send render start-rendering)
   (sleep 0.1)
   (send render stop-rendering))
+
+(let ()
+  (define video
+    (playlist
+    (chapter (clip vid-mp4))
+    (chapter (clip vid-mp4))))
+  (render video (make-temporary-file "~a.mp4")))

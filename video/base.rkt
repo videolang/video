@@ -584,9 +584,9 @@
 (define (chapter prod)
   (set-property
    prod "chapters"
-   (cons (make-chapter (get-property prod "start")
-                       (get-property prod "end"))
-         (get-property prod "chapters"))))
+   (cons (make-chapter #:start (get-property prod "start")
+                       #:end (get-property prod "end"))
+         (get-property prod "chapters" '()))))
 
 ;; ===================================================================================================
 ;; Helpers used by this module (not provided)

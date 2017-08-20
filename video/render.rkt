@@ -578,10 +578,10 @@
                      (define base (gcd start end))
                      (define start-num (exact-floor (* base start)))
                      (define end-num (exact-floor (* base end)))
-                     (make-avchapter #:start start-num
-                                     #:end end-num
-                                     #:time-base (/ 1 base)
-                                     #:id id)))
+                     (mk-avchapter #:start start-num
+                                   #:end end-num
+                                   #:time-base (/ 1 base)
+                                   #:id id)))
              (send mux write-header)
              (let loop ()
                (sleep 0)
