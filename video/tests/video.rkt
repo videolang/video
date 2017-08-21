@@ -21,6 +21,7 @@
          "../private/video.rkt"
          (prefix-in surf: "../base.rkt"))
 
+;; Test syntax for the video object hiarachy.
 (let ()
   (define-constructor new-video #f () ())
   (define-constructor new-sub new-video ([hello #f]) ())
@@ -40,6 +41,7 @@
   (check-not-equal? ss3 ss)
   (check-not-equal? ss3 ss2))
 
+;; Test the basic constructors for video types.
 (let ()
   (make-properties)
   (make-service)
@@ -51,8 +53,10 @@
   (make-multitrack)
   (make-field-element)
   (make-chapter)
+  (make-video-subgraph)
   (void))
 
+;; Check video properties
 (let ()
   (define c (surf:color "blue" #:properties (hash "bluecolor" 42)))
   (define long-c (remove-property c "bluecolor"))
@@ -60,3 +64,21 @@
   (check-false (dict-has-key? long-c "bluecolor"))
   (check-equal? (get-property c "bluecolor") 42)
   (check-equal? (get-property long-c "bluecolor" (λ () 1337)) 1337))
+
+;; Check printing
+(let ()
+  (define c (surf:color "blue"))
+  (check-equal?
+   (with-output-to-string
+       (λ ()
+         (display c)))
+   "#<producer>")
+  ;; Yes, not a perfect match, but it should be good enough
+  ;;  for a simple test
+  (check-regexp-match
+   "#<producer:[^>]*>"
+   (with-output-to-string
+       (λ ()
+         (parameterize ([current-detailed-printing? #t])
+           (display c))))))
+
