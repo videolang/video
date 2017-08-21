@@ -163,13 +163,57 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @section{Bundled Filters}
 
-@defproc[(sepia-filter) filter?]
-@defproc[(grayscale-filter) filter?]
+@defproc[(grayscale-filter) filter?]{
+                                     
+ A producer that attaches this filter will become grayscale.
+
+ @examples[#:eval video-evaluator
+           (clip "action.wmv"
+                 #:filters (list (grayscale-filter)))]}
+
+@defproc[(sepia-filter) filter?]{
+                                 
+ Similar to @racket[grayscale-filter], but turns the
+ producer emulate a sepia color instead.}
+
 @defproc[(color-channel-mixer-filter [table (hash/c string? (between/c -2 2))])
-         filter?]
+         filter?]{
+                  
+ A more general version of @racket[grayscale-filter] and
+ @racket[sepia-filter]. Converts the color based on a matrix
+ encoded in @racket[table].
+
+ The keys in the table are strings with two characters,
+ where both the first and second characters are either
+ @racket[#\r], @racket[#\g], @racket[#\b], or @racket[#\a].
+ The first character encodes the value of the source channel that is fed
+ into the output as encoded by the second character.
+
+ For example, the following matrix encodes the
+ @racket[grayscale-filter] listed above:
+ 
+ @racketblock[
+ (color-channel-mixer-filter (hash "rr" 0.3 "rg" 0.4 "rb" 0.3 "ra" 0
+                                   "gr" 0.3 "gg" 0.4 "gb" 0.3 "ga" 0
+                                   "br" 0.4 "bg" 0.4 "bb" 0.3 "ba" 0
+                                   "ar" 0   "ag" 0   "ab" 0   "aa" 0))]}
+
 @defproc[(envelope-filter [#:length length nonnegative-integer?]
-                          [#:direction direction (or/c 'in 'out)])
-         filter?]
+                          [#:direction direction (or/c 'in 'out)]
+                          [#:curve curve (or/c #f) #f])
+         filter?]{
+
+ An audio filter that provides a fade in or out effect.
+
+ The direction is determined by @racket[direction], and can
+ be either @racket['in] or @racket['out].
+
+ The length of the enveloping effect is determined by @racket[length].
+
+ An optional @racket[curve] argument can set the curve of
+ the filter. However at the moment the only valid value for
+ the curve is @racket[#f].}
+
 @defproc[(mux-filter [#:type type (or/c 'v 'video 'a 'audio)]
                      [#:index index exact-nonnegative-integer?])
          filter?]

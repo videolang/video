@@ -150,8 +150,25 @@
                      producer?)]
 
   ;; Envelope filter for audio tracks
-  [envelope-filter (-> #:length nonnegative-integer?
-                       #:direction (or/c 'in 'out)
+  [envelope-filter (->* (#:length nonnegative-integer?
+                         #:direction (or/c 'in 'out))
+                        (#:curve (or/c 'tri
+                                       'qsin
+                                       'hsin
+                                       'esin
+                                       'log
+                                       'ipar
+                                       'qua
+                                       'cub
+                                       'squ
+                                       'cbr
+                                       'par
+                                       'exp
+                                       'iqsin
+                                       'ihsin
+                                       'dese
+                                       'desi
+                                       #f))
                        filter?)])
 
   external-video)
@@ -582,18 +599,25 @@
   (make-filter #:subgraph mux-proc))
 
 (define (envelope-filter #:direction direction
-                         #:length length)
+                         #:length length
+                         #:curve [curve #f])
   (define (envelope-proc ctx prev)
     (define start (get-property prev "start" 0))
     (define end (get-property prev "end" 0))
+    (define table
+      (let* ([v (match direction
+                  ['in (hash "t" "in"
+                             "ss" 0
+                             "d" length)]
+                  ['out (hash "t" "out"
+                              "ss" (- end length)
+                              "d" length)])]
+             [v (if curve
+                    (hash-set v "curve" (symbol->string curve))
+                    v)])
+        v))
     (define fade-filter
-      (mk-filter "afade" (match direction
-                           ['in (hash "t" "in"
-                                      "ss" 0
-                                      "d" length)]
-                           ['out (hash "t" "out"
-                                       "ss" (- end length)
-                                       "d" length)])))
+      (mk-filter "afade" table))
     (define node
       (mk-filter-node (hash 'audio fade-filter)
                       #:counts (node-counts prev)
