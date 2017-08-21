@@ -616,6 +616,7 @@
 
     (define remaining-streams (mutable-set))
     (define/public (write-header)
+      (log-video-info "mux: Writing header for file")
       (avformat-write-header output-context #f)
       (for ([i (in-vector streams)])
         (set-add! remaining-streams i)))
@@ -663,6 +664,7 @@
 
     (define/public (write-trailer)
       ;(av-interleaved-write-frame output-context #f) ;; <- Maybe not needed?
+      (log-video-info "mux: Writing trailer for file")
       (av-write-trailer output-context))
     
     (define/public (close)

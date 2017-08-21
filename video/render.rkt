@@ -592,6 +592,7 @@
              (send mux write-trailer)
              (send mux close)))))
       (map thread-wait threads)
+      (set! stop-rendering-flag #t)
       (void))
 
     (define/public (render-audio val)
