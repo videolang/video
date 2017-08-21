@@ -137,14 +137,41 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @section{Bundled Transitions}
 
-@deftransition[(fade-transition)]
+@deftransition[(fade-transition [length nonnegative-integer?])]{
+ A simple transition that creates a fade effect from one clip to the next.
+
+ @racket[length] specifies how long the @tech["transition"]
+ should last, in terms of seconds. Remember that
+ @racket[length] seconds get removed from both
+ @tech["producers"], making the total @tech["playlist"]
+ @racket[length] seconds shorter.
+
+ @examples[#:eval video-evaluator
+           (playlist
+            (clip "splash.png" #:properties (hash "length" 15))
+            (fade-transition 5)
+            (clip "intro.mp4"))]}
 
 @section{Bundled Merges}
 
 @defmerge[(overlay-merge [x number?]
                          [y number?]
                          [width number?]
-                         [height number?])]
+                         [height number?])]{
+                                            
+ Overlays one clip on top of another. The @racket[x] and
+ @racket[y] coordinates specify the top-left corner of the
+ image, while width and height describe how the image should
+ be scaled.
+
+ @racket[x], @racket[y], @racket[width], and @racket[height]
+ are all specified in pixels.
+
+ @examples[#:eval video-evaluator
+           (multitrack
+            (clip "presentation.ogv")
+            (overlay-filter 0 0 100 100)
+            (clip "logo.png"))]}
 
 @defmerge[(composite-merge [x (between/c 0 1)]
                            [y (between/c 0 1)]
@@ -353,6 +380,11 @@ but some common ones are: @racket["length"],
 
 @inset-flow{@note-text{NOTE} This module is still highly
  experimental. The API @deprecated-text{WILL} break.}
+
+The units API attempts to allow authors to describe videos
+in natural units, rather than arbitrary machine units. At
+the moment, this API should not be used because no math
+operations work with them.
 
 @defstruct[pixel ([value nonnegative-integer?])]
 @defstruct[seconds ([value number?])]
