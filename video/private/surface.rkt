@@ -127,9 +127,9 @@
     [(_ (id:id args ...)
         body ...)
      #`(defproc (id args ...
-                    [#:length length (or/c nonnegative-integer? #f) #f]
                     [#:start start (or/c any/c #f) #f]
-                    [#:end end (or/c any/c #f) #f])
+                    [#:end end (or/c any/c #f) #f]
+                    [#:properties properties (hash/c string? any/c) (hash)])
          (or/c transition? field-element?)
          body ...)]))
 
@@ -184,9 +184,9 @@
     [(_ (id:id args ...)
         body ...)
      #`(defproc (id args ...
-                    [#:length length (or/c nonnegative-integer? #f) #f]
                     [#:top top (or/c any/c #f) #f]
-                    [#:bottom bottom (or/c any/c #f) #f])
+                    [#:bottom bottom (or/c any/c #f) #f]
+                    [#:properties properties (hash/c string? any/c) (hash)])
          (or/c merge? field-element?)
          body ...)]))
 

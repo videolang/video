@@ -170,7 +170,7 @@ deprecated with a yellow @note-text{NOTE} label.
  @examples[#:eval video-evaluator
            (multitrack
             (clip "presentation.ogv")
-            (overlay-filter 0 0 100 100)
+            (overlay-merge 0 0 100 100)
             (clip "logo.png"))]}
 
 @defmerge[(composite-merge [x (between/c 0 1)]
