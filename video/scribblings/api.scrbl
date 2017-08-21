@@ -165,7 +165,7 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @defproc[(grayscale-filter) filter?]{
                                      
- A producer that attaches this filter will become grayscale.
+ A video producer that attaches this filter will become grayscale.
 
  @examples[#:eval video-evaluator
            (clip "action.wmv"
@@ -216,20 +216,63 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @defproc[(mux-filter [#:type type (or/c 'v 'video 'a 'audio)]
                      [#:index index exact-nonnegative-integer?])
-         filter?]
+         filter?]{
+                  
+ A filter that returns a single stream from a multistream
+ producer. This is mostly useful for files with multiple
+ streams. Often produced by live broadcasting devices
+ @margin-note{Note that audio channels and audio streams are
+  different. One stream can contain multiple channels.}}
+
 @defproc[(scale-filter [width (and/c real? positive?)]
                        [height (and/c real? positive?)])
-         filter?]
+         filter?]{
+
+ A video filter that scales the given video by
+ @racket[height] and @racket[width].
+
+ @racket[height] is the desired height of the output video
+ in pixels.
+
+ @racket[width] is the desired width of the output video in
+ pixels.
+
+ @examples[#:eval video-evaluator
+           (attach-filter (clip "action.mp4")
+                          (scale-filter 200 100))]}
+
 @defproc[(pad-filter [x (and/c real? positive?)]
                      [y (and/c real? positive?)]
                      [width (and/c real? positive?)]
                      [height (and/c real? positive?)])
-         filter?]
+         filter?]{
+
+ Similar to @racket[scale-filter], except adds black padding
+ to meet the output size, rather than resizing the video itself.
+ The resulting video must not be smaller than the source video.
+
+ @racket[x] and @racket[y] control where the source image
+ are placed in the output, while @racket[width] and
+ @racket[height] control the size of the output image.
+
+ @racket[x], @racket[y], @racket[width], and @racket[height]
+ are all in terms of pixels.}
+
 @defproc[(crop-filter [x (and/c real? positive?)]
                       [y (and/c real? positive?)]
                       [width (and/c real? positive?)]
                       [height (and/c real? positive?)])
-         filter?]
+         filter?]{
+                  
+ Similar to @racket[scale-filter], but trims the edges to
+ fit the output size.
+            
+ @racket[x] and @racket[y] control where the source image
+ are placed in the output, while @racket[width] and
+ @racket[height] control the size of the output image.
+
+ @racket[x], @racket[y], @racket[width], and @racket[height]
+ are all in terms of pixels.}
 
 @section{Properties}
 

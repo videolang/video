@@ -166,15 +166,16 @@
             (define dict-set set-property)
             (define dict-remove remove-property)]
            #:methods gen:custom-write
-           [(define write-proc
-              (make-constructor-style-printer
-               (λ (obj) '#,#'name)
-               (λ (obj)
-                 (if (current-detailed-printing?)
-                     (list #,@(for/list ([i (in-list all-structs)]
-                                         [j (in-list all-ids)])
-                                #`(#,(format-id stx "~a-~a" i j) obj)))
-                     (list)))))]
+           [(define (write-proc vid port mode)
+              (if (current-detailed-printing?)
+                  ((make-constructor-style-printer
+                    (λ (obj) '#,#'name)
+                    (λ (obj)
+                      (list #,@(for/list ([i (in-list all-structs)]
+                                          [j (in-list all-ids)])
+                                 #`(#,(format-id stx "~a-~a" i j) obj)))))
+                   vid port mode)
+                  (fprintf port "#<~a>" '#,#'name)))]
            #:methods gen:video-ops
            [(define (copy-video-op v to-copy)
               (name
