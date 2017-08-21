@@ -173,8 +173,18 @@ deprecated with a yellow @note-text{NOTE} label.
 @defproc[(mux-filter [#:type type (or/c 'v 'video 'a 'audio)]
                      [#:index index exact-nonnegative-integer?])
          filter?]
-@defproc[(scale-filter [x (and/c real? positive?)]
-                       [y (and/c real? positive?)])
+@defproc[(scale-filter [width (and/c real? positive?)]
+                       [height (and/c real? positive?)])
+         filter?]
+@defproc[(pad-filter [x (and/c real? positive?)]
+                     [y (and/c real? positive?)]
+                     [width (and/c real? positive?)]
+                     [height (and/c real? positive?)])
+         filter?]
+@defproc[(crop-filter [x (and/c real? positive?)]
+                      [y (and/c real? positive?)]
+                      [width (and/c real? positive?)]
+                      [height (and/c real? positive?)])
          filter?]
 
 @section{Properties}

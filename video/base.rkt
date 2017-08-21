@@ -108,7 +108,19 @@
                                   #:direction t/b)]
 |#
   
-  [scale-filter (-> (and/c number? positive?) (and/c number? positive?) filter?)]
+  [scale-filter (-> (and/c real? positive?) (and/c real? positive?) filter?)]
+  
+  [crop-filter (-> (and/c real? positive?)
+                   (and/c real? positive?)
+                   (and/c real? positive?)
+                   (and/c real? positive?)
+                   filter?)]
+
+  [pad-filter (-> (and/c real? positive?)
+                  (and/c real? positive?)
+                  (and/c real? positive?)
+                  (and/c real? positive?)
+                  filter?)]
 
   [color-channel-mixer-filter (-> (hash/c string? (between/c -2 2)) filter?)]
 
@@ -491,6 +503,18 @@
 
 (define (scale-filter w h)
   (make-filter #:subgraph (hash 'video (mk-filter "scale" (hash "width" w "height" h)))))
+
+(define (crop-filter x y w h)
+  (make-filter #:subgraph (hash 'video (mk-filter "crop" (hash "x" x
+                                                               "y" y
+                                                               "width" w
+                                                               "height" h)))))
+
+(define (pad-filter x y w h)
+  (make-filter #:subgraph (hash 'video (mk-filter "pad" (hash "x" x
+                                                              "y" y
+                                                              "width" w
+                                                              "height" h)))))
 
 (define-syntax (external-video stx)
   (syntax-parse stx
