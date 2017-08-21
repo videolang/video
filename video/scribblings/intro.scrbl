@@ -204,10 +204,10 @@ their definition.@margin-note{This is also true of functions
 
 @deftech["Multitracks"] play multiple @tech["producer"]s
 simultaneously. Unlike a @tech["playlist"], only the top-most track will be rendered. @deftech["Merges"] combine
-different tracks in a @racket[multitrack]. These can be
+different tracks in a @racket[multitrack]. These combinations can be
 anything from a video overlay to a chroma key effect. As
 with @tech["transitions"] in @tech["playlists"], composite
-@tech["merges"] can be inlined with the @tech["producers"]
+@tech["merges"] can be inlined with the @tech["producer"]s
 in the @tech["multitrack"]s.
 
 @racketmod[
@@ -303,9 +303,7 @@ to specify what producers it connects:
                                        #:end black+white)))]
 
 @tech["Transitions"] themselves are not @tech["producers"], but
-server to combine producers in a @tech["playlist"]. However,
-@tech["properties"] can still be attached to a @tech["transition"].
-
+serve to combine producers in a @tech["playlist"].
 
 @section{Video Properties}
 
