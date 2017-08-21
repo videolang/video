@@ -19,6 +19,7 @@
 (require racket/file
          racket/port
          racket/class
+         racket/async-channel
          "../render.rkt"
          "../base.rkt"
          "../private/utils.rkt"
@@ -51,6 +52,17 @@
           #:start 0
           #:end 2
           #:fps 24))
+
+(let ()
+  (define channel
+    (render/async (multitrack
+                   (color "green")
+                   (clip vid-mp4))
+                  (make-temporary-file "~a.mp4")))
+  (let loop ()
+    (define next (async-channel-get channel))
+    (unless (eof-object? next)
+      (loop))))
 
 (parameterize ([current-output-port (open-output-nowhere)])
   (render/pretty (multitrack

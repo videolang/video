@@ -222,9 +222,10 @@
   (if tab
       (dict-ref tab k (λ () empty-proc))
       empty-proc))
-(define (empty-proc mode obj packet)
-  (when packet
-    (av-packet-unref packet)))
+(define (empty-proc . _) ;mode obj packet)
+  (void))
+;  (when packet
+;    (av-packet-unref packet)))
 
 ;; (U av-dictionary Hash #f) -> av-dictionary
 (define (convert-dict dict)
@@ -287,8 +288,8 @@
     (define streams (stream-bundle-streams bundle))
     (define stream-table (stream-bundle-stream-table bundle))
     
-    (define/public (dump-info [testfile #f])
-      (av-dump-format avformat 0 testfile 0))
+    (define/public (dump-info [stream 0] [testfile #f])
+      (av-dump-format avformat stream testfile 'input))
 
     (define/public (list-devices)
       (define dev (avdevice-list-devices avformat))
@@ -560,6 +561,9 @@
       (define ret (avdevice-info-list-devices dev))
       (avdevice-free-list-devices dev)
       ret)
+    
+    (define/public (dump-info [stream 0] [testfile #f])
+      (av-dump-format output-context stream testfile 'output))
     
     (define/public (init)
       (define options (convert-dict (stream-bundle-options-dict bundle)))

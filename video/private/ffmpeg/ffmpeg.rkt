@@ -855,7 +855,7 @@
     (_fun (_ptr i _avdevice-capabilities-query-pointer/null) _avformat-context-pointer -> _void))
   
   (define-avdevice avdevice-list-devices
-    (_fun _avformat-context-pointer [out : (_ptr o _avdevice-info-list-pointer)] -> [ret : _int]
+    (_fun _avformat-context-pointer [out : (_ptr o _avdevice-info-list-pointer/null)] -> [ret : _int]
           -> (cond
                [(>= ret 0) out]
                [else (error 'avdevice-list-devices "~a : ~a" ret (convert-err ret))])))
