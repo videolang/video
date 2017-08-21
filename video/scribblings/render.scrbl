@@ -19,6 +19,9 @@
 @title{Rendering}
 @defmodule[video/render]
 
+@deprecated-text{The documentation for this module is out of
+ date. The basic render function has not changed, but everything else is outdated!}
+
 The renderer in this section describes the API for rendering
 Video files. A simpler interface is to use the @exec{raco
  video} tool described in @secref["raco-video"].

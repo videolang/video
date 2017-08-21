@@ -490,7 +490,7 @@
   (error "TODO"))
 
 (define (scale-filter w h)
-  (error "TODO"))
+  (make-filter #:subgraph (hash 'video (mk-filter "scale" (hash "width" w "height" h)))))
 
 (define-syntax (external-video stx)
   (syntax-parse stx

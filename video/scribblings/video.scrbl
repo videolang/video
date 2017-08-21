@@ -105,7 +105,11 @@ You can test drive it by going to
 @defmodule[video/core]
 
 The structs given to the @racket[render] function are found
-here. Examples are found in @tt{private/examples.rkt}.
+here.
+
+@deprecated-text{Note that these structs are not considered
+ stable. And may change between minor versions. (They should
+ be stable in point releases.)}
 
 @defstruct*[video ([mlt-object any/c] [tags (set/c any/c)])]{
  The basic video object.
@@ -321,35 +325,6 @@ here. Examples are found in @tt{private/examples.rkt}.
 @defstruct*[(field-element video) ([element (or/c transition? filter? #f)]
                                    [track (or/c exact-nonnegative-integer? #f)]
                                    [track-2 (or/c exact-nonnegative-integer? #f)])]
-
-@section{Extended Video Lib}
-@defmodule[video/lib]
-
-@defproc[(producer-length/uneditied [producer (and/c video? converted-video?)])
-         number?]{
-                  
- Similar to @racket[producer-length]. However, it returns
- the unedited length of the producer. This is the length of
- the producer if it was not shortened.
-
- @racket[producer] is the video who's length will be tested.}
-
-@defproc[(playlist-clip-length [playlist playlist?] [index exact-nonnegative-integer?])
-         exact-nonnegative-integer?]{
-                                     
- Gives the total play time of the @racket[index] clip in the given @racket[playlist]. Compare
- to @racket[producer-length].}
-
-@defproc[(playlist-clip-start [playlist playlist?] [index exact-nonnegative-integer?])
-         exact-nonnegative-integer?]{ Returns the length of
- the @racket[index] clip in the given @racket[playlist].
- Compare to @racket[playlist-clip-length].}
-
-@defproc[(video-type [video video?]) identifier?]{
-                                                  
- Returns an identifier for the type of video as defined in
- @racket[video/core]. @colorize[#:color "red"]{This function
-  in particular is likely to get removed!!!}}
 
 @section{Extending Video}
 

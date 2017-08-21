@@ -145,7 +145,6 @@ deprecated with a yellow @note-text{NOTE} label.
                          [y number?]
                          [width number?]
                          [height number?])]
-}
 
 @defmerge[(composite-merge [x (between/c 0 1)]
                            [y (between/c 0 1)]
@@ -176,8 +175,7 @@ deprecated with a yellow @note-text{NOTE} label.
          filter?]
 @defproc[(scale-filter [x (and/c real? positive?)]
                        [y (and/c real? positive?)])
-         filter?]{
- @deprecated-text{Not implemented yet!}}
+         filter?]
 
 @section{Properties}
 
@@ -240,9 +238,18 @@ but some common ones are: @racket["length"],
 
 @section{Misc. Functions}
 
-@defform[(external-video module)]{ Given a module path to a
- video file, dynamically require that file, and place its
- @racket[vid] values in place of @racket[external-video].}
+@defform[(external-video module)]{
+                                  
+ Given a module path to a video file, dynamically require
+ that file, and place its @racket[vid] values in place of
+ @racket[external-video].}
+
+@defproc[(chapter [producer producer?])
+         producer]{
+
+ Creates a new producer identical to @racket[producer],
+ except the resulting producer will be added to the chapters
+ list of the rendered video.}
 
 @section{Alternate Units}
 @defmodule[video/units]
