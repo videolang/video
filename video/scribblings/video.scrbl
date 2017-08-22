@@ -50,47 +50,7 @@ the Video blog, community projects, tutorials, etc.
 
 @include-section{intro.scrbl}
 @include-section{api.scrbl}
-
-@section{Player}
-@defmodule[video/player]
-
-@defproc[(preview [data producer?])
-         (is-a?/c video-player%)]{
-                                  
- Helper function to create a new @racket[video-player%]
- object, and start playback. The resulting
- @racket[video-player%] object is returned.
-λ
- @racket[data] is the @racket[producer] that the video player will render.}
-
-@defclass[video-player% frame% ()]{
-                                   
- A video player for previewing producers.
- 
- @defconstructor[([video video?])]{
-                                   
-  Constructs a video player object. This does not
-  automatically show the video or start the video playback.
-  Use @method[window<%> show] and
-  @method[video-player% play], or consider using
-  @racket[preview] instead.
-
-  @racket[video] is the initial video associated with the
-  player. This can be changed with @method[video-player% set-video].}
- @defmethod[(get-video-length) exact-nonnegative-integer?]
- @defmethod[(play) void?]
- @defmethod[(pause) void?]
- @defmethod[(stop) void?]
- @defmethod[(is-stopped?) boolean?]
- @defmethod[(seek [frame exact-nonnegative-integer?]) void?]
- @defmethod[(set-speed [speed number?]) void?]
- @defmethod[(rewind) void?]
- @defmethod[(fast-forward) void?]
- @defmethod[(get-position) exact-positive-integer?]
- @defmethod[(get-fps) number?]
- @defmethod[(set-video [video producer?]) void?]
-}
-
+@include-section{player.scrbl}
 @include-section{render.scrbl}
          
 @section{Graphical Non-Linear Video Editors}
