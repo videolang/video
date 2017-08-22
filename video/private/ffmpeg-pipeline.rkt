@@ -458,6 +458,9 @@
                             #:index index
                             #:callback-data callback-data)]
              [x (mk-codec-obj #:type x
+                              #:id (match x
+                                     ['video 'h264]
+                                     ['audio 'aac])
                               #:index index)]))
          (dict-update! stream-table (codec-obj-type ret)
                        (λ (rst) (append rst (list ret)))

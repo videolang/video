@@ -126,3 +126,14 @@
   (define f2 (stream-bundle->file (make-temporary-file "~a.mp4") 'vid+aud))
   (define mx (new mux% [bundle f2]))
   (send mx dump-info))
+
+(let ()
+  (define f (stream-bundle->file (make-temporary-file "~a.mp4")
+                                 (mk-stream-bundle
+                                  #:streams (vector 'video
+                                                    'audio
+                                                    (mk-codec-obj #:type 'audio
+                                                                  #:id 'aac
+                                                                  #:index 3)))))
+  (check-true
+   (stream-bundle? f)))
