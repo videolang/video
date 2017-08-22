@@ -78,6 +78,7 @@
 (check-producer (clip vid-mp4 #:properties (hash "start" 0 "end" 3)) #:len 3)
 
 (check-producer (color "blue" #:properties (hash "start" 0 "end" 2)) #:len 2)
+(check-producer (color "blue" #f #f #:properties (hash "start" 0 "end" 1)) #:len 1)
 (check-producer (clip vid-mp4 #:properties (hash "start" 100 "end" 103)) #:len 3)
 (check-producer (image circ-png #:properties (hash "start" 0 "end" 1)) #:len 1)
 (check-producer (blank 2) #:len 2)

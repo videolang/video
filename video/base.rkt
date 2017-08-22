@@ -74,7 +74,8 @@
   [color (->producer [(or/c string? (is-a?/c color%)
                             (list/c byte? byte? byte?)
                             byte?)]
-                     [byte? byte?])]
+                     [(or/c byte? #f)
+                      (or/c byte? #f)])]
 
   ;; Create a producer that is the same as the other producer but with one or more
   ;; filters attached to it
