@@ -137,3 +137,14 @@
                                                                   #:index 3)))))
   (check-true
    (stream-bundle? f)))
+
+;; Check default constructors for several node types.
+(let ()
+  (check-true (sink-node? (mk-sink-node #f)))
+  (check-true (filter-node? (mk-empty-node)))
+  (check-true (filter-node? (mk-empty-sink-node)))
+  (check-true (filter? (mk-empty-video-filter)))
+  (check-true (mux-node? (mk-mux-node 'video 0 (hash))))
+  (check-true (demux-node? (mk-demux-node 12)))
+  (check-true (filter-node? (mk-split-node))))
+  
