@@ -181,11 +181,8 @@
                               #:top a
                               #:bottom b))))
 
-#| TODO, finish scale
 ;; filters
 (check-producer (attach-filter (image circ-png) (scale-filter 1 3)))
-|#
-
 
 ;; props
 (check-producer
@@ -246,6 +243,40 @@
    (fade-transition 5)
    (color "blue" #:properties (hash "start" 10 "end" 20))))
 
+(check-equal?
+ (length
+  (get-property
+   (color "red")
+   "chapters"
+   (λ () '())))
+ 0)
+
+(check-equal?
+ (length
+  (get-property
+   (chapter (color "red" #:properties (hash "length" 10)))
+   "chapters"
+   (λ () '())))
+ 1)
+
+(check-equal?
+ (length
+  (get-property
+   (playlist
+    (chapter (color "green" #:properties (hash "length" 10)))
+    (chapter (color "red" #:properties (hash "length" 10))))
+   "chapters"))
+ 2)
+
+(check-equal?
+ (length
+  (get-property
+   (multitrack
+    (chapter (color "green" #:properties (hash "length" 10)))
+    (chapter (color "red" #:properties (hash "length" 10))))
+   "chapters"))
+ 1)
+
 ;; TODO, put defines at end?
 (define (make-talk-video main-talk)
   ;; defines should be after playlist?
@@ -278,11 +309,8 @@
   (define v (make-talk-video Y))
   (attach-audio v a o))
 
-#| XXX, needs to be uncomented!
 (check-producer
  (make-conf-talk (blank 100) (blank 100) (blank 100) 0))
-|#
-
 
 #|
 ;; TODO, rethink

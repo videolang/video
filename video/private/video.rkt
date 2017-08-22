@@ -124,6 +124,12 @@
           [else attached]))
   extended)
 
+;; An interface for composing properties when rendering
+;;   a multitrack or playlist
+(define-generics composible
+  (compose-playlist composible other)
+  (compose-multitrack composible other))
+
 ;; Dynamic Dispatch for Video Objects
 (define-generics video-ops
   (copy-video-op video-ops to-copy))
