@@ -21,7 +21,8 @@
          racket/class
          racket/gui/base
          racket/draw
-         ffi/unsafe)
+         ffi/unsafe
+         "ffmpeg/lib.rkt")
 
 (import drracket:tool^)
 (export drracket:tool-exports^)
@@ -47,9 +48,9 @@
 (define (phase1) (void))
 (define (phase2) (void))
 
-
-;; Very large hack, only run if libmlt is found.
-;; Also should really not use a copy/pasted ffi-lib line.
-(when (ffi-lib "libmlt" '("6") #:fail (λ () #f))
+;; Only activate the tool when ffmpeg is installed.
+;; Otherwise DrRacket will complain on startup.
+;; (Only applies to linux instilations.)
+(when (and (ffmpeg-installed?) (ffmpeg-min-version?))
   (drracket:get/extend:extend-unit-frame video-frame-mixin)
   (send (get-the-snip-class-list) add (dynamic-require 'video/private/editor 'video-snip-class)))
