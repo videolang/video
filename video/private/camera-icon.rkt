@@ -24,7 +24,8 @@
          racket/gui/base
          images/icons/style
          mrlib/switchable-button
-         racket/list)
+         racket/list
+         "../base.rkt")
 
 (define height (toolbar-icon-height))
 (define width (* height 2))
@@ -73,5 +74,3 @@
        (eval '(require video/player))
        (eval '(void (preview vid)))))
    #f))
-
-(require video/base)
