@@ -28,7 +28,7 @@
          graph
          racket/file
          racket/match
-         video/render
+         "render.rkt"
          "private/video-canvas.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))

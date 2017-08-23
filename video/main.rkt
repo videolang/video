@@ -22,11 +22,11 @@
          define/video
          define*
          define*-values
-         (all-from-out video/base))
+         (all-from-out "base.rkt"))
 
 (require (prefix-in core: video/core)
          (only-in "private/video.rkt" current-video-directory)
-         video/base
+         "base.rkt"
          racket/list
          racket/path
          (except-in pict clip frame blank)
