@@ -105,7 +105,7 @@
   (void))
 
 (let ()
-  (convert-dict (hash "a" "b" "c" "d"))
+  (build-av-dict (hash "a" "b" "c" "d"))
   (void))
 
 (let ()
