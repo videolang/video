@@ -238,7 +238,7 @@
      (for ([(k v) (in-hash dict)])
        (set! ret (av-dict-set ret k v '())))
      ret]
-    [else (av-dict-copy dict #f)]))
+    [else (av-dict-copy dict '())]))
 
 (define (maybe-av-find-best-stream avformat type)
   (with-handlers ([exn:ffmpeg:stream-not-found? (λ (e) #f)])
