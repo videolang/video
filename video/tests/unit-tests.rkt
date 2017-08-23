@@ -135,6 +135,15 @@
   (clip vid-mp4 #:properties (hash "start" 0 "end" 8)))
  #:len 14)
 
+(check-producer
+ (playlist)
+ #:len 1)
+
+(check-producer
+ (playlist
+  (fade-transition 5))
+ #:len 5)
+
 ;; multitracks
 (check-producer
  (multitrack

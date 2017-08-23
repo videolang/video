@@ -479,18 +479,18 @@
   ()
   (define pre-list
     (cond
-      [(empty? elements) (list (make-blank #:start 0 #:end 1))]
+      [(empty? elements) (list (make-blank #:prop (hash "start" 0
+                                                        "end" 1)))]
       [(transition? (first elements))
-       (list (make-blank
-              #:start 0
-              #:end (get-property (first elements) "pre-length")))]
+       (list (make-blank #:prop (hash "start" 0
+                                      "end" (get-property (first elements) "pre-length"))))]
       [else (list)]))
  (define post-list
     (cond
       [(empty? elements) (list)]
       [(transition? (last elements))
-       (list (make-blank #:start 0
-                         #:end (get-property (last elements) "post-length")))]
+       (list (make-blank #:prop (hash "start" 0
+                                      "end" (get-property (last elements) "post-length"))))]
       [else (list)]))
   (define elements*
     (append pre-list elements post-list))
