@@ -421,6 +421,16 @@
   (_bitmask `(skip-repeated
               print-level)))
 
+(define _av-option-flags
+  (_bitmask `(encoding-param
+              decoding-param
+              metadata ;; DEP AVUTIL 56
+              audio-param
+              video-param
+              export
+              readonly
+              filtering-param = ,(arithmetic-shift 1 16))))
+
 ;; ===================================================================================================
 
 (define _is-output (_enum '(input = 0
@@ -1277,3 +1287,23 @@
            buffer-writable = ,(MK-BE-TAG #\B #\W #\D #\space)
            mute-state-changed = ,(MK-BE-TAG #\C #\M #\U #\T)
            volume-level-changed = ,(MK-BE-TAG #\C #\V #\O #\L))))
+
+(define _av-option-type
+  (_enum `(flags
+           int
+           int64
+           double
+           float
+           string
+           rational
+           binary
+           dict
+           const = 128
+           image-size = ,(MK-BE-TAG #\S #\I #\Z #\E)
+           pixel-fmt = ,(MK-BE-TAG #\P #\F #\M #\T)
+           sample-fmt = ,(MK-BE-TAG #\S #\F #\M #\T)
+           video-rate = ,(MK-BE-TAG #\V #\R #\A #\T)
+           duration = ,(MK-BE-TAG #\D #\U #\R #\space)
+           color = ,(MK-BE-TAG #\C #\O #\L #\R)
+           channel-layout = ,(MK-BE-TAG #\C #\H #\L #\A)
+           bool = ,(MK-BE-TAG #\B #\O #\O #\L))))

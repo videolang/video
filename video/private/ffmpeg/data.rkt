@@ -833,7 +833,19 @@
    [pmt-pid _int]
    [pcr-pid _int]))
 
-(define-cpointer-type _avoption-pointer)
+(define-ffmpeg-cstruct _av-option
+  ([name _string]
+   [help _string]
+   [offset _int]
+   [type _av-option-type]
+   [scaler (_union _int64
+                   _double
+                   _string
+                   _avrational)]
+   [min _double]
+   [max _double]
+   [flags _av-option-flags]
+   [unit _string]))
 
 (define-cstruct _avdevice-info
   ([device-name _pointer]

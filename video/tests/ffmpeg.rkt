@@ -147,4 +147,7 @@
   (check-true (mux-node? (mk-mux-node 'video 0 (hash))))
   (check-true (demux-node? (mk-demux-node 12)))
   (check-true (filter-node? (mk-split-node))))
-  
+
+;; Check capability to list devices
+(let ()
+  (void)) ;; TODO

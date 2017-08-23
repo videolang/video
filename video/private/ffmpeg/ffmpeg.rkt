@@ -170,7 +170,7 @@
           -> (when (< ret 0)
                (error "AV_OPT"))))
   (define-avutil av-opt-find
-    (_fun _pointer _string _string _av-opt-flags _av-opt-search-flags -> _avoption-pointer/null))
+    (_fun _pointer _string _string _av-opt-flags _av-opt-search-flags -> _av-option-pointer/null))
   (define-avutil av-dict-set (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _int
                                    -> [ret : _int]
                                    -> (cond
@@ -405,16 +405,22 @@
   (define-avformat av-register-all (_fun -> _void))
   
   (define-avformat avformat-network-init (_fun -> _int -> (void)))
-  
-  (define-avformat avformat-open-input (_fun (out : (_ptr io _avformat-context-pointer/null) = #f)
-                                             _path
-                                             _av-input-format-pointer/null
-                                             _pointer
-                                             -> [ret : _int]
-                                             -> (cond
-                                                  [(= ret 0) out]
-                                                  [(< ret 0)
-                                                   (error 'avformat "~a : ~a" ret (convert-err ret))])))
+
+  (define (avformat-open-input ctx/path path/input input/opt [opt (void)])
+    (define-avformat avformat-open-input (_fun (out : (_ptr io _avformat-context-pointer/null))
+                                               _path
+                                               _av-input-format-pointer/null
+                                               _pointer
+                                               -> [ret : _int]
+                                               -> (cond
+                                                    [(= ret 0) out]
+                                                    [(< ret 0)
+                                                     (error 'avformat "~a : ~a" ret (convert-err ret))])))
+    (define opt* (if (void? opt) input/opt opt))
+    (define input (if (void? opt) path/input input/opt))
+    (define path (if (void? opt) ctx/path path/input))
+    (define ctx (if (void? opt) #f ctx/path))
+    (avformat-open-input ctx path input opt*))
   
   (define-avformat avformat-find-stream-info (_fun _avformat-context-pointer
                                                    _pointer
@@ -425,6 +431,8 @@
   
   (define-avformat avformat-close-input (_fun (_ptr i _avformat-context-pointer)
                                               -> _void))
+
+  (define-avformat avformat-alloc-context (_fun -> _avformat-context-pointer))
   
   (define-avformat avformat-free-context (_fun _avformat-context-pointer -> _void))
   
@@ -523,6 +531,13 @@
                                                           (raise (exn:ffmpeg:flush
                                                                   "send-frame"
                                                                   (current-continuation-marks)))])))
+
+  (define-avformat avio-alloc-context
+    (_fun _pointer _int _bool _pointer
+          (_fun _pointer _pointer _int -> _int)
+          (_fun _pointer _pointer _int -> _int)
+          (_fun _pointer _int64 _int -> _int64)
+          -> _avio-context-pointer))
   
   (define-avformat avio-open
     (_fun [out : (_ptr io _avio-context-pointer/null)] [p : _path] _avio-flags
@@ -535,6 +550,9 @@
                                     -> (cond
                                          [(= ret 0) (void)]
                                          [else (error 'avio-close (convert-err ret))])))
+
+  (define-avformat av-find-input-format
+    (_fun _string -> _av-input-format-pointer))
   
   (define-avformat av-find-best-stream
     (_fun _avformat-context-pointer _avmedia-type _int _int
@@ -625,7 +643,7 @@
   (define-avfilter avfilter-graph-get-filter
     (_fun _avfilter-graph-pointer _string -> _avfilter-context-pointer/null))
   (define-avfilter avfilter-graph-create-filter
-    (_fun [out : (_ptr o _avfilter-context-pointer)]
+    (_fun [out : (_ptr o _avfilter-context-pointer/null)]
           _avfilter-pointer
           _string
           _string
