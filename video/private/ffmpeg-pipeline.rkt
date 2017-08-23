@@ -227,15 +227,18 @@
 ;  (when packet
 ;    (av-packet-unref packet)))
 
+;; Helper function to either copy an existing dict,
+;;   or convert a hash table into the dict.
+;; Either way, the dict must be freed with av-dict-free
 ;; (U av-dictionary Hash #f) -> av-dictionary
-(define (convert-dict dict)
+(define (build-av-dict dict)
   (cond
     [(hash? dict)
      (define ret #f)
      (for ([(k v) (in-hash dict)])
-       (set! ret (av-dict-set ret k v 0)))
+       (set! ret (av-dict-set ret k v '())))
      ret]
-    [else dict]))
+    [else (av-dict-copy dict #f)]))
 
 (define (maybe-av-find-best-stream avformat type)
   (with-handlers ([exn:ffmpeg:stream-not-found? (λ (e) #f)])
@@ -569,7 +572,7 @@
       (av-dump-format output-context stream testfile 'output))
     
     (define/public (init)
-      (define options (convert-dict (stream-bundle-options-dict bundle)))
+      (define options (build-av-dict (stream-bundle-options-dict bundle)))
       ;; Get streams
       (define stream-table (make-hash))
       ;; Get codec and other attributes of decoded video
@@ -587,7 +590,7 @@
               ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
     
     (define/public (open)
-      (define options (convert-dict (stream-bundle-options-dict bundle)))
+      (define options (build-av-dict (stream-bundle-options-dict bundle)))
       (for ([i (in-vector streams)])
         (match i
           [(struct* codec-obj ([type type]

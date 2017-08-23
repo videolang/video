@@ -54,12 +54,12 @@
                      (avrational-den x))))))
 
 (define-cstruct _av-dictionary-entry
-  ([key _string]
-   [value _string]))
+  ([key _pointer]
+   [value _pointer]))
 
 (define-cstruct _av-dictionary
   ([count _int]
-   [elems _av-dictionary-entry-pointer]))
+   [elems _av-dictionary-entry-pointer/null]))
 
 (define-cstruct _avclass
   ([class-name _string]

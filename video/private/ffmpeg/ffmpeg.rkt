@@ -171,15 +171,23 @@
                (error "AV_OPT"))))
   (define-avutil av-opt-find
     (_fun _pointer _string _string _av-opt-flags _av-opt-search-flags -> _av-option-pointer/null))
-  (define-avutil av-dict-set (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _int
-                                   -> [ret : _int]
-                                   -> (cond
-                                        [(>= ret 0) out]
-                                        [else (error 'av-dict-set (convert-err ret))])))
+  (define (av-dict-set pm/key key/val val/flags [maybe-flags (void)])
+    (define-avutil av-dict-set
+      (_fun [out : (_ptr io _av-dictionary-pointer/null)] _string _string _av-dictionary-flags
+            -> [ret : _int]
+            -> (cond
+                 [(>= ret 0) out]
+                 [else (error 'av-dict-set (convert-err ret))])))
+    (define flags (if (void? maybe-flags) val/flags maybe-flags))
+    (define val (if (void? maybe-flags) key/val val/flags))
+    (define key (if (void? maybe-flags) pm/key key/val))
+    (define pm (if (void? maybe-flags) #f pm/key))
+    (av-dict-set pm key val flags))
   (define-avutil av-dict-free (_fun (_ptr i _av-dictionary-pointer/null) -> _void))
   (define-avutil av-dict-count (_fun _av-dictionary-pointer -> _int))
-  (define-avutil av-dict-get (_fun _av-dictionary-pointer _string _av-dictionary-entry-pointer _int
-                                   -> _av-dictionary-entry-pointer))
+  (define-avutil av-dict-get
+    (_fun _av-dictionary-pointer _string _av-dictionary-entry-pointer _av-dictionary-flags
+          -> _av-dictionary-entry-pointer))
   (define (av-dict-copy dst/src src/flags [flags #f])
     (define-avutil av-dict-copy (_fun [out : (_ptr io _av-dictionary-pointer/null)]
                                       _av-dictionary-pointer/null
@@ -310,9 +318,10 @@
   (define (avcodec-parameters-to-context codec/ctx/param [maybe-param #f])
     (define param (or maybe-param codec/ctx/param))
     (define ctx
-      (cond [(avcodec-context? codec/ctx/param) codec/ctx/param]
-            [(avcodec? codec/ctx/param) (avcodec-alloc-context3 codec/ctx/param)]
-            [else (avcodec-alloc-context3 (avcodec-find-decoder (avcodec-parameters-codec-id param)))]))
+      (cond
+        [(avcodec-context? codec/ctx/param) codec/ctx/param]
+        [(avcodec? codec/ctx/param) (avcodec-alloc-context3 codec/ctx/param)]
+        [else (avcodec-alloc-context3 (avcodec-find-decoder (avcodec-parameters-codec-id param)))]))
     (define-avcodec avcodec-parameters-to-context
       (_fun [out : _avcodec-context-pointer] _avcodec-parameters-pointer
             -> [ret : _int]
@@ -407,21 +416,22 @@
   (define-avformat avformat-network-init (_fun -> _int -> (void)))
 
   (define (avformat-open-input ctx/path path/input input/opt [opt (void)])
-    (define-avformat avformat-open-input (_fun (out : (_ptr io _avformat-context-pointer/null))
-                                               _path
-                                               _av-input-format-pointer/null
-                                               _pointer
-                                               -> [ret : _int]
-                                               -> (cond
-                                                    [(= ret 0) out]
-                                                    [(< ret 0)
-                                                     (error 'avformat "~a : ~a" ret (convert-err ret))])))
+    (define-avformat avformat-open-input
+      (_fun (out : (_ptr io _avformat-context-pointer/null))
+            _path
+            _av-input-format-pointer/null
+            (_ptr io _av-dictionary-pointer/null)
+            -> [ret : _int]
+            -> (cond
+                 [(= ret 0) out]
+                 [(< ret 0)
+                  (error 'avformat "~a : ~a" ret (convert-err ret))])))
     (define opt* (if (void? opt) input/opt opt))
     (define input (if (void? opt) path/input input/opt))
     (define path (if (void? opt) ctx/path path/input))
     (define ctx (if (void? opt) #f ctx/path))
     (avformat-open-input ctx path input opt*))
-  
+
   (define-avformat avformat-find-stream-info (_fun _avformat-context-pointer
                                                    _pointer
                                                    -> [r : _int]
@@ -462,9 +472,10 @@
   ;  (_fun _avformat-context-pointer _int _int64 _int64 _int64 _int -> [ret : _int]
   ;        -> (when (< ret 0)
   ;             (error 'avformat-seek-file "~a : ~a" ret (convert-err ret)))))
-  (define-avformat avformat-flush (_fun _avformat-context-pointer -> [ret : _int]
-                                        -> (when (< ret 0)
-                                             (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))
+  (define-avformat avformat-flush
+    (_fun _avformat-context-pointer -> [ret : _int]
+          -> (when (< ret 0)
+               (error 'avformat-flush "~a : ~a" ret (convert-err ret)))))
   
   (define-avformat av-read-play (_fun _avformat-context-pointer -> [ret : _int]))
   (define-avformat av-read-pause (_fun _avformat-context-pointer -> [ret : _int]))
