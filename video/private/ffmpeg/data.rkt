@@ -108,7 +108,7 @@
 (define-cstruct _av-input-format
   ([name _string]
    [long-name _string]
-   [flags _avformat-flags]
+   [flags _avio-format-flags]
    [extensions _string]
    [codec-tag _pointer]
    [priv-class _pointer]
@@ -137,7 +137,7 @@
    [audio-codec _avcodec-id]
    [video-codec _avcodec-id]
    [subtitle-codec _avcodec-id]
-   [flags _avformat-flags]
+   [flags _avio-format-flags]
    [codec-tag _pointer]
    [priv-class _pointer]))
 

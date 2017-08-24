@@ -296,7 +296,7 @@
             _uint64))
 (define-cpointer-type _av-channel-layout-pointer)
 
-(define _avformat-flags
+(define _avio-format-flags
   (_bitmask '(nofile = #x1
               neednumber = #x2
               show-ids = #x8
@@ -316,6 +316,26 @@
               ts-negative = #x40000
               seek-to-pts = #x4000000)
             _int))
+
+(define _avformat-flags
+  (_bitmask `(genpts
+              ignidx
+              nonblock
+              igndts
+              nofillin
+              noparse
+              nobuffer
+              custom-io
+              discard-corrupt
+              flush-packet
+              bitexact
+              mp4a-latm = #x8000
+              sort-dts
+              priv-opts
+              keep-side-data ;; DEP ???
+              fast-seek
+              shortest
+              auto-bsf)))
 
 (define _avcodec-flags
   (_bitmask `(unaligned
