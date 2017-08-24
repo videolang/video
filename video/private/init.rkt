@@ -24,6 +24,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
+         "ffmpeg/libvid.rkt"
          "ffmpeg/main.rkt")
 
 (define video-key #"VIDEO-FFMPEG-INIT")
@@ -32,21 +33,8 @@
 
 (define MAX-LOG-MSG-SIZE 4096)
 
-;; XXX, va_list is NOT _pointer sized. Therefore, we cannot
-;; use this function until we extend libffi to accept
-;; va_list or add a C shim (in libvideo).
-#;
-(define-internal vsnprintf
-  (_fun [out : (_bytes o MAX-LOG-MSG-SIZE)] [len : _size = MAX-LOG-MSG-SIZE] _string _pointer
-        -> [ret : _int]
-        -> (cond
-             [(< ret 0) (error 'vsnprintf "Error ~a" ret)]
-             [else
-              (define len (min (sub1 MAX-LOG-MSG-SIZE) ret))
-              (bytes->string/locale (subbytes out 0 len))])))
-
-(define (callback-proc avcl level fmt args)
-  ;(define x (vsnprintf "hello" args))
+(define (callback-proc avcl level msg)
+  (displayln msg)
   (void))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
@@ -56,8 +44,9 @@
     (avfilter-register-all)
     (avformat-network-init)
     (avdevice-register-all)
-    ;(av-log-set-callback callback-proc)
-    ))
+    #;(when (libvid-installed?)
+      (set-racket-log-callback callback-proc)
+      (av-log-set-callback ffmpeg-log-callback))))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.

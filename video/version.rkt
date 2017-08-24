@@ -23,7 +23,7 @@
   (mk-version #:major "0"
               #:minor "2"
               #:patch "0"
-              #:pre-release "alpha2"))
+              #:pre-release "beta"))
 
 (define (version)
   (version->string current-version))

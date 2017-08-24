@@ -114,17 +114,17 @@
 
 (struct version (major
                  minor
-                 bug)
+                 patch)
   #:methods gen:custom-write
   [(define (write-proc x port mode)
    (fprintf port "~a.~a.~a"
             (version-major x)
             (version-minor x)
-            (version-bug x)))])
+            (version-patch x)))])
 (define (mk-version #:major [major 0]
                     #:minor [minor 0]
-                    #:bug [bug 0])
-  (version major minor bug))
+                    #:patch [patch 0])
+  (version major minor patch))
 (define _version
   (make-ctype _uint
               (λ (x)
@@ -132,13 +132,13 @@
                  (bytes 0
                         (version-major x)
                         (version-minor x)
-                        (version-bug x))
+                        (version-patch x))
                  #f #t))
               (λ (x)
                 (define bitstr (integer->integer-bytes x 4 #f #t))
                 (mk-version #:major (bytes-ref bitstr 1)
                             #:minor (bytes-ref bitstr 2)
-                            #:bug (bytes-ref bitstr 3)))))
+                            #:patch (bytes-ref bitstr 3)))))
 
 ;; ===================================================================================================
 
@@ -181,7 +181,7 @@
 ;; Version Int Int -> Boolean
 (define (version-check libname version major minor)
   (and (= (version-major version) major)
-               (>= (version-minor version) minor)))
+       (>= (version-minor version) minor)))
 
 ;; Check to ensure that ffmpeg meets the minimum required version.
 ;; returns #t if it does, otherwise returns #f.
