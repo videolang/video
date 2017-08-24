@@ -21,9 +21,11 @@
 ;;   If you do this though, do make sure to shut things down with mlt-factory-init
 
 (provide (all-defined-out))
-(require ffi/unsafe
+(require racket/match
+         ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/global
+         "log.rkt"
          "ffmpeg/libvid.rkt"
          "ffmpeg/main.rkt")
 
@@ -31,11 +33,23 @@
 
 (define-ffi-definer define-internal #f)
 
-(define MAX-LOG-MSG-SIZE 4096)
+(define current-ffmpeg-log-interceptor (make-parameter #f))
 
 (define (callback-proc avcl level len msg)
-  ;(printf "~x~n" (ptr-ref msg _size))
-  (void))
+  (cond [(current-ffmpeg-log-interceptor)
+         ((current-ffmpeg-log-interceptor) avcl level len msg)]
+        [else
+         (define log-level
+           (match level
+             ['debug 'debug]
+             ['warning 'warning]
+             ['error 'error]
+             ['info 'info]
+             ['fatal 'fatal]
+             ['verbose 'info]
+             [_ 'info]))
+         (when (log-level? video-logger log-level)
+           (log-message video-logger log-level 'ffmpeg msg (current-continuation-marks)))]))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
 (when (ffmpeg-installed?)
