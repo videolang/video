@@ -21,6 +21,7 @@
          ffi/unsafe/define
          ffi/unsafe/define/conventions
          "../log.rkt"
+         "constants.rkt"
          "lib.rkt")
 
 (define (libvid-not-installed)
@@ -38,7 +39,8 @@
   #:make-c-id convention:hyphen->underscore)
 
 (define-libvid set-racket-log-callback
-  (_fun (_fun _pointer _int _string -> _void) -> _void))
+  (_fun (_fun ;#:async-apply (λ (x) (x)) <-- Might need to uncomment for pthreads
+              _pointer _av-log-constant _int _pointer -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 
 (define-libvid libvid-get-version-major

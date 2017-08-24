@@ -33,8 +33,8 @@
 
 (define MAX-LOG-MSG-SIZE 4096)
 
-(define (callback-proc avcl level msg)
-  (displayln msg)
+(define (callback-proc avcl level len msg)
+  ;(printf "~x~n" (ptr-ref msg _size))
   (void))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
@@ -43,10 +43,19 @@
     (av-register-all)
     (avfilter-register-all)
     (avformat-network-init)
-    (avdevice-register-all)
-    #;(when (libvid-installed?)
-      (set-racket-log-callback callback-proc)
-      (av-log-set-callback ffmpeg-log-callback))))
+    (avdevice-register-all)))
+
+;; Set up the logger.
+;; This must be done a new time the module is instantiated, and
+;;    we unset the logger after its finished.
+;; Only ONE logger can be installed at a time. This is not a problem
+;;  as init should only really be running once.
+(when (and (ffmpeg-installed?) (libvid-installed?))
+  (set-racket-log-callback callback-proc)
+  (av-log-set-callback ffmpeg-log-callback)
+  #;
+  (plumber-add-flush! (current-plumber)
+                      (λ (h) (set-racket-log-callback #f))))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.

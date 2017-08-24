@@ -1280,7 +1280,8 @@
            verbose = 40
            debug = 48
            trace = 56
-           max-offset = ,(- 56 -8))))
+           max-offset = ,(- 56 -8))
+         #:unknown (λ (x) x)))
 
 (define _av-app->dev-message-type
   (_enum `(none = ,(MK-BE-TAG #\N #\O #\N #\E)
