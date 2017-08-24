@@ -889,7 +889,25 @@
                [(>= ret 0) out]
                [else (error 'avdevice-list-devices "~a : ~a" ret (convert-err ret))])))
   (define-avdevice avdevice-free-list-devices
-    (_fun (_ptr i _avdevice-info-list-pointer/null) -> _void)))
+    (_fun (_ptr i _avdevice-info-list-pointer/null) -> _void))
+  (define-avdevice avdevice-list-input-sources
+    (_fun _av-input-format-pointer
+          _string
+          _av-dictionary-pointer/null
+          [out : (_ptr o _avdevice-info-list-pointer/null)]
+          -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [else (error 'avdevice-list-input-sources "~a : ~a" ret (convert-err ret))])))
+  (define-avdevice avdevice-list-output-sinks
+    (_fun _av-input-format-pointer
+          _string
+          _av-dictionary-pointer/null
+          [out : (_ptr o _avdevice-info-list-pointer/null)]
+          -> [ret : _int]
+          -> (cond
+               [(>= ret 0) out]
+               [else (error 'avdevice-list-output-sinks "~a : ~a" ret (convert-err ret))]))))
 
 (require 'avdevice)
 (provide (all-from-out 'avdevice))
