@@ -1,4 +1,4 @@
-#lang reader "viddoclang.rkt"
+#lang reader video/scribblings/viddoclang
 
 @;{
    Copyright 2016-2017 Leif Andersen
