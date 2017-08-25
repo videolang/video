@@ -66,7 +66,7 @@
 ;;  as init should only really be running once.
 (when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
-  (av-log-set-callback ffmpeg-log-callback)
+  ;(av-log-set-callback ffmpeg-log-callback)
   #;
   (plumber-add-flush! (current-plumber)
                       (λ (h) (set-racket-log-callback #f))))
