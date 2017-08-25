@@ -241,6 +241,25 @@ deprecated with a yellow @note-text{NOTE} label.
  Set @racket[flip] to @racket[#t] to additionally flip the
  video as well as rotate it.}
 
+@defproc[(rotate-filter [angle real?]
+                        [#:bilinear? bilinear? boolean? #t]
+                        [#:fill-color color
+                         (or/c string?
+                               (is-a?/c color%)
+                               (list/c byte? byte? byte?))
+                         "black"])
+         filter?]{
+                  
+ This filter rotates its producer by @racket[angle] radians.
+
+ The @racket[bilinear?] flag determines if the filter should
+ do bilinear interpolation. It defaults to @racket[#t].
+
+ The @racket[#:fill-color] sets the color that should
+ surround the resulting rotates producer. It defaults to
+ @racket["black"].
+}
+
 @defproc[(envelope-filter [#:length length nonnegative-integer?]
                           [#:direction direction (or/c 'in 'out)]
                           [#:curve curve (or/c #f) #f])

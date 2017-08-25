@@ -129,6 +129,13 @@
                               #f)
                           boolean?]
                         filter?)]
+  
+  [rotate-filter (->* [real?]
+                       [#:bilinear? boolean?
+                        #:fill-color (or/c string?
+                                           (is-a?/c color%)
+                                           (list/c byte? byte? byte?))]
+                       filter?)]
 
   [color-channel-mixer-filter (-> (hash/c string? (between/c -2 2)) filter?)]
 
@@ -577,6 +584,14 @@
                                                                 [('clock #t) "clock_flip"]
                                                                 [('clock #f) "clock"]
                                                                 [(_ _) "cclock_flip"]))))))
+
+(define (rotate-filter angle
+                       #:bilinear? [bilinear? #t]
+                       #:fill-color [fillcolor "black"])
+  (make-filter #:subgraph (hash 'video (mk-filter rotate
+                                                  (hash "a" angle
+                                                        "bilinear" (if bilinear? 1 0)
+                                                        "c" (color->string fillcolor))))))
 
 (define (color-channel-mixer-filter table)
   (define color-channel-mixer-keys
