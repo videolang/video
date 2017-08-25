@@ -123,6 +123,12 @@
                   (and/c real? positive?)
                   filter?)]
 
+  [transpose-filter (-> (or/c 'counter-clock
+                              'clock
+                              #f)
+                        boolean?
+                        filter?)]
+
   [color-channel-mixer-filter (-> (hash/c string? (between/c -2 2)) filter?)]
 
   [grayscale-filter (-> filter?)]
@@ -561,6 +567,15 @@
                             [p (if start (dict-set p "start" start) p)]
                             [p (if end (dict-set p "end" end) p)])
                        p)))
+
+(define (transpose-filter [direction #f] [flip #f])
+  (make-filter #:subgraph (hash 'video (mk-filter "transpose"
+                                                  (hash "dir" (match* (direction flip)
+                                                                [('counter-clock #t) "cclock_flip"]
+                                                                [('counter-clock #f) "cclock"]
+                                                                [('clock #t) "clock_flip"]
+                                                                [('clock #f) "clock"]
+                                                                [(_ _) "cclock_flip"]))))))
 
 (define (color-channel-mixer-filter table)
   (define color-channel-mixer-keys

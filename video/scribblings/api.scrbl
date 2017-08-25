@@ -225,6 +225,22 @@ deprecated with a yellow @note-text{NOTE} label.
                                    "br" 0.4 "bg" 0.4 "bb" 0.3 "ba" 0
                                    "ar" 0   "ag" 0   "ab" 0   "aa" 0))]}
 
+@defproc[(transpose-filter [direction (or/c 'clock
+                                            'counter-clock
+                                            #f) #f]
+                           [flip boolean? #f])
+         filter?]{
+                  
+ Transpose the video, either clockwise or counter clockwise, possibly with a flip.
+
+ @racket[direction] sets the direction for the transpose,
+ @racket[clock] for a 90 degree clockwise transpose or
+ @racket[counter-clock] for a -90 degree transpose. If not
+ provided (or @racket[#f]) it defaults to counterclockwise.
+
+ Set @racket[flip] to @racket[#t] to additionally flip the
+ video as well as rotate it.}
+
 @defproc[(envelope-filter [#:length length nonnegative-integer?]
                           [#:direction direction (or/c 'in 'out)]
                           [#:curve curve (or/c #f) #f])
