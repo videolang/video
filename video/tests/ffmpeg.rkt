@@ -19,6 +19,7 @@
 (require rackunit
          racket/logging
          racket/pretty
+         "../private/installer.rkt"
          (prefix-in green: "green.vid")
          (prefix-in video: "../render.rkt")
          (submod "../render.rkt" render-fields)
@@ -147,6 +148,9 @@
   (check-true (mux-node? (mk-mux-node 'video 0 (hash))))
   (check-true (demux-node? (mk-demux-node 12)))
   (check-true (filter-node? (mk-split-node))))
+
+;; Check the installer function
+(installer #f #f #f #f)
 
 ;; Check capability to list devices
 (let ()
