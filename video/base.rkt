@@ -123,10 +123,11 @@
                   (and/c real? positive?)
                   filter?)]
 
-  [transpose-filter (-> (or/c 'counter-clock
+  [transpose-filter (->* []
+                         [(or/c 'counter-clock
                               'clock
                               #f)
-                        boolean?
+                          boolean?]
                         filter?)]
 
   [color-channel-mixer-filter (-> (hash/c string? (between/c -2 2)) filter?)]
