@@ -1,13 +1,13 @@
-vTBD
-Date: TBD
-Commit#: master
+v0.2-beta
+Date: 2017-08-27
+Commit#: 12bdbe649bc4b733266e18d6da6df134ef4ebcce
 * Documentation Improvements to match the v0.2 API.
 * Create stable/testing/unstable(master) branches.
 * Fix deadlocks with the player, also solves sever segfaults
 * Increased stability of Video (it no longer seems to segfault).
 * Add infrastructure to lift ffmpeg logs into Racket logs (require libvid), disabled for this release.
 
-v0.3-alpha.3
+v0.2-alpha.3
 Date: 2017-08-09
 Commit#: 263ecfc1538b40539e40961c84ae36d1695d80f9
 * Audio works in live preview
