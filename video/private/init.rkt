@@ -35,6 +35,7 @@
 
 (define video-key #"VIDEO-FFMPEG-INIT")
 
+(define ffmpeg-logger (make-logger 'ffmpeg video-logger))
 (define-ffi-definer define-internal #f)
 
 (define ffmpeg-log-list '())
@@ -75,7 +76,7 @@
                                        [msg msg*]))
                   (define avcl-ptr (and avcl-ptr-ptr (ptr-ref avcl-ptr-ptr _pointer)))
                   (define avcl (and avcl-ptr-ptr avcl-ptr (ptr-ref avcl-ptr _avclass)))
-                  (define name (if avcl (avclass-class-name avcl) "???"))
+                  (define name "???");(if avcl (avclass-class-name avcl) "???"))
                   (define msg (bytes->string/locale msg*))
                   (define log-level
                     (match level
