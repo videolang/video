@@ -21,8 +21,12 @@
 ;;   If you do this though, do make sure to shut things down with mlt-factory-init
 
 (provide (all-defined-out))
-(require racket/match
+(require racket/async-channel
+         racket/match
+         racket/struct
+         racket/list
          ffi/unsafe
+         ffi/unsafe/atomic
          ffi/unsafe/define
          ffi/unsafe/global
          "log.rkt"
@@ -35,21 +39,52 @@
 
 (define current-ffmpeg-log-interceptor (make-parameter #f))
 
+(define ffmpeg-log-list '())
+(struct ffmpeg-msg (avcl
+                    level
+                    len
+                    msg))
+
 (define (callback-proc avcl level len msg)
-  (cond [(current-ffmpeg-log-interceptor)
-         ((current-ffmpeg-log-interceptor) avcl level len msg)]
-        [else
-         (define log-level
-           (match level
-             ['debug 'debug]
-             ['warning 'warning]
-             ['error 'error]
-             ['info 'info]
-             ['fatal 'fatal]
-             ['verbose 'info]
-             [_ 'info]))
-         (when (log-level? video-logger log-level)
-           (log-message video-logger log-level 'ffmpeg msg (current-continuation-marks)))]))
+  (set! ffmpeg-log-list (cons (ffmpeg-msg avcl level len msg) ffmpeg-log-list)))
+
+(void
+ (thread
+  (λ ()
+    (let loop ()
+      (define buff '())
+      (call-as-atomic
+       (λ ()
+         (set! buff ffmpeg-log-list)
+         (set! ffmpeg-log-list '())))
+      (define found-eof?
+        (for/fold ([found-eof? #f])
+                  ([msg (in-list (reverse buff))])
+          (match msg
+            [(struct* ffmpeg-msg ([avcl avcl]
+                                  [level level]
+                                  [len len]
+                                  [msg msg*]))
+             (define msg (bytes->string/locale msg*))
+             (cond [(current-ffmpeg-log-interceptor)
+                    ((current-ffmpeg-log-interceptor) avcl level len msg)]
+                   [else
+                    (define log-level
+                      (match level
+                        ['debug 'debug]
+                        ['warning 'warning]
+                        ['error 'error]
+                        ['info 'info]
+                        ['fatal 'fatal]
+                        ['verbose 'info]
+                        [_ 'info]))
+                    (when (log-level? video-logger log-level)
+                      (log-message video-logger log-level 'ffmpeg msg (current-continuation-marks)))])
+             #f]
+            [x #:when (eof-object? x) #t])))
+      (cond [found-eof? (void)]
+            [(null? buff) (sleep 1) (loop)]
+            [else (loop)])))))
 
  ;; Init ffmpeg (ONCE PER PROCESS)
 (when (ffmpeg-installed?)
@@ -66,10 +101,7 @@
 ;;  as init should only really be running once.
 (when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
-  ;(av-log-set-callback ffmpeg-log-callback)
-  #;
-  (plumber-add-flush! (current-plumber)
-                      (λ (h) (set-racket-log-callback #f))))
+  (av-log-set-callback ffmpeg-log-callback))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.

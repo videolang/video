@@ -38,9 +38,12 @@
   #:default-make-fail error-libvid-not-installed
   #:make-c-id convention:hyphen->underscore)
 
+(define racket-log-callback-box (box #f))
 (define-libvid set-racket-log-callback
-  (_fun (_fun ;#:async-apply (λ (x) (x)) <-- Might need to uncomment for pthreads
-              _pointer _av-log-constant _int _string
+  (_fun (_fun #:async-apply (λ (x) (x))
+              #:atomic? #t
+              #:keep racket-log-callback-box
+              _pointer _av-log-constant _int _bytes ;_string
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 
