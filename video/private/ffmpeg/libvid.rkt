@@ -44,7 +44,7 @@
   (_fun (_fun #:async-apply (λ (x) (x))
               #:atomic? #t
               #:keep racket-log-callback-box
-              _pointer _av-log-constant _int _bytes
+              _bytes _av-log-constant _int _bytes
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 

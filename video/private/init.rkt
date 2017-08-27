@@ -39,12 +39,13 @@
 (define-ffi-definer define-internal #f)
 
 (define ffmpeg-log-list '())
-(struct ffmpeg-msg (avcl
+(struct ffmpeg-msg (name
                     level
                     msg))
 
-(define (callback-proc avcl-ptr-ptr level len msg)
-  (set! ffmpeg-log-list (cons (ffmpeg-msg avcl-ptr-ptr level msg) ffmpeg-log-list)))
+(define (callback-proc name level len msg)
+  (define name* (or name #"???"))
+  (set! ffmpeg-log-list (cons (ffmpeg-msg name* level msg) ffmpeg-log-list)))
 
 (define (flush-ffmpeg-log-list!)
   (call-as-atomic
@@ -71,12 +72,9 @@
              (for/fold ([found-eof? #f])
                        ([msg (in-list (reverse buff))])
                (match msg
-                 [(struct* ffmpeg-msg ([avcl avcl-ptr-ptr]
+                 [(struct* ffmpeg-msg ([name name]
                                        [level level]
                                        [msg msg*]))
-                  (define avcl-ptr (and avcl-ptr-ptr (ptr-ref avcl-ptr-ptr _pointer)))
-                  (define avcl (and avcl-ptr-ptr avcl-ptr (ptr-ref avcl-ptr _avclass)))
-                  (define name "???");(if avcl (avclass-class-name avcl) "???"))
                   (define msg (bytes->string/locale msg*))
                   (define log-level
                     (match level
@@ -88,7 +86,11 @@
                       ['verbose 'info]
                       [_ 'info]))
                   (when (log-level? video-logger log-level)
-                    (log-message video-logger log-level 'ffmpeg (format "[~a] ~a" name msg) (current-continuation-marks)))
+                    (log-message video-logger log-level
+                                 ;'ffmpeg
+                                 (string->symbol (format "~a" name))
+                                 (substring msg 0 (sub1 (string-length msg)))
+                                 (current-continuation-marks)))
                   #f]
                  [x #:when (eof-object? x) #t])))
            (cond [found-eof? (void)]
