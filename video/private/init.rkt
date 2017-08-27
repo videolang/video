@@ -103,7 +103,7 @@
       (set! stop-flag #t)
       (thread-wait t)
       (set! stop-ffmpeg-logging stop-ffmpeg-logging/not-running))))
-(start-ffmpeg-logging)
+;(start-ffmpeg-logging)
 
 ;; Init ffmpeg (ONCE PER PROCESS)
 (when (ffmpeg-installed?)
@@ -113,6 +113,7 @@
     (avformat-network-init)
     (avdevice-register-all)))
 
+#|
 ;; Set up the logger.
 ;; This must be done a new time the module is instantiated, and
 ;;    we unset the logger after its finished.
@@ -121,6 +122,7 @@
 (when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback))
+|#
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.

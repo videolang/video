@@ -4,6 +4,8 @@ Commit#: master
 * Documentation Improvements to match the v0.2 API.
 * Create stable/testing/unstable(master) branches.
 * Fix deadlocks with the player, also solves sever segfaults
+* Increased stability of Video (it no longer seems to segfault).
+* Add infrastructure to lift ffmpeg logs into Racket logs (require libvid), disabled for this release.
 
 v0.3-alpha.3
 Date: 2017-08-09
