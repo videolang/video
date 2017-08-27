@@ -22,6 +22,7 @@
          ffi/unsafe/define/conventions
          "../log.rkt"
          "constants.rkt"
+         "data.rkt"
          "lib.rkt")
 
 (define (libvid-not-installed)
@@ -43,7 +44,7 @@
   (_fun (_fun #:async-apply (λ (x) (x))
               #:atomic? #t
               #:keep racket-log-callback-box
-              _pointer _av-log-constant _int _bytes ;_string
+              _pointer _av-log-constant _int _bytes
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 

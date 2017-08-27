@@ -62,8 +62,8 @@
    [elems _av-dictionary-entry-pointer/null]))
 
 (define-cstruct _avclass
-  ([class-name _string]
-   [item-name _fpointer]
+  ([class-name _bytes]
+   [item-name (_fun _pointer -> _string)]
    [option _pointer]
    [version _int]
    [log-level-offset-offset _int]
