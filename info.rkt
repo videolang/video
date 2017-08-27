@@ -36,6 +36,8 @@
                 "net-lib"
                 ("graph" "0.3.1")
                 ("libvid-x86_64-macosx" #:platform "x86_64-macosx")
+                ("libvid-x86_64-win32" #:platform "win32\\x86_64")
+                ("libvid-i386-win32" #:platform "win32\\i386")
                 ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
                 ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
                 ("ffmpeg-i386-win32" #:platform "win32\\i386")))

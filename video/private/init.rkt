@@ -85,8 +85,8 @@
                       ['fatal 'fatal]
                       ['verbose 'info]
                       [_ 'info]))
-                  (when (log-level? video-logger log-level)
-                    (log-message video-logger log-level
+                  (when (log-level? ffmpeg-logger log-level)
+                    (log-message ffmpeg-logger log-level
                                  ;'ffmpeg
                                  (string->symbol (format "~a" name))
                                  (substring msg 0 (sub1 (string-length msg)))
