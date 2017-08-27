@@ -53,42 +53,53 @@
      (set! ffmpeg-log-list '())
      (reverse ret))))
 
-(define MIN-FFMPEG-LOG-SLEEP-TIME 0.1)
-(define MAX-FFMPEG-LOG-SLEEP-TIME 30)
-(define FFMPEG-LOG-SLEEP-DELTA 0.1)
-
-(void
- (thread
-  (λ ()
-    (let loop ([sleep-time MIN-FFMPEG-LOG-SLEEP-TIME])
-      (define buff (flush-ffmpeg-log-list!))
-      (define found-eof?
-        (for/fold ([found-eof? #f])
-                  ([msg (in-list (reverse buff))])
-          (match msg
-            [(struct* ffmpeg-msg ([avcl avcl]
-                                  [level level]
-                                  [len len]
-                                  [msg msg*]))
-             (define msg (bytes->string/locale msg*))
-             (define log-level
-               (match level
-                 ['debug 'debug]
-                 ['warning 'warning]
-                 ['error 'error]
-                 ['info 'info]
-                 ['fatal 'fatal]
-                 ['verbose 'info]
-                 [_ 'info]))
-             (when (log-level? video-logger log-level)
-               (log-message video-logger log-level 'ffmpeg msg (current-continuation-marks)))
-             #f]
-            [x #:when (eof-object? x) #t])))
-      (cond [found-eof? (void)]
-            [(null? buff)
-             (sleep sleep-time)
-             (loop (min (+ sleep-time FFMPEG-LOG-SLEEP-DELTA) MAX-FFMPEG-LOG-SLEEP-TIME))]
-            [else (loop MIN-FFMPEG-LOG-SLEEP-TIME)])))))
+(define (stop-ffmpeg-logging/not-running)
+  (error 'video/init "Not Currently logging"))
+(define stop-ffmpeg-logging stop-ffmpeg-logging/not-running)
+(define (start-ffmpeg-logging)
+  (define stop-flag #f)
+  (define t
+    (thread
+     (λ ()
+       (define min-sleep-time 0.1)
+       (define max-sleep-time 30)
+       (define delta-sleep-time 0.1)
+       (let loop ([sleep-time min-sleep-time])
+         (unless stop-flag
+           (define buff (flush-ffmpeg-log-list!))
+           (define found-eof?
+             (for/fold ([found-eof? #f])
+                       ([msg (in-list (reverse buff))])
+               (match msg
+                 [(struct* ffmpeg-msg ([avcl avcl]
+                                       [level level]
+                                       [len len]
+                                       [msg msg*]))
+                  (define msg (bytes->string/locale msg*))
+                  (define log-level
+                    (match level
+                      ['debug 'debug]
+                      ['warning 'warning]
+                      ['error 'error]
+                      ['info 'info]
+                      ['fatal 'fatal]
+                      ['verbose 'info]
+                      [_ 'info]))
+                  (when (log-level? video-logger log-level)
+                    (log-message video-logger log-level 'ffmpeg msg (current-continuation-marks)))
+                  #f]
+                 [x #:when (eof-object? x) #t])))
+           (cond [found-eof? (void)]
+                 [(null? buff)
+                  (sleep sleep-time)
+                  (loop (min (+ sleep-time delta-sleep-time) max-sleep-time))]
+                 [else (loop min-sleep-time)]))))))
+  (set! stop-ffmpeg-logging
+    (λ ()
+      (set! stop-flag #t)
+      (thread-wait t)
+      (set! stop-ffmpeg-logging stop-ffmpeg-logging/not-running))))
+(start-ffmpeg-logging)
 
 ;; Init ffmpeg (ONCE PER PROCESS)
 (when (ffmpeg-installed?)
