@@ -118,9 +118,17 @@
 ;;    we unset the logger after its finished.
 ;; Only ONE logger can be installed at a time. This is not a problem
 ;;  as init should only really be running once.
+(define callback-executor (make-will-executor))
+(define (finish-execution v)
+  (set-racket-log-callback #f))
+(will-register callback-executor callback-proc finish-execution)
 (when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
-  (av-log-set-callback ffmpeg-log-callback))
+  (av-log-set-callback ffmpeg-log-callback)
+  (void
+   (thread
+    (λ ()
+      (will-execute callback-executor)))))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.

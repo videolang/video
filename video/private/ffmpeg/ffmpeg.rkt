@@ -502,7 +502,7 @@
     (_fun _av-output-format-pointer _string _string _string _avmedia-type -> _avcodec-id))
   
   (define-avformat avformat-alloc-output-context2
-    (_fun [out : (_ptr o _avformat-context-pointer)] _av-output-format-pointer/null _string _string
+    (_fun [out : (_ptr o _avformat-context-pointer/null)] _av-output-format-pointer/null _string _string
           -> [ret : _int]
           -> (cond
                [(>= ret 0) out]
