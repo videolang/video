@@ -41,13 +41,17 @@
          "ffmpeg/main.rkt")
 (provide (all-defined-out))
 
+;; A bunch of default options in case no others can be guessed either by ffmpeg
+;;    or by the filtergraph directly.
+(define DEFAULT-TIME-BASE 1/90000)
 (define DEFAULT-WIDTH 1920)
 (define DEFAULT-HEIGHT 1080)
-(define DEFAULT-FPS 25)
+(define DEFAULT-FPS 30)
 (define DEFAULT-MAX-B-FRAMES 8)
 (define DEFAULT-SAMPLE-FREQ 44100)
 (define DEFAULT-PIX-FMT 'yuv420p)
 (define DEFAULT-SAMPLE-FMT 'fltp)
+(define DEFAULT-CHANNELS 2)
 (define DEFAULT-CHANNEL-LAYOUT 'stereo)
 
 ;; This is the location of the ffmpeg path ONLY IF it
@@ -1242,24 +1246,55 @@
                               (if (null? outputs) #f (car outputs))
                               #f))
   (avfilter-graph-config graph #f)
+  ;; Set various properties of the output node.
+  ;; If the ffmpeg version is new enough (v3.3), we can check the graph directly.
+  ;;   otherwise we will need to make a best effort attempt to predict it.
+  ;;   (This is only a problem in linux builds)
   (for ([out-bundle (in-list out-bundles)])
     (for ([str (stream-bundle-streams out-bundle)])
       (match str
         [(struct* codec-obj ([codec-context ctx]
                              [buffer-context buff-ctx]
                              [type type]))
-         (set-avcodec-context-time-base! ctx (av-buffersink-get-time-base buff-ctx))
+         (set-avcodec-context-time-base!
+          ctx (if (ffmpeg-recommended-version?)
+                  (av-buffersink-get-time-base buff-ctx)
+                  (get-sink-node-property g "time-base" DEFAULT-TIME-BASE)))
          ;(set-avcodec-context-frame-rate! ctx (av-buffersink-get-frame-rate buff-ctx))
          (match type
-           ['video (set-avcodec-context-pix-fmt! ctx (av-buffersink-get-format buff-ctx 'video))
-                   (set-avcodec-context-width! ctx (av-buffersink-get-w buff-ctx))
-                   (set-avcodec-context-height! ctx (av-buffersink-get-h buff-ctx))
+           ['video (set-avcodec-context-pix-fmt!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-format buff-ctx 'video)
+                            (get-sink-node-property g "pix-format" DEFAULT-PIX-FMT)))
+                   (set-avcodec-context-width!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-w buff-ctx)
+                            (get-sink-node-property g "width" DEFAULT-WIDTH)))
+                   (set-avcodec-context-height!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-h buff-ctx)
+                            (get-sink-node-property g "height" DEFAULT-HEIGHT)))
                    (set-avcodec-context-sample-aspect-ratio!
-                    ctx (av-buffersink-get-sample-aspect-ratio buff-ctx))]
-           ['audio (set-avcodec-context-sample-fmt! ctx (av-buffersink-get-format buff-ctx 'audio))
-                   (set-avcodec-context-channels! ctx (av-buffersink-get-channels buff-ctx))
-                   (set-avcodec-context-channel-layout! ctx (av-buffersink-get-channel-layout buff-ctx))
-                   (set-avcodec-context-sample-rate! ctx (av-buffersink-get-sample-rate buff-ctx))])])))
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-sample-aspect-ratio buff-ctx)
+                            (/ (get-sink-node-property g "WIDTH" DEFAULT-WIDTH)
+                               (get-sink-node-property g "HEIGHT" DEFAULT-HEIGHT))))]
+           ['audio (set-avcodec-context-sample-fmt!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-format buff-ctx 'audio)
+                            (get-sink-node-property g "sample-fmt" DEFAULT-SAMPLE-FMT)))
+                   (set-avcodec-context-channels!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-channels buff-ctx)
+                            (get-sink-node-property g "channels" DEFAULT-CHANNELS)))
+                   (set-avcodec-context-channel-layout!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-channel-layout buff-ctx)
+                            (get-sink-node-property g "channel-layout" DEFAULT-CHANNEL-LAYOUT)))
+                   (set-avcodec-context-sample-rate!
+                    ctx (if (ffmpeg-recommended-version?)
+                            (av-buffersink-get-sample-rate buff-ctx)
+                            (get-sink-node-property g "sample-rate" DEFAULT-SAMPLE-FREQ)))])])))
   (avfilter-inout-free in-ret)
   (avfilter-inout-free out-ret)
   (values graph bundles out-bundles))
@@ -1454,3 +1489,13 @@
   (for/hash ([n (in-vertices g)]
              #:when (source-node? n))
     (values (source-node-bundle n) (DIST n #:default +inf.0))))
+
+;; Given a graph, determine the sink node and return the associated property
+;;   (or default if there is not one
+;; Graph String Any -> Any
+(define (get-sink-node-property g key default)
+  (for/fold ([val default])
+            ([n (in-vertices g)])
+    (if (sink-node? n)
+        (dict-ref (node-props n) key (λ () val))
+        val)))

@@ -475,6 +475,7 @@
                 (mk-sink-node out-bundle
                               #:counts (node-counts trim-node)
                               #:next next
+                              #:props (node-props video-sink)
                               #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
             (add-directed-edge! render-graph rev-node sink-node 1)
