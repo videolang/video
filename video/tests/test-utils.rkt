@@ -43,3 +43,13 @@
 (define-syntax (check-filter stx)
   (syntax-parse stx
     [(_ p) (syntax/loc stx (check-pred filter? p))]))
+
+;; Convert a sequence of picts to a video, with each picture taking
+;;    1 second of time. Returns the resulting video structure, this
+;;    structure points to picts backed by temporary files.
+;; (Sequence-of Pict) -> Path
+(define (picts->video picts)
+  (for/playlist ([p picts])
+    (deifne out-file (make-temporary-file "~a.png"))
+    (send (pict->bitmap p) save-file out-file 'png)
+    (clip out-file #:properties (hash "length" 1))))

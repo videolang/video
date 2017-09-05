@@ -186,7 +186,9 @@
                                        #f))
                        filter?)])
 
-  external-video)
+  external-video
+  for/playlist
+  for/multitrack)
 
 (define (blank [length #f])
   (if length
@@ -566,6 +568,16 @@
                 [vid (if start (set-property vid "start" start) vid)]
                 [vid (if end (set-property vid "end" end) vid)])
            vid))]))
+
+(define-syntax (for/playlist stx)
+  (syntax-parse stx
+    [(_ rest ...)
+     #'(apply playlist (for/list rest ...))]))
+
+(define-syntax (for/multitrack stx)
+  (syntax-parse stx
+    [(_ rest ...)
+     #'(apply multitrack (for/list rest ...))]))
 
 (define (cut-producer producer
                       #:start [start #f]
