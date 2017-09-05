@@ -552,22 +552,20 @@
 
 (define-syntax (external-video stx)
   (syntax-parse stx
-    [(_ mod
-        (~or (~optional (~seq #:start start*) #:defaults ([start* #'#f]))
-             (~optional (~seq #:end end*) #:defaults ([end* #'#f]))
-             (~optional (~seq #:length length) #:defaults ([length #'#f])))
-        ...)
-     #'(let ()
-         (define start (or start* (and length 0)))
-         (define end (or end* length))
-         (let* ([vid (dynamic-require
-                      (module-path-index-join
-                       mod
-                       (variable-reference->module-path-index (#%variable-reference)))
-                      'vid)]
-                [vid (if start (set-property vid "start" start) vid)]
-                [vid (if end (set-property vid "end" end) vid)])
-           vid))]))
+    [(_ mod (~optional args))
+     (if (attribute args)
+         #'(apply
+            (dynamic-require
+             (module-path-index-join
+              mod
+              (variable-reference->module-path-index (#%variable-reference)))
+             'vidlib)
+            args)
+         #'(dynamic-require
+            (module-path-index-join
+             mod
+             (variable-reference->module-path-index (#%variable-reference)))
+            'vid))]))
 
 (define-syntax (for/playlist stx)
   (syntax-parse stx

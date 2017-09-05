@@ -15,3 +15,30 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 |#
+
+(provide (except-out (all-from-out racket/base) #%module-begin)
+         (rename-out [~module-begin #%module-begin])
+         λ/video
+         define/video
+         define*
+         define*-values
+         (all-from-out "base.rkt"))
+
+(require "base.rkt"
+         "private/lang.rkt"
+         (for-syntax racket/base
+                     racket/syntax
+                     syntax/parse))
+
+(define-syntax (~module-begin stx)
+  (syntax-parse stx
+    [(_ id:id post-process exprs . body)
+     #:with name (datum->syntax stx (syntax-property stx 'enclosing-module-name) stx)
+     #'(#%module-begin
+        (current-video-directory
+         (let ([p (variable-reference->module-source (#%variable-reference))])
+           (if (path? p)
+               (path-only p)
+               (current-directory))))
+        (provide (rename-out [name id]))
+        (video-begin "λ/video" post-process exprs . body))]))
