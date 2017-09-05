@@ -16,10 +16,13 @@
    limitations under the License.
 |#
 
-(require video/base
-         video/core
+(require rackunit
+         racket/file
+         racket/class
+         (prefix-in pict: pict)
+         "../base.rkt"
+         "../core.rkt"
          "../private/utils.rkt")
-(require rackunit)
 (require (for-syntax racket/base
                      syntax/parse
                      "../private/utils.rkt"))
@@ -50,6 +53,6 @@
 ;; (Sequence-of Pict) -> Path
 (define (picts->video picts)
   (for/playlist ([p picts])
-    (deifne out-file (make-temporary-file "~a.png"))
-    (send (pict->bitmap p) save-file out-file 'png)
+    (define out-file (make-temporary-file "~a.png"))
+    (send (pict:pict->bitmap p) save-file out-file 'png)
     (clip out-file #:properties (hash "length" 1))))
