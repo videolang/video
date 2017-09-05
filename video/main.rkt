@@ -26,6 +26,7 @@
 
 (require (prefix-in core: video/core)
          (only-in "private/video.rkt" current-video-directory)
+         "private/lang.rkt"
          "base.rkt"
          racket/list
          racket/path
@@ -48,61 +49,3 @@
                (path-only p)
                (current-directory))))
         (video-begin id post-process exprs . body))]))
-
-(define-syntax (λ/video stx)
-  (syntax-parse stx
-    [(_ args:formals body ...)
-     #'(λ args (video-begin "λ/video" values () body ...))]))
-
-(define-syntax (define/video stx)
-  (syntax-parse stx
-    [(_ args:function-header body ...)
-     #'(define f.name (λ/video f.args body ...))]))
-
-(define-syntax (define* stx)
-  (syntax-parse stx
-    [(_ arg:id body)
-     #'(define*-values (arg) body)]))
-
-(define-syntax (define*-values stx)
-  (syntax-parse stx
-    [(_ (arg:id ...) body)
-     (raise-syntax-error 'define* "cannot be used outside of a module or λ/video")]))
-
-(define-syntax (video-begin stx)
-  (syntax-parse stx
-    [(_ "λ/video" post-process exprs)
-     #`(post-process (playlist . #,(reverse (syntax->list #'exprs))))]
-    [(_ id:id post-process exprs)
-     #`(begin
-         (define id (post-process (playlist . #,(reverse (syntax->list #'exprs)))))
-         (provide id))]
-    [(_ id post-process exprs . body)
-     (syntax-parse #'body
-       [(b1 . body)
-        (define expanded (local-expand #'b1 'module
-                                       (append (kernel-form-identifier-list)
-                                               (list #'provide #'require #'define*-values))))
-        (syntax-parse expanded
-          #:literals (begin define*-values)
-          [(begin b1 ...)
-           #'(video-begin id post-process exprs b1 ... . body)]
-          [(define*-values (id* ...) b1)
-           #'(splicing-let-values ([(id* ...) b1]) (video-begin id post-process exprs . body))]
-          [(id* . rest) ; this bit taken from scribble
-           #:when (and (identifier? #'id*)
-                       (ormap (lambda (kw) (free-identifier=? #'id* kw))
-                              (syntax->list #'(require
-                                                provide
-                                                define-values
-                                                define-syntaxes
-                                                begin-for-syntax
-                                                module
-                                                module*
-                                                #%require
-                                                #%provide
-                                                #%declare))))
-           #`(begin #,expanded (video-begin id post-process exprs . body))]
-          [_
-           #`(video-begin id post-process (#,expanded . exprs) . body)])])]))
-
