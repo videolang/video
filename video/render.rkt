@@ -129,7 +129,10 @@
                              #:sample-fmt symbol?
                              #:sample-rate (and/c real? positive?)
                              #:channel-layout symbol?
-                             #:speed real?)
+                             #:speed real?
+                             #:video-frames (or/c nonnegative-integer? #f)
+                             #:audio-frames (or/c nonnegative-integer? #f)
+                             #:data-frames (or/c nonnegative-integer? #f))
                             render-settings?)])
 
  ;; Interface for render%
@@ -241,7 +244,10 @@
                            sample-fmt
                            sample-rate
                            channel-layout
-                           speed))
+                           speed
+                           video-frames
+                           audio-frames
+                           data-frames))
   (define (make-render-settings #:destination [d #f]
                                 #:width [w 1920]
                                 #:height [h 1080]
@@ -256,8 +262,11 @@
                                 #:sample-fmt [sf 'fltp]
                                 #:sample-rate [sr 44100]
                                 #:channel-layout [cl 'stereo]
-                                #:speed [sp 1])
-    (render-settings d w h s e f fo vc ac sc pf sf sr cl sp)))
+                                #:speed [sp 1]
+                                #:video-frames [vfr #f]
+                                #:audio-frames [afr #f]
+                                #:data-frames [dfr #f])
+    (render-settings d w h s e f fo vc ac sc pf sf sr cl sp vfr afr dfr)))
 (require 'render-settings)
 
 (define render%
@@ -555,7 +564,16 @@
         (wait-for-rendering)))
 
     (define/public (write-output-callback-constructor #:render-status render-status)
-      (filtergraph-next-packet #:render-status render-status))
+      (define-values (video-frames audio-frames data-frames) (values #f #f #f))
+      (call-with-semaphore current-render-settings-lock
+        (λ ()
+          (set! video-frames (render-settings-video-frames current-render-settings))
+          (set! audio-frames (render-settings-audio-frames current-render-settings))
+          (set! data-frames (render-settings-data-frames current-render-settings))))
+      (filtergraph-next-packet #:render-status render-status
+                               #:video-frames video-frames
+                               #:audio-frames audio-frames
+                               #:data-frames data-frames))
 
     ;; Pull Packets out of the render graph as quickly as possible
     ;; This method sould be run in its own thread

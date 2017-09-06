@@ -1338,11 +1338,25 @@
         ]
        [_ (void)])]))
 
-(define (filtergraph-next-packet #:render-status [rs-box #f])
+(define (filtergraph-next-packet #:render-status [rs-box #f]
+                                 #:video-frames [vframes #f]
+                                 #:audio-frames [aframes #f]
+                                 #:data-frames [dframes #f])
+  (define vframes-box (box (or vframes +inf.0)))
+  (define aframes-box (box (or aframes +inf.0)))
+  (define dframes-box (box (or dframes +inf.0)))
+  (define rest-box (box +inf.0))
   (λ (mode obj)
     (match obj
       [(struct* codec-obj ([codec-context ctx]
-                           [buffer-context buff-ctx]))
+                           [buffer-context buff-ctx]
+                           [type type]))
+       (define frames-box
+         (match type
+           ['video vframes-box]
+           ['audio aframes-box]
+           ['data dframes-box]
+           [_ #f]))
        (match mode
          ['init
           (when rs-box
@@ -1364,10 +1378,13 @@
                                                     (reverse (cons eof pkts)))])
                                    (define pkt (avcodec-receive-packet ctx))
                                    (loop (cons pkt pkts)))))])
+              (when (<= (unbox frames-box) 0)
+                (raise (exn:ffmpeg:eof "" (current-continuation-marks))))
               (define out-frame (av-buffersink-get-frame buff-ctx))
               ;(define out-frame (av-buffersink-get-frame-flags buff-ctx '(no-request)))
               (avcodec-send-frame ctx out-frame)
               (av-frame-free out-frame)
+              (set-box! frames-box (sub1 (unbox frames-box)))
               (let loop ([pkts '()])
                 (with-handlers ([exn:ffmpeg:again? (λ (e)
                                                      (when (and rs-box (pair? pkts))
