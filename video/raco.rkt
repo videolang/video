@@ -32,6 +32,9 @@
 (define output-verbose (make-parameter #f))
 (define output-silent (make-parameter #f))
 (define output-preview? (make-parameter #f))
+(define output-vframes (make-parameter #f))
+(define output-aframes (make-parameter #f))
+(define output-dframes (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -64,6 +67,15 @@
      [("-e" "--end")  end
                       "Rendering end position"
                       (output-end (cmd-str->num "--end" end))]
+     [("--vframes") vframes
+                    "Number of video frames to output"
+                    (output-vframes (cmd-str->num "--vframes" vframes))]
+     [("--aframes") aframes
+                    "Number of audio frames to output"
+                    (output-aframes (cmd-str->num "--aframes" aframes))]
+     [("--dframes") dframes
+                    "Number of data frames to output"
+                    (output-dframes (cmd-str->num "--dframes" dframes))]
      [("-v" "--verbose") "Output a copy of the graph used for rendering"
                          (output-verbose #t)]
      [("-q" "--silent") "Do not print any output, used for scripts"
