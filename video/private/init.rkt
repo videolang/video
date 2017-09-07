@@ -66,38 +66,38 @@
        (define max-sleep-time 30)
        (define delta-sleep-time 0.1)
        (let loop ([sleep-time min-sleep-time])
-         (unless stop-flag
-           (define buff (flush-ffmpeg-log-list!))
-           (define found-eof?
-             (for/fold ([found-eof? #f])
-                       ([msg (in-list (reverse buff))])
-               (match msg
-                 [(struct* ffmpeg-msg ([name name]
-                                       [level level]
-                                       [msg msg*]))
-                  (define msg (bytes->string/locale msg*))
-                  (define log-level
-                    (match level
-                      ['debug 'debug]
-                      ['warning 'warning]
-                      ['error 'error]
-                      ['info 'info]
-                      ['fatal 'fatal]
-                      ['verbose 'info]
-                      [_ 'info]))
-                  (when (log-level? ffmpeg-logger log-level)
-                    (log-message ffmpeg-logger log-level
-                                 ;'ffmpeg
-                                 (string->symbol (format "~a" name))
-                                 (substring msg 0 (sub1 (string-length msg)))
+         (define buff (flush-ffmpeg-log-list!))
+         (define found-eof?
+           (for/fold ([found-eof? #f])
+                     ([msg (in-list buff)])
+             (match msg
+               [(struct* ffmpeg-msg ([name name]
+                                     [level level]
+                                     [msg msg*]))
+                (define msg (bytes->string/locale msg*))
+                (define log-level
+                  (match level
+                    ['debug 'debug]
+                    ['warning 'warning]
+                    ['error 'error]
+                    ['info 'info]
+                    ['fatal 'fatal]
+                    ['verbose 'info]
+                    [_ 'info]))
+                (when (log-level? ffmpeg-logger log-level)
+                  (log-message ffmpeg-logger log-level
+                               ;'ffmpeg
+                               (string->symbol (format "~a" name))
+                               (substring msg 0 (sub1 (string-length msg)))
                                  (current-continuation-marks)))
-                  #f]
-                 [x #:when (eof-object? x) #t])))
-           (cond [found-eof? (void)]
-                 [(null? buff)
+                #f]
+               [x #:when (eof-object? x) #t])))
+         (cond [found-eof? (void)]
+               [(null? buff)
+                (unless stop-flag
                   (sleep sleep-time)
-                  (loop (min (+ sleep-time delta-sleep-time) max-sleep-time))]
-                 [else (loop min-sleep-time)]))))))
+                  (loop (min (+ sleep-time delta-sleep-time) max-sleep-time)))]
+               [else (loop min-sleep-time)])))))
   (set! stop-ffmpeg-logging
     (λ ()
       (set! stop-flag #t)
@@ -125,10 +125,14 @@
 (when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback)
-  (void
-   (thread
-    (λ ()
-      (will-execute callback-executor)))))
+  (thread
+   (λ ()
+     (will-execute callback-executor)))
+  (plumber-add-flush!
+   (current-plumber)
+   (λ (handler)
+     (stop-ffmpeg-logging)))
+  (void))
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
