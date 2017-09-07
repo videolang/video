@@ -47,12 +47,55 @@
   (define name* (or name #"???"))
   (set! ffmpeg-log-list (cons (ffmpeg-msg name* level msg) ffmpeg-log-list)))
 
+;; Flush the current log buffer into a list which is returned.
+;; The function runs in automic mode to cooperate with the
+;;   actual logging callback.
 (define (flush-ffmpeg-log-list!)
   (call-as-atomic
    (λ ()
      (define ret ffmpeg-log-list)
      (set! ffmpeg-log-list '())
      (reverse ret))))
+
+;; Flush the ffmpeg log. Unlike `flush-ffmpeg-log-list!`, this
+;;    function is not atomic, but does put the log into the actual
+;;    racket level logging structure.
+;; Returns the number of msgs received and if an
+;;   eof character was received.
+;; -> (Values Nnnegative-Integer Boolean)
+(define (flush-ffmpeg-log!/tracking)
+  (define buff (flush-ffmpeg-log-list!))
+  (for/fold ([msg-count 0]
+             [found-eof? #f])
+            ([msg (in-list buff)])
+    (match msg
+      [(struct* ffmpeg-msg ([name name]
+                            [level level]
+                            [msg msg*]))
+       (define msg (bytes->string/locale msg*))
+       (define log-level
+         (match level
+           ['debug 'debug]
+           ['warning 'warning]
+           ['error 'error]
+           ['info 'info]
+           ['fatal 'fatal]
+           ['verbose 'info]
+           [_ 'info]))
+       (when (log-level? ffmpeg-logger log-level)
+         (log-message ffmpeg-logger log-level
+                      ;'ffmpeg
+                      (string->symbol (format "~a" name))
+                      (substring msg 0 (sub1 (string-length msg)))
+                      (current-continuation-marks)
+                      #f))
+       (values (add1 msg-count) #f)]
+      [x #:when (eof-object? x) (values msg-count #t)])))
+
+;; Like flush-ffmpeg-log!/tracking, but returns void instead.
+(define (flush-ffmpeg-log!)
+  (flush-ffmpeg-log!/tracking)
+  (void))
 
 (define (stop-ffmpeg-logging/not-running)
   (error 'video/init "Not Currently logging"))
@@ -66,34 +109,9 @@
        (define max-sleep-time 30)
        (define delta-sleep-time 0.1)
        (let loop ([sleep-time min-sleep-time])
-         (define buff (flush-ffmpeg-log-list!))
-         (define found-eof?
-           (for/fold ([found-eof? #f])
-                     ([msg (in-list buff)])
-             (match msg
-               [(struct* ffmpeg-msg ([name name]
-                                     [level level]
-                                     [msg msg*]))
-                (define msg (bytes->string/locale msg*))
-                (define log-level
-                  (match level
-                    ['debug 'debug]
-                    ['warning 'warning]
-                    ['error 'error]
-                    ['info 'info]
-                    ['fatal 'fatal]
-                    ['verbose 'info]
-                    [_ 'info]))
-                (when (log-level? ffmpeg-logger log-level)
-                  (log-message ffmpeg-logger log-level
-                               ;'ffmpeg
-                               (string->symbol (format "~a" name))
-                               (substring msg 0 (sub1 (string-length msg)))
-                                 (current-continuation-marks)))
-                #f]
-               [x #:when (eof-object? x) #t])))
+         (define-values (msg-count found-eof?) (flush-ffmpeg-log!/tracking))
          (cond [found-eof? (void)]
-               [(null? buff)
+               [(= msg-count 0)
                 (unless stop-flag
                   (sleep sleep-time)
                   (loop (min (+ sleep-time delta-sleep-time) max-sleep-time)))]
