@@ -25,10 +25,18 @@
 
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
+(define output-video-codec (make-parameter 'h264))
+(define output-audio-codec (make-parameter 'aac))
+(define output-subtitle-codec (make-parameter #f))
+(define output-pixel-format (make-parameter 'yuv420p))
+(define output-sample-format (make-parameter 'fltp))
+(define output-sample-rate (make-parameter '44100))
+(define output-channel-layout (make-parameter 'stereo))
 (define output-width (make-parameter 1920))
 (define output-height (make-parameter 1080))
 (define output-start (make-parameter #f))
 (define output-end (make-parameter #f))
+(define output-fps (make-parameter 30))
 (define output-verbose (make-parameter #f))
 (define output-silent (make-parameter #f))
 (define output-preview? (make-parameter #f))
@@ -49,9 +57,30 @@
     (command-line
      #:program "video"
      #:once-each
-     [("-t" "--type") type
-                      "Output type"
-                      (output-type type)]
+     [("-f" "--format") format
+                        "Output type"
+                        (output-type (string->symbol format))]
+     [("--video-codec") video-codec
+                        "Output video codec"
+                        (output-video-codec (string->symbol video-codec))]
+     [("--audio-codec") audio-codec
+                        "Output audio codec"
+                        (output-audio-codec (string->symbol audio-codec))]
+     [("--subtitle-codec") subtitle-codec
+                           "Output subtitle codec"
+                           (output-subtitle-codec (string->symbol subtitle-codec))]
+     [("--pixel-format") pixel-format
+                         "Output pixel format"
+                         (output-pixel-format pixel-format)]
+     [("--sample-format") sample-format
+                          "Output sample format"
+                          (output-sample-format (string->symbol sample-format))]
+     [("--sample-rate") sample-rate
+                        "Output sample rate"
+                        (output-sample-rate (cmd-str->num "--sample-rate" sample-rate))]
+     [("--channel-layout") channel-layout
+                           "Output channel layout"
+                           (output-channel-layout (string->symbol channel-layout))]
      [("-o" "--out") file
                      "Output File"
                      (output-path (path->complete-path file))]
@@ -67,6 +96,9 @@
      [("-e" "--end")  end
                       "Rendering end position"
                       (output-end (cmd-str->num "--end" end))]
+     [("--fps") fps
+                "Rendering FPS"
+                (output-fps (cmd-str->num "--fps" fps))]
      [("--vframes") vframes
                     "Number of video frames to output"
                     (output-vframes (cmd-str->num "--vframes" vframes))]
