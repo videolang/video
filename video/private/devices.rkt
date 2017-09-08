@@ -42,6 +42,11 @@
      (define ctx (avformat-alloc-context))
      (avformat-open-input ctx "" fmt #f)
      (avdevice-list-devices ctx)]
+    ['windows
+     (define fmt (av-find-input-format "dshow"))
+     (define ctx (avformat-alloc-context))
+     (avformat-open-input ctx "dummy" fmt #f)
+     (avdevice-list-devices ctx)]
     ['macosx
      (define video-devices-str "AVFoundation video devices:")
      (define audio-devices-str "AVFoundation audio devices:")
@@ -78,3 +83,6 @@
                     (reverse (unbox audio-list)))]
     [_
      (error "Not yet implemented for this platform")]))
+
+(define (devices->stream-bundle dev)
+  (error "TODO"))
