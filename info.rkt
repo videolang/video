@@ -38,6 +38,8 @@
                 ("libvid-x86_64-macosx" #:platform "x86_64-macosx")
                 ("libvid-x86_64-win32" #:platform "win32\\x86_64")
                 ("libvid-i386-win32" #:platform "win32\\i386")
+                ("libvid-x86_64-linux" #:platform "x86_64-linux")
+                ("libvid-i386-linux" #:platform "i386-linux")
                 ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
                 ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
                 ("ffmpeg-i386-win32" #:platform "win32\\i386")))
