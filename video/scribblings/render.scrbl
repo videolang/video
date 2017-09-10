@@ -76,8 +76,8 @@ Video files. A simpler interface is to use the @exec{raco
                        [#:end end (or/c nonnegative-integer? #f) #f]
                        [#:fps fps (>=/c 0) 25]
                        [#:mode mode (or/c 'verbose #f) #f])
-         async-channel?]{
-                         
+         (values async-channel? (-> void?))]{
+                                             
  Similar to @racket[render], but runs asynchronously. This
  is useful for determining the status while still rendering.
 

@@ -72,7 +72,7 @@
       [(struct* ffmpeg-msg ([name name]
                             [level level]
                             [msg msg*]))
-       (define msg (bytes->string/locale msg*))
+       (define msg (bytes->string/locale msg* #\?))
        (define log-level
          (match level
            ['debug 'debug]

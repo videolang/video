@@ -71,7 +71,7 @@
                       #:start (or/c (and/c real? (>=/c 0)) #f)
                       #:end (or/c (and/c real? (>=/c 0)) #f)
                       #:mode (or/c 'verbose #f)]
-                     async-channel?)]
+                     (values async-channel? (-> void?)))]
 
   ;; A hybrid of render and render/async. This version blocks until the
   ;;   the video is finished rendering. However, it optionally takes an output
@@ -194,7 +194,10 @@
          (sleep 0.01)
          (loop)))
      (async-channel-put channel eof)))
-  channel)
+  (values channel
+          (λ ()
+            (send r stop-rendering)
+            (void))))
 
 (define (render/pretty video
                        [dest #f]
@@ -208,7 +211,7 @@
                        #:mode [mode #f])
   (define port (or (and (not (eq? mode 'silent)) port*)
                    (open-output-nowhere)))
-  (define channel
+  (define-values (channel stop)
     (render/async video dest
                   #:render-mixin render-mixin
                   #:width width
@@ -219,11 +222,17 @@
                   #:mode (if (eq? mode 'silent) #f mode)))
   (when (eq? mode 'verbose)
     (displayln (graphviz (async-channel-get channel))))
-  (let loop ()
-    (define pos (async-channel-get channel))
-    (unless (eof-object? pos)
-      (fprintf port "\r~a" (real->decimal-string pos))
-      (loop)))
+  (with-handlers ([exn:break?
+                   (λ (e)
+                     (newline)
+                     (displayln "Cleaning up...")
+                     (stop)
+                     (displayln "Finished"))])
+    (let loop ()
+      (define pos (async-channel-get channel))
+      (unless (eof-object? pos)
+        (fprintf port "\r~a" (real->decimal-string pos))
+        (loop))))
   (newline port))
 
 ;; Defined in a submodule so that classes

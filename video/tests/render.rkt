@@ -54,7 +54,7 @@
           #:fps 24))
 
 (let ()
-  (define channel
+  (define-values (channel stop)
     (render/async (multitrack
                    (color "green")
                    (clip vid-mp4))
