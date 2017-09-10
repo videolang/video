@@ -23,7 +23,7 @@
 (require racket/match
          racket/set
          racket/logging
-         (submod "../render.rkt" render-settings)
+         "render-settings.rkt"
          "ffmpeg/main.rkt"
          "ffmpeg-pipeline.rkt"
          "init.rkt")

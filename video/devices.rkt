@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen, Benjamin Chung
+   Copyright 2016-2017 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 
 (require racket/contract/base
          "private/devices.rkt")
+
 (provide
  (contract-out
   [list-input-devices (-> input-devices?)]

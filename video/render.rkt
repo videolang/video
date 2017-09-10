@@ -36,6 +36,7 @@
          (prefix-in video: "private/video.rkt")
          "private/utils.rkt"
          "private/log.rkt"
+         "private/render-settings.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
@@ -234,49 +235,6 @@
         (fprintf port "\r~a" (real->decimal-string pos))
         (loop))))
   (newline port))
-
-;; Defined in a submodule so that classes
-;; extending this one can make use of it.
-(module render-settings racket/base
-  (provide (all-defined-out))
-  (struct render-settings (destination
-                           width
-                           height
-                           start
-                           end
-                           fps
-                           format
-                           video-codec
-                           audio-codec
-                           subtitle-codec
-                           pix-fmt
-                           sample-fmt
-                           sample-rate
-                           channel-layout
-                           speed
-                           video-frames
-                           audio-frames
-                           data-frames))
-  (define (make-render-settings #:destination [d #f]
-                                #:width [w 1920]
-                                #:height [h 1080]
-                                #:start [s #f]
-                                #:end [e #f]
-                                #:fps [f 25]
-                                #:format [fo #f]
-                                #:video-codec [vc #f]
-                                #:audio-codec [ac #f]
-                                #:subtitle-codec [sc #f]
-                                #:pix-fmt [pf 'yuv420p]
-                                #:sample-fmt [sf 'fltp]
-                                #:sample-rate [sr 44100]
-                                #:channel-layout [cl 'stereo]
-                                #:speed [sp 1]
-                                #:video-frames [vfr #f]
-                                #:audio-frames [afr #f]
-                                #:data-frames [dfr #f])
-    (render-settings d w h s e f fo vc ac sc pf sf sr cl sp vfr afr dfr)))
-(require 'render-settings)
 
 (define render%
   (class object%
@@ -737,9 +695,9 @@
 ;; The exact fields are subject to change.
 (module render-fields racket/base
   (require racket/class
-           (submod ".." render-settings))
+           "private/render-settings.rkt")
   (provide (all-defined-out)
-           (except-out (all-from-out (submod ".." render-settings))
+           (except-out (all-from-out "private/render-settings.rkt")
                        make-render-settings
                        render-settings?))
   

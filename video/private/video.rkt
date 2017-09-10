@@ -33,6 +33,7 @@
          "ffmpeg-pipeline.rkt"
          "init.rkt"
          "units.rkt"
+         "devices.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
