@@ -19,8 +19,6 @@
 ;; This module provides helper functions for accessing
 ;; I/O devices Video can make use of.
 
-;; XXX This library only works on macOS, must fix!
-
 (provide (all-defined-out))
 (require racket/match
          racket/set
