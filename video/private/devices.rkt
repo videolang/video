@@ -101,9 +101,21 @@
          ['windows "dshow"]
          [_
           (error "Not yet implemented for this platform")]))
+     (define dev-spec
+       (match (system-type 'os)
+         ['macosx (format "~a:~a" video-dev audio-dev) fmt]
+         ['unix (or video-dev audio-dev)]
+         ['windows
+          (define vid-str (format "video=\"~a\"" video-dev))
+          (define aud-str (format "audio=\"~a\"" audio-dev))
+          (if (and vid-str aud-str)
+              (format "~a:~a" vid-str aud-str)
+              (or vid-str aud-str))]
+         [_
+          (error "Not yet implemented for this platform")]))
      (define fmt (av-find-input-format os-dev))
      (define ctx (avformat-alloc-context))
-     (avformat-open-input ctx (format "~a:~a" video-dev audio-dev) fmt
+     (avformat-open-input ctx dev-spec
                           (build-av-dict
                            (let* ([r (hash)]
                                   [r (if (and width height)
