@@ -24,6 +24,7 @@
          "private/devices.rkt")
 (provide
  (contract-out
+  [list-input-devices (-> input-devices?)]
   [input-devices? (-> any/c boolean?)]
   [screen-captures (-> input-devices? (listof string?))]
   [cameras (-> input-devices? (listof string?))]
