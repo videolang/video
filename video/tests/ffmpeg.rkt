@@ -44,7 +44,7 @@
     (video:render green:vid
                   (make-temporary-file "~a.mp4")
                   #:start 0
-                  #:end 30))
+                  #:end 10))
   #:logger video-logger
   'debug
   'video)
