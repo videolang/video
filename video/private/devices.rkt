@@ -25,6 +25,7 @@
 (require racket/match
          racket/set
          racket/logging
+         (submod "../render.rkt" render-settings)
          "ffmpeg/main.rkt"
          "ffmpeg-pipeline.rkt"
          "init.rkt")
@@ -84,5 +85,31 @@
     [_
      (error "Not yet implemented for this platform")]))
 
-(define (devices->stream-bundle dev)
-  (error "TODO"))
+;; Create a strean bundle out of an input device
+;; nonnegative-integer nonnegative-integer render-settings -> stream-bundle
+(define (devices->stream-bundle video-dev audio-dev
+                                settings)
+  (match settings
+    [(struct* render-settings ([width width]
+                               [height height]
+                               [fps fps]
+                               [pix-fmt pix-fmt]))
+     (match (system-type 'os)
+       ['macosx
+        (define fmt (av-find-input-format "avfoundation"))
+        (define ctx (avformat-alloc-context))
+        (avformat-open-input ctx (format "~a:~a" video-dev audio-dev) fmt
+                             (build-av-dict
+                              (let* ([r (hash)]
+                                     [r (if (and width height)
+                                            (hash-set r "video_size" (format "~ax~a" width height))
+                                            r)]
+                                     [r (if fps
+                                            (hash-set r "framerate" (format "~a" fps))
+                                            r)]
+                                     [r (if pix-fmt
+                                            (hash-set r "pixel_format" (format "~a" pix-fmt))
+                                            r)])
+                                r)))]
+       [_
+        (error "Not yet implemented for this platform")])]))
