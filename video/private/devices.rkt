@@ -103,7 +103,7 @@
           (error "Not yet implemented for this platform")]))
      (define dev-spec
        (match (system-type 'os)
-         ['macosx (format "~a:~a" video-dev audio-dev) fmt]
+         ['macosx (format "~a:~a" video-dev audio-dev)]
          ['unix (or video-dev audio-dev)]
          ['windows
           (define vid-str (format "video=\"~a\"" video-dev))
@@ -115,7 +115,7 @@
           (error "Not yet implemented for this platform")]))
      (define fmt (av-find-input-format os-dev))
      (define ctx (avformat-alloc-context))
-     (avformat-open-input ctx dev-spec
+     (avformat-open-input ctx dev-spec fmt
                           (build-av-dict
                            (let* ([r (hash)]
                                   [r (if (and width height)

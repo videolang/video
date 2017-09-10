@@ -465,6 +465,11 @@
   (add-vertex! (current-render-graph) node)
   node)
 
+(define-constructor input-device producer ([video #f]
+                                           [audio #f])
+  ()
+  (error "TODO"))
+
 (define-constructor blank producer () ()
   (define start (dict-ref prop "start" #f))
   (define end (dict-ref prop "end" #f))
