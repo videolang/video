@@ -25,17 +25,25 @@
 
 (provide
  (contract-out
-  [list-input-devices (-> input-devices?)]
   [input-devices? (-> any/c boolean?)]
+  [list-input-devices (-> input-devices?)]
   [screen-captures (-> input-devices? (listof string?))]
   [cameras (-> input-devices? (listof string?))]
+  [video-devices (-> input-devices? (listof string?))]
   [audio-devices (-> input-devices? (listof string?))]))
 
+(define screen-capture-regexp #"Capture screen.*")
+
 (define (screen-captures dev)
-  '())
+  (filter (λ () (regexp-match screen-capture-regexp))
+          (video-devices dev)))
 
 (define (cameras dev)
-  '())
+  (filter (λ () (not (regexp-match screen-capture-regexp)))
+          (video-devices dev)))
+
+(define (video-devices dev)
+  (input-devices-video dev))
 
 (define (audio-devices dev)
-  '())
+  (input-devices-audio dev))
