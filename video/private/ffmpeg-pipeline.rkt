@@ -250,6 +250,15 @@
 
 ;; ===================================================================================================
 
+;; List devices found by the _avdevice_ protocol only.
+;; Note that many input devices do NOT use this as a means
+;;   of input.
+(define (list-devices/avdevice avformat)
+  (define dev (avdevice-list-devices avformat))
+  (define ret (avdevice-info-list-devices dev))
+  (avdevice-free-list-devices dev)
+  ret)
+
 (define (file->stream-bundle file)
   (define avformat (avformat-open-input file #f #f))
   (avformat-find-stream-info avformat #f)
@@ -297,12 +306,6 @@
     
     (define/public (dump-info [stream 0] [testfile #f])
       (av-dump-format avformat stream testfile 'input))
-
-    (define/public (list-devices)
-      (define dev (avdevice-list-devices avformat))
-      (define ret (avdevice-info-list-devices dev))
-      (avdevice-free-list-devices dev)
-      ret)
 
     ;; Takes an optional timeout in seconds. Returns true if data is found
     ;;   or false if timed out (if timeout provided).
@@ -566,12 +569,6 @@
     (define format (avformat-context-oformat output-context))
     (define streams (stream-bundle-streams bundle))
 
-    (define/public (list-devices)
-      (define dev (avdevice-list-devices output-context))
-      (define ret (avdevice-info-list-devices dev))
-      (avdevice-free-list-devices dev)
-      ret)
-    
     (define/public (dump-info [stream 0] [testfile #f])
       (av-dump-format output-context stream testfile 'output))
     

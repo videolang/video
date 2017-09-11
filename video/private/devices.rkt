@@ -29,27 +29,37 @@
          "init.rkt")
 
 (struct input-devices (video
+                       screen-capture
                        audio))
 (define (mk-input-devices #:video [v '()]
+                          #:screen-capture [sc '()]
                           #:audio [a '()])
-  (input-devices v a))
+  (input-devices v sc a))
 
 (define (list-input-devices)
   (match (system-type 'os)
     ['unix
-     (define fmt (av-find-input-format "avfoundation"))
-     (define ctx (avformat-alloc-context))
-     (avformat-open-input ctx "" fmt #f)
-     (avdevice-list-devices ctx)]
-    ['windows
-     (define fmt (av-find-input-format "dshow"))
-     (define ctx (avformat-alloc-context))
-     (avformat-open-input ctx "dummy" fmt #f)
-     (avdevice-list-devices ctx)]
-    ['macosx
-     (define video-devices-str "AVFoundation video devices:")
-     (define audio-devices-str "AVFoundation audio devices:")
-     (define dev-regexp #rx"\\[[0-9]*\\] (.*)")
+     (define vid-fmt (av-find-input-format "v4l2"))
+     (define vid-ctx (avformat-alloc-context))
+     (avformat-open-input vid-ctx "" vid-fmt #f)
+     (define aud-fmt (av-find-input-format "alsa"))
+     (define aud-ctx (avformat-alloc-context))
+     (avformat-open-input aud-ctx "" aud-fmt #f)
+     (mk-input-devices #:video (list-devices/avdevice vid-ctx)
+                       #:audio (list-devices/avdevice aud-ctx))]
+    [(or 'windows 'macosx)
+     (define video-devices-str
+       (match (system-type 'os)
+         ['macosx "AVFoundation video devices:"]
+         ['windows "DirectShow video devices"]))
+     (define audio-devices-str
+       (match (system-type 'os)
+         ['macosx "AVFoundation audio devices:"]
+         ['windows "DirectShow audio devices"]))
+     (define dev-regexp
+       (match (system-type 'os)
+         ['macosx #rx"\\[[0-9]*\\] (.*)"]
+         ['windows #rx" \"(.*)\""]))
 
      (define curr-list (box #f))
      (define video-list (box '()))
