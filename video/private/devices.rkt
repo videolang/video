@@ -101,7 +101,7 @@
           (error "Not yet implemented for this platform")]))
      (define dev-spec
        (match (system-type 'os)
-         ['macosx (format "~a:~a" video-dev audio-dev)]
+         ['macosx (format "~a:~a" (or video-dev "none") (or audio-dev "none"))]
          ['unix (or video-dev audio-dev)]
          ['windows
           (define vid-str (format "video=\"~a\"" video-dev))

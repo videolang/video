@@ -469,7 +469,15 @@
 (define-constructor input-device producer ([video #f]
                                            [audio #f])
   ()
-  (error "TODO"))
+  (define devices (list-input-devices))
+  (define vid-str (index-of (input-devices-video devices) video))
+  (define aud-str (index-of (input-devices-audio devices) audio))
+  (define bundle (devices->stream-bundle vid-str aud-str))
+  (define node (mk-source-node bundle
+                               #:counts (+ (if vid-str 1 0)
+                                           (if aud-str 1 0))))
+  (add-vertex! (current-render-graph) node)
+  node)
 
 (define-constructor blank producer () ()
   (define start (dict-ref prop "start" #f))
