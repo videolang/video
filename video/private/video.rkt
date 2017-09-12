@@ -464,7 +464,18 @@
                                              "sample-rate" fsample-rate
                                              "chapters" fchapters)))
   (add-vertex! (current-render-graph) node)
-  node)
+  (cond [(and fstart fduration ftime-base)
+         node]
+        [else (define b-node (convert (make-blank #:prop (hash "width" fwidth
+                                                               "height" fheight))))
+              (define c-node
+                (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
+                                                                        "y" 0)))
+                                #:counts count-tab))
+              (add-vertex! (current-render-graph) c-node)
+              (add-directed-edge! (current-render-graph) b-node c-node 1)
+              (add-directed-edge! (current-render-graph) node c-node 2)
+              c-node]))
 
 (define-constructor input-device producer ([video #f]
                                            [audio #f])
