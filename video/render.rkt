@@ -303,8 +303,8 @@
               (hash-set* (node-props video-sink)
                          "width" width
                          "height" height
-                         "start" start
-                         "end" end
+                         "start" start*
+                         "end" end*
                          "fps" fps
                          "format" format
                          "pix-fmt" pix-fmt
