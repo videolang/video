@@ -299,20 +299,6 @@
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
                                       [speed speed]))
-            (define props
-              (hash-set* (node-props video-sink)
-                         "width" width
-                         "height" height
-                         "start" start*
-                         "end" end*
-                         "fps" fps
-                         "format" format
-                         "pix-fmt" pix-fmt
-                         "sample-fmt" sample-fmt
-                         "video-codec" video-codec
-                         "audio-codec" audio-codec
-                         "sample-rate" sample-rate
-                         "channel-layout" channel-layout))
             ;; Raw videos should output two streams, one for video and one for audio.
             ;; Needed because there is no single container for raw video
             ;;   and audio.
@@ -351,14 +337,28 @@
               (for/list ([extension (in-list extensions)])
                 (path->complete-path (or dest (base:format "out.~a" extension)))))
             (set! render-graph (graph-copy video-graph))
+            (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
+            (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
+            (define props
+              (hash-set* (node-props video-sink)
+                         "width" width
+                         "height" height
+                         "start" start
+                         "end" end
+                         "fps" fps
+                         "format" format
+                         "pix-fmt" pix-fmt
+                         "sample-fmt" sample-fmt
+                         "video-codec" video-codec
+                         "audio-codec" audio-codec
+                         "sample-rate" sample-rate
+                         "channel-layout" channel-layout))
             (define start-node
               (mk-fifo-node
                #:props props
                #:counts (hash 'video video-streams 'audio audio-streams)))
             (add-vertex! render-graph start-node)
             (add-directed-edge! render-graph video-sink start-node 1)
-            (define start (or start* (dict-ref (node-props start-node) "start" 0)))
-            (define end (or end* (dict-ref (node-props start-node) "end" 0)))
             (define trim-node
               (mk-filter-node
                (hash 'video (mk-filter
