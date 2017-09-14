@@ -447,22 +447,24 @@
           (set!/error fsample-fmt (avcodec-context-sample-fmt cctx) eq?)
           (set!/error fsample-rate (avcodec-context-sample-rate cctx) =)]
          [_ (void)])]))
+  (define props
+    (hash "start" (or (and fstart ftime-base
+                           (* fstart ftime-base))
+                      0)
+          "end" (or (and fstart fduration ftime-base
+                         (* (+ fduration fstart) ftime-base))
+                    +inf.0)
+          "width" (or fwidth 0)
+          "height" (or fheight 0)
+          "time-base" (or ftime-base 0)
+          "fps" (or ffps 0)
+          "pix-fmt" fpix-fmt
+          "sample-fmt" fsample-fmt
+          "sample-rate" fsample-rate
+          "chapters" fchapters))
   (define node (mk-source-node bundle
                                #:counts count-tab
-                               #:props (hash "start" (or (and fstart ftime-base
-                                                              (* fstart ftime-base))
-                                                         0)
-                                             "end" (or (and fstart fduration ftime-base
-                                                            (* (+ fduration fstart) ftime-base))
-                                                       +inf.0)
-                                             "width" (or fwidth 0)
-                                             "height" (or fheight 0)
-                                             "time-base" (or ftime-base 0)
-                                             "fps" (or ffps 0)
-                                             "pix-fmt" fpix-fmt
-                                             "sample-fmt" fsample-fmt
-                                             "sample-rate" fsample-rate
-                                             "chapters" fchapters)))
+                               #:props props))
   (add-vertex! (current-render-graph) node)
   (cond [(and fstart fduration ftime-base)
          node]
@@ -471,6 +473,7 @@
               (define c-node
                 (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
                                                                         "y" 0)))
+                                #:props props
                                 #:counts count-tab))
               (add-vertex! (current-render-graph) c-node)
               (add-directed-edge! (current-render-graph) b-node c-node 1)
