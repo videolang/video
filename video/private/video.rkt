@@ -16,7 +16,8 @@
    limitations under the License.
 |#
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         mk-render-graph)
 (require racket/dict
          racket/match
          racket/set
@@ -40,7 +41,6 @@
                      racket/function
                      syntax/parse))
 
-(define (mk-render-graph) (weighted-graph/directed '()))
 (define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
 
@@ -124,6 +124,27 @@
     (cond [(properties? attached) attached]
           [else attached]))
   extended)
+
+;; Because the file/convertible interface is too specialized, provide one
+;;   that is specific to videos. This is re-exported (with contracts) in video/convert
+(define-values (prop:video-convertible ~video-convertible? video-convertible-ref)
+  (make-struct-type-property 'video-convertible))
+
+;; Used to see if a particular _instance_ of a struct is convertible, even if
+;;   the struct is convertible in general. If not provided it defaults to true.
+(define-values (prop:video-convertible? ~video-convertible?? video-convertible?-ref)
+  (make-struct-type-property 'video-convertible?))
+
+;; Determines if a video is convertible
+(define (video-convertible? v)
+  (and (~video-convertible? v)
+       (if (~video-convertible?? v)
+           ((video-convertible?-ref v) v)
+           #t)))
+
+;; Convert to a video. (Assumes given a video-convertible?)
+(define (video-convert v)
+  ((video-convertible-ref v) v))
 
 ;; An interface for composing properties when rendering
 ;;   a multitrack or playlist
