@@ -318,6 +318,17 @@
     (define/public (set-fps f)
       (set! fps f))
 
+    ;; Get the time (in seconds) of the buffer's current position. This
+    ;;    does not add or remove anything from the buffer.
+    ;; Returns #f if there is no current position (usually because the buffer
+    ;;    is not currently playing.
+    (define/public (get-current-position)
+      (call-with-semaphore
+       curr-frame-lock
+       (λ ()
+         (and curr-frame
+              (av-frame-pts curr-frame)))))
+
     ;; Set the start time. The current time is based on (current-innexact-milliseconds)
     ;; The difference determins what time of the stream should be played
     (define/public (set-start-time [t (current-inexact-milliseconds)])
@@ -491,13 +502,22 @@
       (set! canvas c)
       (set! width (send c get-video-width))
       (set! height (send c get-video-height)))
-    (define/override (write-output-callback-constructor #:render-status render-status)
+    (define/override (write-output-callback-constructor #:render-status rs-box)
       (λ (mode obj)
         (match obj
           [(struct* codec-obj ([codec-context ctx]
                                [buffer-context buff-ctx]
                                [type type]))
+           (when (and video-buffer rs-box (eq? type 'video))
+             (define frame (send video-buffer get-current-position))
+             (when frame
+               (set-render-status-box-position!
+                rs-box (* frame
+                          (avcodec-context-time-base ctx)))))
            (match* (type mode)
+             [(_ 'init)
+              (set-render-status-box-position! rs-box 0)
+              (set-render-status-box-rendering?! rs-box #t)]
              [('audio 'open)
               (set! audio-buffer (new audio-buffer%))
               ;; Since an error is thrown if no audio devices exist,
@@ -558,5 +578,6 @@
               (and video-thread (thread-wait video-thread))
               (when play-video?
                 (send video-buffer flush-buffer))
-              (set! video-buffer #f)]
+              (set! video-buffer #f)
+              (set-render-status-box-rendering?! rs-box #f)]
              [(_ _) (void)])])))))

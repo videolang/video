@@ -42,7 +42,6 @@
 (define racket-log-callback-box (box #f))
 (define-libvid set-racket-log-callback
   (_fun (_fun #:async-apply (λ (x) (x))
-              #:atomic? #t
               #:keep racket-log-callback-box
               _bytes _av-log-constant _int _bytes
               -> _void) -> _void))

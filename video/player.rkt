@@ -22,6 +22,7 @@
          preview)
 (require (except-in racket/class field)
          racket/gui/base
+         racket/format
          images/icons/style
          images/icons/control
          ffi/unsafe/atomic
@@ -188,7 +189,8 @@
          [parent top-row]
          [label (step-icon #:color run-icon-color #:height 50)]
          [callback (λ _ (send vps seek (+ (send vps get-position) step-distance)))])
-    (define seek-bar-max 10000)
+    ;; Measured in 100 milliseconds chunks.
+    (define seek-bar-max 1000000)
     (define seek-bar
       (new slider%
            [parent this]
@@ -200,28 +202,36 @@
            [callback
             (λ (b e)
               (define v (send b get-value))
-              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max))))
+              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max 10))))
               (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
       (match (send vps get-status)
         ['playing
          (define len (or (send vps get-video-length) 1000000))
-         (define frame (floor (* seek-bar-max (/ (send vps get-position) len))))
-         (send seek-bar set-value frame)
-         (send seek-message set-label (make-frame-string frame len))
+         (define frame (send vps get-position))
+         (define seek-pos (* seek-bar-max (/ frame len)))
+         (send seek-bar set-value (floor frame))
+         (send seek-message set-label (make-frame-string frame))
+         (send len-message set-label (make-frame-string len))
          (send play/pause-button set-label pause-label)]
         [_
          (send play/pause-button set-label play-label)]))
-    (define/private (make-frame-string frame len)
-      (format "Frame: ~a/~a" frame len))
+    (define/private (make-frame-string frame)
+      (~r frame #:precision '(= 2)))
     (define frame-row
       (new horizontal-pane%
            [parent this]
-           [alignment '(center center)]))
+           [alignment '(center center)]
+           [horiz-margin 10]))
     (define seek-message
       (new message%
            [parent frame-row]
-           [label (make-frame-string 0 0)]
+           [label (make-frame-string 0)]
+           [stretchable-width #t]))
+    (define len-message
+      (new message%
+           [parent frame-row]
+           [label (make-frame-string 0)]
            [stretchable-width #t]))
     (define render-row
       (new horizontal-pane%
