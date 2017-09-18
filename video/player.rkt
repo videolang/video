@@ -209,15 +209,24 @@
         ['playing
          (define len (or (send vps get-video-length) 1000000))
          (define frame (send vps get-position))
-         (define seek-pos (* seek-bar-max (/ frame len)))
-         (send seek-bar set-value (floor frame))
+         (define seek-pos (floor (* seek-bar-max (/ frame len))))
+         (send seek-bar set-value seek-pos)
          (send seek-message set-label (make-frame-string frame))
          (send len-message set-label (make-frame-string len))
          (send play/pause-button set-label pause-label)]
         [_
          (send play/pause-button set-label play-label)]))
     (define/private (make-frame-string frame)
-      (~r frame #:precision '(= 2)))
+      (define frame-int (floor frame))
+      (define seconds (modulo frame-int 60))
+      (define minutes (modulo (floor (/ frame-int 60)) 60))
+      (define hours (floor (/ frame-int 60 60)))
+      (define split-secs (floor (* 100 (- frame frame-int))))
+      (format "~a:~a:~a.~a"
+              (~r hours)
+              (~r minutes #:pad-string "0" #:min-width 2)
+              (~r seconds #:pad-string "0" #:min-width 2)
+              (~r split-secs #:pad-string "0" #:min-width 2)))
     (define frame-row
       (new horizontal-pane%
            [parent this]
@@ -226,13 +235,19 @@
     (define seek-message
       (new message%
            [parent frame-row]
-           [label (make-frame-string 0)]
-           [stretchable-width #t]))
+           [label "00000000000"];(make-frame-string 0)]
+           [font (make-object font% 32 'modern 'normal 'bold)]
+           [stretchable-width #f]))
+    (new message%
+         [parent frame-row]
+         [label ""]
+         [stretchable-width #t])
     (define len-message
       (new message%
            [parent frame-row]
-           [label (make-frame-string 0)]
-           [stretchable-width #t]))
+           [label "00000000000"];(make-frame-string 0)]
+           [font (make-object font% 32 'modern 'normal 'bold)]
+           [stretchable-width #f]))
     (define render-row
       (new horizontal-pane%
            [parent this]
