@@ -26,14 +26,28 @@
 
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
-    [(_ id ([field-name field-rest ...] ...) rest ...)
+    [(_ id
+        (~or (~optional (~seq #:max-version max-v) #:defaults ([max-v #'0]))
+             (~optional (~seq #:version vers) #:defaults ([vers #'0]))
+             (~optional (~seq #:min-version min-v) #:defaults ([min-v #'0])))
+        ...
+        ([field-name (~optional (~seq #:deprecated deprecated)) field-rest ...] ...) rest ...)
      #:with id-field-names (format-id stx "~a-field-names" #'id)
+     (define max-version (syntax-e (attribute max-v)))
+     (define min-version (syntax-e (attribute min-v)))
+     (define version (syntax-e (attribute vers)))
+     (define version-structs
+       (for/list ([i (in-range min-version max-version)])
+         (quasisyntax/loc stx
+           (define-cstruct #,(format-id stx "~a/~a" #'id i)
+             ([field-name field-rest ...] ...)))))
      (quasisyntax/loc stx
        (begin
          #,(quasisyntax/loc stx
              (define id-field-names '#,#'(field-name ...)))
          #,(syntax/loc stx
-             (define-cstruct id ([field-name field-rest ...] ...) rest ...))))]))
+             (define-cstruct id ([field-name field-rest ...] ...) rest ...))
+         #,@version-structs))]))
 
 
 (define _avrational
@@ -155,6 +169,7 @@
   (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
+  #:version 57
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
