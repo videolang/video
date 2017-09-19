@@ -29,6 +29,7 @@
          graph
          racket/file
          racket/match
+         racket/set
          "render.rkt"
          "private/video-canvas.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
@@ -103,6 +104,31 @@
       (send render render-audio val))
     (define/public (render-video val)
       (send render render-video val))))
+
+;; The default `slider%` object is not powerful enough to determine if
+;;   the user is manually dragging the slider. This is problematic for
+;;   a slider that acts as a progress indicator as well.
+(define video-slider%
+  (class slider%
+    (super-new)
+    ;; Set of pressed buttons, is the powerset of:
+    ;; (Setof 'left 'right 'middle)
+    (define pressed (mutable-set))
+
+    ;; When a button is pressed, at it to the pressed set.
+    ;; Likewise remove it when released
+    (define/override (on-subwindow-event r e)
+      [cond [(send e button-down? 'left) (set-add! pressed 'left)]
+            [(send e button-down? 'right) (set-add! pressed 'right)]
+            [(send e button-down? 'middle) (set-add! pressed 'middle)]
+            [(send e button-up? 'left) (set-remove! pressed 'left)]
+            [(send e button-up? 'right) (set-remove! pressed 'right)]
+            [(send e button-up? 'middle) (set-remove! pressed 'middle)]]
+      (super on-subwindow-event r e))
+
+    ;; Return #t if the user is actively sliding the slider, #f otherwise.
+    (define/public (dragging?)
+      (not (set-empty? pressed)))))
 
 ;; Probably not threadsafe when changing videos?
 ;; Sadly not entirely sure.
@@ -192,7 +218,7 @@
     ;; Measured in 100 milliseconds chunks.
     (define seek-bar-max 1000000)
     (define seek-bar
-      (new slider%
+      (new video-slider%
            [parent this]
            [label "Play Time"]
            [min-value 0]
@@ -202,7 +228,7 @@
            [callback
             (λ (b e)
               (define v (send b get-value))
-              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max 10))))
+              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max))))
               (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
       (match (send vps get-status)
@@ -210,7 +236,8 @@
          (define len (or (send vps get-video-length) 1000000))
          (define frame (send vps get-position))
          (define seek-pos (floor (* seek-bar-max (/ frame len))))
-         (send seek-bar set-value seek-pos)
+         (unless (send seek-bar dragging?)
+           (send seek-bar set-value seek-pos))
          (send seek-message set-label (make-frame-string frame))
          (send len-message set-label (make-frame-string len))
          (send play/pause-button set-label pause-label)]
