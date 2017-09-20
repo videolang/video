@@ -250,16 +250,19 @@
         [_
          (send play/pause-button set-label play-label)]))
     (define/private (make-frame-string frame)
-      (define frame-int (floor frame))
-      (define seconds (modulo frame-int 60))
-      (define minutes (modulo (floor (/ frame-int 60)) 60))
-      (define hours (floor (/ frame-int 60 60)))
-      (define split-secs (floor (* 100 (- frame frame-int))))
-      (format "~a:~a:~a.~a"
-              (~r hours)
-              (~r minutes #:pad-string "0" #:min-width 2)
-              (~r seconds #:pad-string "0" #:min-width 2)
-              (~r split-secs #:pad-string "0" #:min-width 2)))
+      (cond [(= frame +inf.0)
+             "99:99:99.99"]
+            [else
+             (define frame-int (floor frame))
+             (define seconds (modulo frame-int 60))
+             (define minutes (modulo (floor (/ frame-int 60)) 60))
+             (define hours (floor (/ frame-int 60 60)))
+             (define split-secs (floor (* 100 (- frame frame-int))))
+             (format "~a:~a:~a.~a"
+                     (~r hours)
+                     (~r minutes #:pad-string "0" #:min-width 2)
+                     (~r seconds #:pad-string "0" #:min-width 2)
+                     (~r split-secs #:pad-string "0" #:min-width 2))]))
     (define frame-row
       (new horizontal-pane%
            [parent this]
@@ -268,7 +271,7 @@
     (define seek-message
       (new message%
            [parent frame-row]
-           [label "00000000000"];(make-frame-string 0)]
+           [label "00:00:00.00"]
            [font (make-object font% 32 'modern 'normal 'bold)]
            [stretchable-width #f]))
     (new message%
@@ -278,7 +281,7 @@
     (define len-message
       (new message%
            [parent frame-row]
-           [label "00000000000"];(make-frame-string 0)]
+           [label "00:00:00.00"]
            [font (make-object font% 32 'modern 'normal 'bold)]
            [stretchable-width #f]))
     (define render-row

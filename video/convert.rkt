@@ -44,7 +44,7 @@
     ;; The conversion can handle anything where pred evaluates to
     ;;   #t, and the conversion itself is stored as convert
     (define/public (register-conversion pred convert)
-      (set-add! (cons pred convert)))
+      (set-add! the-database (cons pred convert)))
     
     ;; Return #t if `obj` is convertible, #f otherwise.
     (define/public (convertible? obj)

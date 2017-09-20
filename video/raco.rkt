@@ -132,7 +132,7 @@
 
   (cond
     [(output-preview?)
-     (preview video #:convert-database (make-base-database))]
+     (void (preview video #:convert-database (make-base-database)))]
     [else
      (match (output-type)
        [_ ;(or "png" "jpg" "mp4" "xml")
