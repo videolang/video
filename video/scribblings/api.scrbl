@@ -115,7 +115,10 @@ deprecated with a yellow @note-text{NOTE} label.
  merge. It stipulates the two tracks it should be attached
  to. This enables the element to be added to the
  @racket[playlist]'s @racket[#:transitions] list, or the
- @racket[multitrack]'s @racket[#:merges] list.}
+ @racket[multitrack]'s @racket[#:merges] list.
+
+ Field elements are not constructed directly. Rather, they
+ are created as part of transition and merge construction.}
 
 @defproc[(attach-filter [producer producer?]
                         [filter filter?] ...)

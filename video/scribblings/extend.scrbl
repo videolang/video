@@ -18,6 +18,40 @@
 
 @title{Extending Video}
 
+@defmodule[video/convert]
+
+Video offers several extension points. Both for adding new
+syntactic forms into the language, as well as new video
+primitives. There is some overlap in what the extensions are
+capable of, but each are useful in different circumstances.
+
+@colorize[#:color "red"]{
+ The documentation in this section is needs a lot of work.}
+
+@section{Video Convert}
+
+@defproc[(video-convertible? [obj any/c])
+         boolean?]
+@defproc[(video-convert [obj any/c])
+         video?]
+@defthing[prop:video-convertible struct-type-property?]
+@defthing[prop:video-convertible? struct-type-property?]
+
+@section{Conversion Database}
+
+@defclass[convert-database% object% ()]{
+ @defmethod[(add-conversion [predicate (-> any/c boolean?)]
+                            [converter (-> any/c video?)])
+            video?]
+ @defmethod[(convert [object any/c])
+            video?] 
+ @defmethod[(maybe-convert [object any/c])
+            (or/c video? #f)]
+ @defmethod[(convertible? [object any/c])
+            boolean?]}
+
+@section{Core Forms}
+
 @defmodule[video/surface]
 
 Video also has basic syntax for creating new types of
