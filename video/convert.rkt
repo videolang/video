@@ -17,9 +17,48 @@
 |#
 
 (require racket/contract/base
+         racket/class
+         racket/set
+         racket/file
+         (prefix-in pict: pict)
          "private/video.rkt")
-(provide (contract-out
+(provide convert-database%
+         (contract-out
+          [make-base-database (-> (is-a?/c convert-database%))]
           [video-convert (-> video-convertible? video?)]
           [video-convertible? (-> any/c boolean?)]
           [prop:video-convertible (struct-type-property/c (-> video-convertible? video?))]
           [prop:video-convertible? (struct-type-property/c predicate/c)]))
+
+;; The conversion database is used by the renderer to
+;;   add conversions that objects themselves don't know
+;;   how to convert to Videos. For example, picts can
+;;   be added to this database.
+(define convert-database%
+  (class object%
+    (super-new)
+
+    (define the-database (mutable-set))
+    (define/public (register-conversion pred convert)
+      (set-add! (cons pred convert)))
+
+    (define/public (convert obj)
+      (for/fold ([val #f])
+                ([i (in-set the-database)])
+        #:break val
+        (and ((car i) obj)
+             ((cdr i) obj))))))
+
+;; Create a database with known types.
+;; Perhaps this function will one day be moved to another
+;;   library outside of the core of video.
+(define (make-base-database)
+  (define the-database (new convert-database%))
+  (send the-database register-conversion
+        pict:pict?
+        (λ (p)
+          (define b (pict:pict->bitmap p))
+          (define res (make-temporary-file "pict~a.jpg"))
+          (send b save-file res 'png 100)
+          (make-file #:path res)))
+  the-database)
