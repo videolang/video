@@ -515,12 +515,19 @@
               (add-directed-edge! (current-render-graph) node c-node 2)
               c-node]))
 
+
 (define-constructor input-device producer ([video #f]
                                            [audio #f])
   ()
   (define devices (list-input-devices))
-  (define vid-str (index-of (input-devices-video devices) video))
-  (define aud-str (index-of (input-devices-audio devices) audio))
+  (define (make-devstr devlist-op name)
+    (match (system-type 'os)
+      ['macosx (index-of (devlist-op devices) name)]
+      ['unix name]
+      ['windows name]
+      [_ (error 'input-device "Not yet implemented for this platform")]))
+  (define vid-str (make-devstr input-devices-video video))
+  (define aud-str (make-devstr input-devices-audio audio))
   (define bundle (devices->stream-bundle vid-str aud-str))
   (define node (mk-source-node bundle
                                #:counts (+ (if vid-str 1 0)

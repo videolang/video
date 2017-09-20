@@ -88,8 +88,8 @@
        #:logger ffmpeg-logger
        'info
        (string->symbol "AVFoundation input device"))
-     (input-devices (reverse (unbox video-list))
-                    (reverse (unbox audio-list)))]
+     (mk-input-devices #:video (reverse (unbox video-list))
+                       #:audio (reverse (unbox audio-list)))]
     [_
      (error "Not yet implemented for this platform")]))
 

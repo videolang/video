@@ -35,11 +35,11 @@
 (define screen-capture-regexp #"Capture screen.*")
 
 (define (screen-captures dev)
-  (filter (λ () (regexp-match screen-capture-regexp))
+  (filter (λ (x) (regexp-match screen-capture-regexp x))
           (video-devices dev)))
 
 (define (cameras dev)
-  (filter (λ () (not (regexp-match screen-capture-regexp)))
+  (filter (λ (x) (not (regexp-match screen-capture-regexp x)))
           (video-devices dev)))
 
 (define (video-devices dev)
