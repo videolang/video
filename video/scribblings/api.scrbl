@@ -105,6 +105,18 @@ deprecated with a yellow @note-text{NOTE} label.
                        (overlay-merge 10 10 50 50)
                        (clip "space.mp4"))]}
 
+@defproc[(field-element? [elem any/c])
+         boolean?]{
+                   
+ Returns @racket[#t] if @racket[elem] is a field element,
+ returns @racket[#f] otherwise.
+
+ Field elements are an extension to either a transition or a
+ merge. It stipulates the two tracks it should be attached
+ to. This enables the element to be added to the
+ @racket[playlist]'s @racket[#:transitions] list, or the
+ @racket[multitrack]'s @racket[#:merges] list.}
+
 @defproc[(attach-filter [producer producer?]
                         [filter filter?] ...)
          producer?]{

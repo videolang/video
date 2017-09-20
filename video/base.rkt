@@ -40,6 +40,11 @@
 
 (provide
  (contract-out
+
+  ;; Determine if a transition or merge is a 'field element', which means that
+  ;;   it can be placed in the `#:transitions` or `#:merges` keyword.
+  [field-element? (-> any/c boolean?)]
+  
   ;; Creates a multitrack (tracks playing in parallel
   ;;   (not quite sure what right interface for this function
   ;;   looks like yet)
