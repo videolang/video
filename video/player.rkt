@@ -45,7 +45,8 @@
 
 (define video-player-server%
   (class object%
-    (init-field video)
+    (init-field video
+                [convert-database #f])
     (super-new)
     ;; Internal State
     (define render-settings (make-render-settings #:start 0
@@ -60,7 +61,9 @@
       (set-video video))
     (define/public (set-video v)
       (set! video v)
-      (set! render (make-object (video-canvas-render-mixin render%) video))
+      (set! render (new (video-canvas-render-mixin render%)
+                        [source video]
+                        [convert-database convert-database]))
       (send render set-canvas screen))
     (define/public (get-video-length)
       (when (is-stopped?)
@@ -134,7 +137,8 @@
 ;; Sadly not entirely sure.
 (define video-player%
   (class frame%
-    (init-field video)
+    (init-field video
+                [convert-database #f])
     (super-new [label "Video Player"]
                [spacing 10]
                [stretchable-width #f]
@@ -142,7 +146,9 @@
                [min-width 700]
                [min-height 600])
 
-    (define vps (new video-player-server% [video video]))
+    (define vps (new video-player-server%
+                     [video video]
+                     [convert-database convert-database]))
 
     ;; Player Backend
     (define/override (show show?)
@@ -350,10 +356,11 @@
            [interval 50]
            [notify-callback update-seek-bar-and-labels]))))
 
-(define (preview clip)
+(define (preview clip #:convert-database [convert-database #f])
   (define vp
     (new video-player%
-         [video clip]))
+         [video clip]
+         [convert-database convert-database]))
   (send vp show #t)
   (send vp play)
   vp)

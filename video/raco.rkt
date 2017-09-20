@@ -21,7 +21,8 @@
          racket/path
          racket/match
          "render.rkt"
-         "player.rkt")
+         "player.rkt"
+         "convert.rkt")
 
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
@@ -131,11 +132,12 @@
 
   (cond
     [(output-preview?)
-     (preview video)]
+     (preview video #:convert-database (make-base-database))]
     [else
      (match (output-type)
        [_ ;(or "png" "jpg" "mp4" "xml")
         (render/pretty video (output-path)
+                       #:convert-database (make-base-database)
                        #:start (output-start)
                        #:end (output-end)
                        #:width (output-width)

@@ -52,6 +52,7 @@
   [render (->* [any/c]
                [(or/c path-string? path? #f)
                 #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
+                #:convert-database (or/c (is-a?/c convert-database%) #f)
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps real?
@@ -67,6 +68,7 @@
   [render/async (->* [any/c]
                      [(or/c path-string? path? #f)
                       #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
+                      #:convert-database (or/c (is-a?/c convert-database%) #f)
                       #:width (and/c integer? positive?)
                       #:height (and/c integer? positive?)
                       #:fps real?
@@ -82,6 +84,7 @@
   [render/pretty (->* [any/c]
                       [(or/c path-string? path? #f)
                        #:render-mixin (or/c (-> render<%>/c render<%>/c) #f)
+                       #:convert-database (or/c (is-a?/c convert-database%) #f)
                        #:width (and/c integer? positive?)
                        #:height (and/c integer? positive?)
                        #:fps real?
@@ -144,6 +147,7 @@
 (define (render video
                 [dest #f]
                 #:render-mixin [render-mixin #f]
+                #:convert-database [convert-database #f]
                 #:width [width 1920]
                 #:height [height 1080]
                 #:start [start #f]
@@ -153,7 +157,8 @@
   (define r% ((or render-mixin values) render%))
   (define r
     (new r%
-         [source video]))
+         [source video]
+         [convert-database convert-database]))
   (send r setup
         (make-render-settings #:destination dest*
                               #:width width
@@ -166,6 +171,7 @@
 (define (render/async video
                       [dest #f]
                       #:render-mixin [render-mixin #f]
+                      #:convert-database [convert-database #f]
                       #:width [width 1920]
                       #:height [height 1080]
                       #:start [start #f]
@@ -177,7 +183,8 @@
   (define r% ((or render-mixin values) render%))
   (define r
     (new r%
-         [source video]))
+         [source video]
+         [convert-database convert-database]))
   (send r setup
         (make-render-settings #:destination dest*
                               #:width width
@@ -204,6 +211,7 @@
 (define (render/pretty video
                        [dest #f]
                        #:render-mixin [render-mixin #f]
+                       #:convert-database [convert-database #f]
                        #:width [width 1920]
                        #:height [height 1080]
                        #:start [start #f]
@@ -216,6 +224,7 @@
   (define-values (channel stop)
     (render/async video dest
                   #:render-mixin render-mixin
+                  #:convert-database convert-database
                   #:width width
                   #:height height
                   #:start start
@@ -240,7 +249,8 @@
 (define render%
   (class object%
     (super-new)
-    (init-field source)
+    (init-field source
+                [convert-database #f])
 
     (field [video-graph #f]
            [video-sink #f]
@@ -282,7 +292,8 @@
        current-render-settings-lock
        (λ ()
          (set! video-graph (video:mk-render-graph))
-         (set! video-sink (parameterize ([video:current-render-graph video-graph])
+         (set! video-sink (parameterize ([video:current-render-graph video-graph]
+                                         [video:current-convert-database convert-database])
                             (video:convert source)))
          (set! current-render-settings settings)
          (match settings
