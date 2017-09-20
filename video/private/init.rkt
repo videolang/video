@@ -136,13 +136,11 @@
 ;;    we unset the logger after its finished.
 ;; Only ONE logger can be installed at a time. This is not a problem
 ;;  as init should only really be running once.
-;; XXX We currently disabled this because it seems to be causing a soft
-;;   lock on _some_ linux machines.
 (define callback-executor (make-will-executor))
 (define (finish-execution v)
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
-(when (and (ffmpeg-installed?) (libvid-installed?) #f) ;; <-- XXX Remove #f
+(when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback)
   (thread
