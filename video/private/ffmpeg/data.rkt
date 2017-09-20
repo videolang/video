@@ -28,19 +28,28 @@
   (syntax-parse stx
     [(_ id
         (~or (~optional (~seq #:max-version max-v) #:defaults ([max-v #'0]))
-             (~optional (~seq #:version vers) #:defaults ([vers #'0]))
+             (~optional (~seq #:default-version vers) #:defaults ([vers #'0]))
              (~optional (~seq #:min-version min-v) #:defaults ([min-v #'0])))
         ...
-        ([field-name (~optional (~seq #:deprecated deprecated)) field-rest ...] ...) rest ...)
+        (~and
+         ([field-name (~optional (~seq #:deprecated deprecated)) field-rest ...] ...)
+         fields)
+        rest ...)
      #:with id-field-names (format-id stx "~a-field-names" #'id)
      (define max-version (syntax-e (attribute max-v)))
      (define min-version (syntax-e (attribute min-v)))
      (define version (syntax-e (attribute vers)))
      (define version-structs
-       (for/list ([i (in-range min-version max-version)])
+       (for/list ([i (in-range min-version (add1 max-version))])
          (quasisyntax/loc stx
            (define-cstruct #,(format-id stx "~a/~a" #'id i)
-             ([field-name field-rest ...] ...)))))
+             #,(for/list ([f (in-list (syntax-e #'fields))])
+                 (syntax-parse f
+                   [[field-name (~optional (~seq #:deprecated dep)) field-rest ...]
+                    (unless (and (attribute dep)
+                                 (<= i (syntax-e (attribute dep))))
+                      #'[field-name field-rest ...])]))
+             rest ...))))
      (quasisyntax/loc stx
        (begin
          #,(quasisyntax/loc stx
@@ -169,7 +178,9 @@
   (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
-  #:version 57
+  #:default-version 57
+  #:min-version 56
+  #:max-version 57
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
