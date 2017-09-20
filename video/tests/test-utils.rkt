@@ -21,7 +21,7 @@
          racket/class
          (prefix-in pict: pict)
          "../base.rkt"
-         "../core.rkt"
+         (except-in "../core.rkt" field-element?)
          "../private/utils.rkt")
 (require (for-syntax racket/base
                      syntax/parse

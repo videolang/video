@@ -45,7 +45,7 @@
                        racket/gui/base
                        racket/draw
                        video/base
-                       video/core
+                       (except-in video/core field-element?)
                        video/render
                        video/player
                        video/init))
