@@ -43,13 +43,27 @@
 
 (define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
+(define current-convert-database (make-parameter #f))
 
 ;; A helper function to convert videos to video nodes
 ;; Video (U Graph #f) -> _node
-(define (convert source
+(define (convert source*
                  #:renderer [renderer* #f])
+  (define source
+    (cond [(video? source*) source*]
+          [(video-convertible? source*)
+           (video-convert source*)]
+          [(and (current-convert-database)
+                (send (current-convert-database) convertible? source*))
+           (send (current-convert-database) convert)]
+          [(file:convertible? source*) source*]
+          [else (error 'convert "Object ~a cannot be converted to a video" source*)]))
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
-    (file:convert source 'video)))
+    (struct default ())
+    (define ret (file:convert source 'video (default)))
+    (when (default? ret)
+      (error 'convert "Object ~a cannot be compiled to video" source))
+    ret))
 
 ;; DEBUG FUNCTION ONLY
 ;; Save a textual marshalization of a property's prop

@@ -37,6 +37,7 @@
          "private/utils.rkt"
          "private/log.rkt"
          "private/render-settings.rkt"
+         "convert.rkt"
          (for-syntax racket/base
                      racket/list
                      racket/syntax
