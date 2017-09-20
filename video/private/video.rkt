@@ -55,7 +55,7 @@
            (video-convert source*)]
           [(and (current-convert-database)
                 (send (current-convert-database) convertible? source*))
-           (send (current-convert-database) convert)]
+           (send (current-convert-database) convert source*)]
           [(file:convertible? source*) source*]
           [else (error 'convert "Object ~a cannot be converted to a video" source*)]))
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
