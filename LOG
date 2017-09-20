@@ -1,3 +1,10 @@
+v0.2-beta.1
+Date: 2017-09-20
+Commit#: TBD
+* Further documentation improvements.
+* Add support for slightly older versions of opengl
+* Improve the UI of the video preview tool.
+
 v0.2-beta
 Date: 2017-08-27
 Commit#: 12bdbe649bc4b733266e18d6da6df134ef4ebcce
