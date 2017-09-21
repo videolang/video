@@ -29,6 +29,7 @@
          file/convertible
          (prefix-in file: file/convertible)
          graph
+         "render-settings.rkt"
          "utils.rkt"
          "ffmpeg/main.rkt"
          "ffmpeg-pipeline.rkt"
@@ -517,21 +518,25 @@
 
 
 (define-constructor input-device producer ([video #f]
-                                           [audio #f])
+                                           [audio #f]
+                                           [render-settings (make-render-settings)])
   ()
   (define devices (list-input-devices))
   (define (make-devstr devlist-op name)
-    (match (system-type 'os)
-      ['macosx (index-of (devlist-op devices) name)]
-      ['unix name]
-      ['windows name]
-      [_ (error 'input-device "Not yet implemented for this platform")]))
+    (and name
+         (match (system-type 'os)
+           ['macosx (index-of (devlist-op devices) name)]
+           ['unix name]
+           ['windows name]
+           [_ (error 'input-device "Not yet implemented for this platform")])))
   (define vid-str (make-devstr input-devices-video video))
   (define aud-str (make-devstr input-devices-audio audio))
-  (define bundle (devices->stream-bundle vid-str aud-str))
+  (define bundle (devices->stream-bundle vid-str aud-str render-settings))
   (define node (mk-source-node bundle
-                               #:counts (+ (if vid-str 1 0)
-                                           (if aud-str 1 0))))
+                               #:props (hash "start" 0
+                                             "end" +inf.0)
+                               #:counts (hash 'video (if vid-str 1 0)
+                                              'audio (if aud-str 1 0))))
   (add-vertex! (current-render-graph) node)
   node)
 

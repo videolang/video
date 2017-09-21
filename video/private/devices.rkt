@@ -129,16 +129,18 @@
           (error "Not yet implemented for this platform")]))
      (define fmt (av-find-input-format os-dev))
      (define ctx (avformat-alloc-context))
-     (avformat-open-input ctx dev-spec fmt
-                          (build-av-dict
-                           (let* ([r (hash)]
-                                  [r (if (and width height)
-                                         (hash-set r "video_size" (format "~ax~a" width height))
-                                         r)]
-                                  [r (if fps
-                                         (hash-set r "framerate" (format "~a" fps))
-                                         r)]
-                                  [r (if pix-fmt
-                                         (hash-set r "pixel_format" (format "~a" pix-fmt))
-                                         r)])
-                             r)))]))
+     (define input-ctx
+       (avformat-open-input ctx dev-spec fmt
+                            (build-av-dict
+                             (let* ([r (hash)]
+                                    [r (if (and width height)
+                                           (hash-set r "video_size" (format "~ax~a" width height))
+                                           r)]
+                                    [r (if fps
+                                           (hash-set r "framerate" (format "~a" fps))
+                                           r)]
+                                    [r (if pix-fmt
+                                           (hash-set r "pixel_format" (format "~a" pix-fmt))
+                                           r)])
+                               r))))
+     (avformat-context->stream-bundle input-ctx #f)]))

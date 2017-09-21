@@ -259,8 +259,17 @@
   (avdevice-free-list-devices dev)
   ret)
 
+;; Helper function to turn a file into a string bundle.
 (define (file->stream-bundle file)
   (define avformat (avformat-open-input file #f #f))
+  (avformat-context->stream-bundle avformat file))
+
+;; General purpose function to create a stream-bundle from
+;;   an ffmpeg level avformat-context. This pulls out the various streams 
+;;   and information about them (such as their codecs), and prepares them for
+;;   demux% or some other processor.
+;; avformat-context-pointer? (or/c path? path-string? #f) -> stream-bundle?
+(define (avformat-context->stream-bundle avformat file)
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
   (define stream-table (make-hash))
@@ -293,6 +302,19 @@
                     #:stream-table stream-table
                     #:file file))
 
+;; Primary decoding class. It assumes it has been
+;;    given a stream bundle (likely created from
+;;    avformat-context->stream-bundle.
+;; WARNING, only call read when a packet is needed
+;;   (as determined by wait-for-packet-need).
+;;   Eagerly decoding packates will lead to large memory consumption
+;;   which will likely overflow the user's ram.
+;;
+;; The overall workflow for demux is:
+;;    (init)
+;;    (while (wait-for-packet-need)
+;;       (read-packet))
+;;    (close)
 (define demux%
   (class object%
     (init-field bundle
