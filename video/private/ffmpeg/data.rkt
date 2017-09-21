@@ -24,6 +24,19 @@
                      syntax/parse
                      racket/syntax))
 
+(begin-for-syntax
+  (define-syntax-class ffmpeg-cstruct-field
+    (pattern [name
+              (~or (~optional (~seq #:deprecated deprecated-stx))
+                   (~optional (~seq #:added added-stx)))
+              rest  ...]
+             #:attr deprecated (if (attribute deprecated-stx)
+                                   (syntax-e (attribute deprecated-stx))
+                                   +inf.0)
+             #:attr added (if (attribute added-stx)
+                              (syntax-e (attribute added-stx))
+                              0))))
+
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
     [(_ id
@@ -31,9 +44,7 @@
              (~optional (~seq #:default-version vers) #:defaults ([vers #'0]))
              (~optional (~seq #:min-version min-v) #:defaults ([min-v #'0])))
         ...
-        (~and
-         ([field-name (~optional (~seq #:deprecated deprecated)) field-rest ...] ...)
-         fields)
+        (fields:ffmpeg-cstruct-field ...)
         rest ...)
      #:with id-field-names (format-id stx "~a-field-names" #'id)
      (define max-version (syntax-e (attribute max-v)))
@@ -43,19 +54,20 @@
        (for/list ([i (in-range min-version (add1 max-version))])
          (quasisyntax/loc stx
            (define-cstruct #,(format-id stx "~a/~a" #'id i)
-             #,(for/list ([f (in-list (syntax-e #'fields))])
-                 (syntax-parse f
-                   [[field-name (~optional (~seq #:deprecated dep)) field-rest ...]
-                    (unless (and (attribute dep)
-                                 (<= i (syntax-e (attribute dep))))
-                      #'[field-name field-rest ...])]))
-             rest ...))))
+             #,(for/list ([n (in-list (syntax-e #'(fields.name ...)))]
+                          [r (in-list (syntax-e #'((fields.rest ...) ...)))]
+                          [dep (in-list (attribute fields.deprecated))]
+                          [add (in-list (attribute fields.added))]
+                          #:when (and (< i dep)
+                                      (<= add i)))
+                 #`[#,n #,@r])
+           rest ...))))
      (quasisyntax/loc stx
        (begin
          #,(quasisyntax/loc stx
-             (define id-field-names '#,#'(field-name ...)))
+             (define id-field-names '#,#'(fields.name ...)))
          #,(syntax/loc stx
-             (define-cstruct id ([field-name field-rest ...] ...) rest ...))
+             (define-cstruct id ([fields.name fields.rest ...] ...) rest ...))
          #,@version-structs))]))
 
 
