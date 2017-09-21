@@ -31,6 +31,7 @@
          racket/match
          racket/set
          "render.rkt"
+         "devices.rkt"
          "private/video-canvas.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))
