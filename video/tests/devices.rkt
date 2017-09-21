@@ -23,7 +23,6 @@
 
 (check-true (input-devices? (d:mk-input-devices)))
 
-#|
 (let ()
   (define devices (list-input-devices))
   (check-true (input-devices? devices))
@@ -31,4 +30,3 @@
   (video-devices devices)
   (audio-devices devices)
   (void))
-|#
