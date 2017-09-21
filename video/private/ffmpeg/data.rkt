@@ -879,7 +879,7 @@
 
 (define-cstruct _avdevice-info-list
   ([devices-data _pointer]
-   [nb-devices _pointer]
+   [nb-devices _int]
    [default-device _int]))
 (define (avdevice-info-list-devices v)
   (cblock->list (avdevice-info-list-devices-data v)

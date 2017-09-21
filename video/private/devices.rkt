@@ -41,12 +41,18 @@
     ['unix
      (define vid-fmt (av-find-input-format "v4l2"))
      (define vid-ctx (avformat-alloc-context))
-     (avformat-open-input vid-ctx "" vid-fmt #f)
+     (define video-found?
+       (with-handlers ([exn:fail? (λ (e) #f)])
+         (avformat-open-input vid-ctx "" vid-fmt #f)
+         #t))
      (define aud-fmt (av-find-input-format "alsa"))
      (define aud-ctx (avformat-alloc-context))
-     (avformat-open-input aud-ctx "" aud-fmt #f)
-     (mk-input-devices #:video (list-devices/avdevice vid-ctx)
-                       #:audio (list-devices/avdevice aud-ctx))]
+     (define audio-found?
+       (with-handlers ([exn:fail? (λ (e) #f)])
+         (avformat-open-input aud-ctx "" aud-fmt #f)
+         #t))
+     (mk-input-devices #:video (if video-found? (list-devices/avdevice vid-ctx) '())
+                       #:audio (if audio-found? (list-devices/avdevice aud-ctx) '()))]
     [(or 'windows 'macosx)
      (define video-devices-str
        (match (system-type 'os)
