@@ -368,11 +368,16 @@
                                [stream stream]
                                [index index]))
            (when (and start-offset (not (= start-offset +inf.0)))
-             (av-seek-frame avformat
-                            index
-                            (exact-floor (/ (max 0 (- start-offset 1))
-                                            (avstream-time-base stream)))
-                            '(backwards)))])))
+             (with-handlers ([exn:fail?
+                              (λ (e)
+                                (log-video-error
+                                 "Cannot seek stream ~a from ~a, starting from beginning"
+                                 index avformat))])
+               (av-seek-frame avformat
+                              index
+                              (exact-floor (/ (max 0 (- start-offset 1))
+                                              (avstream-time-base stream)))
+                              '(backwards))))])))
 
     ;; #t - More to read
     ;; #f - Done reading
@@ -1194,7 +1199,7 @@
      bundle-lst
      sink-bundles)))
 
-(define (init-filter-graph g)
+(define (init-filter-graph g #:seek? [seek? #t])
   (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
     (define inout-ctx (avfilter-graph-create-filter type name args #f graph))
@@ -1241,7 +1246,8 @@
                                (avcodec-context-sample-rate ctx))]))
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
-           (set-codec-obj-start-offset! str (dict-ref seek-points bundle))
+           (when seek?
+             (set-codec-obj-start-offset! str (dict-ref seek-points bundle)))
            (cons n ins)]))))
   (define inputs
     (for/fold ([outs '()])

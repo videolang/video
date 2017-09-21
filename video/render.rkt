@@ -137,7 +137,8 @@
                              #:speed real?
                              #:video-frames (or/c nonnegative-integer? #f)
                              #:audio-frames (or/c nonnegative-integer? #f)
-                             #:data-frames (or/c nonnegative-integer? #f))
+                             #:data-frames (or/c nonnegative-integer? #f)
+                             #:seek? boolean?)
                             render-settings?)])
 
  ;; Interface for render%
