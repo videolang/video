@@ -367,3 +367,52 @@
   (send vp show #t)
   (send vp play)
   vp)
+
+(define video-capture%
+  (class frame%
+    (super-new [label "Video Capture"]
+               [min-width 700]
+               [min-height 600])
+
+    (define devices (list-input-devices))
+    
+    (define screen-row
+      (new horizontal-pane%
+           [parent this]
+           [alignment '(center center)]
+           [spacing 20]))
+    (define screen
+      (new video-canvas%
+           [parent screen-row]
+           [width WIDTH]
+           [height HEIGHT]))
+    (define dev-row
+      (new horizontal-pane%
+           [parent this]
+           [alignment '(center center)]
+           [spacing 20]))
+    (define cam-source
+      (new choice%
+           [parent dev-row]
+           [choices (cameras devices)]
+           [label "Camera"]
+           [min-width 200]
+           [stretchable-width #t]
+           [style '(vertical-label)]))
+    (define screen-source
+      (new choice%
+           [parent dev-row]
+           [choices (video-devices devices)]
+           [label "Screen Capture"]
+           [min-width 200]
+           [stretchable-width #t]
+           [style '(vertical-label)]))
+    (define aud-source
+      (new choice%
+           [parent dev-row]
+           [choices (audio-devices devices)]
+           [label "Audio Capture"]
+           [min-width 200]
+           [stretchable-width #t]
+           [style '(vertical-label)]))
+    ))
