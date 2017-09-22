@@ -16,11 +16,11 @@
    limitations under the License.
 |#
 
-(provide video-player-server%
-         video-player%
-         video-canvas%
-         preview)
+;; This is a small library for creating video editing utilities. The
+;;   main one is a video player. It also provides a video capture tool.
+
 (require (except-in racket/class field)
+         racket/contract/base
          racket/gui/base
          racket/format
          images/icons/style
@@ -30,11 +30,22 @@
          racket/file
          racket/match
          racket/set
+         "convert.rkt"
          "render.rkt"
          "devices.rkt"
          "private/video-canvas.rkt"
          (prefix-in ffmpeg: "private/ffmpeg-pipeline.rkt")
          (prefix-in video: "private/video.rkt"))
+(provide video-player-server%
+         video-player%
+         video-canvas%
+         (contract-out
+          [preview (->* (any/c)
+                        (#:convert-database (or/c (is-a?/c convert-database%) #f))
+                        (is-a?/c video-player%))]
+          [record (->* ()
+                       (#:convert-database (or/c (is-a?/c convert-database%) #f))
+                       (is-a?/c video-capture%))]))
 
 (define pause-icon-color "yellow")
 
@@ -360,6 +371,8 @@
            [interval 50]
            [notify-callback update-seek-bar-and-labels]))))
 
+;; Helper function to easily set up a video-player% class to play
+;;   the given clip (with an optional convert database)
 (define (preview clip #:convert-database [convert-database #f])
   (define vp
     (new video-player%
@@ -371,11 +384,32 @@
 
 (define video-capture%
   (class frame%
+    (init-field [convert-database #f])
     (super-new [label "Video Capture"]
                [min-width 700]
                [min-height 600])
 
+    ;; Video capture state
+    (define video-choice #f)
+    (define audio-choice #f)
+    (define camera-choice #f)
     (define devices (list-input-devices))
+    (define vps #f)
+    
+    ;; Grab the current feeds and determine how they should get
+    ;;   converted to a single output.
+    (define (update-vps!)
+      (set! vps (new video-player-server%
+                     [convert-database convert-database]))
+      (send vps set-canvas screen))
+
+    ;; Need to change the choice and update the VPS whenever
+    ;; a new device is chosen.
+    (define ((set-choice! val) c e)
+      (case (send c get-selection)
+        [(0 #f) (set! val #f)]
+        [else (set! val (send c get-string-selection))])
+      (update-vps!))
     
     (define screen-row
       (new horizontal-pane%
@@ -395,25 +429,34 @@
     (define cam-source
       (new choice%
            [parent dev-row]
-           [choices (cameras devices)]
+           [choices (list* "None" (cameras devices))]
            [label "Camera"]
+           [callback (set-choice! camera-choice)]
            [min-width 200]
            [stretchable-width #t]
            [style '(vertical-label)]))
     (define screen-source
       (new choice%
            [parent dev-row]
-           [choices (video-devices devices)]
+           [choices (list* "None" (video-devices devices))]
            [label "Screen Capture"]
+           [callback (set-choice! video-choice)]
            [min-width 200]
            [stretchable-width #t]
            [style '(vertical-label)]))
     (define aud-source
       (new choice%
            [parent dev-row]
-           [choices (audio-devices devices)]
+           [choices (list* "None" (audio-devices devices))]
            [label "Audio Capture"]
+           [callback (set-choice! audio-choice)]
            [min-width 200]
            [stretchable-width #t]
            [style '(vertical-label)]))
-    ))
+    ;; Initialize the class
+    (update-vps!)))
+
+;; Helper function to set up a video-capture% device
+(define (record #:convert-database [convert-database #f])
+  (define recorder (new video-capture% [convert-database convert-database]))
+  recorder)
