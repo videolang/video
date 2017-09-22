@@ -69,7 +69,15 @@
           (case (version-major (#,version-proc))
             #,@(for/list ([i (in-range start end)])
                  #`[(#,i) #,(struct-getter i)])
-            [else #,(struct-getter start)])))))
+            [else #,(struct-getter start)]))))
+
+  ;; Helper function to create the syntax for the dynamic getter/setter syntax.
+  ;; Broken out because it is used a lot.
+  ;; (-> Integer Identifier) Identifier Integer Integer -> Syntax
+  (define (dynamic-getter/setter-dispatch name-builder version-proc start end)
+    #`(case (version-major (#,version-proc))
+        #,@(for/list ([i (in-range start end)])
+             #`[(#,i) #,(name-builder i)]))))
 
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
