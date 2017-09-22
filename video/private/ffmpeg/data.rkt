@@ -258,7 +258,7 @@
   (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
-  #:min-version 56
+  #:min-version 55
   #:max-version 57
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
@@ -350,7 +350,7 @@
    [size _int]))
 
 (define-ffmpeg-cstruct _avpacket
-  #:min-version 57
+  #:min-version 55
   #:max-version 59
   #:version-proc avcodec-version
   ([buf _avbuffer-ref-pointer/null]
@@ -434,7 +434,7 @@
    [update-thread-context _fpointer]))
 
 (define-ffmpeg-cstruct _avcodec-context
-  #:min-version 57
+  #:min-version 55
   #:max-version 59
   #:version-proc avcodec-version
   ([av-class _pointer]
@@ -650,19 +650,22 @@
    [mime-type _bytes]))
 
 (define-ffmpeg-cstruct _avfrac
-  #:min-version 56
+  #:min-version 55
   #:max-version 58
   #:version-proc avformat-version
   ([val _int64]
    [num _int64]
    [den _int64]))
 
-(define-cstruct _avstream
+(define-ffmpeg-cstruct _avstream
+  #:min-version 55
+  #:max-version 59
+  #:version-proc avformat-version
   ([index _int]
    [id _int]
-   [codec _pointer] ;_avcodec-context-pointer] ;; DEP AVFORMAT 58
+   [codec #:deprecated 58 _pointer] ;_avcodec-context-pointer]
    [priv-data _pointer]
-   [pts _avfrac] ;; DEP AVFORMAT 58
+   [pts #:deprecated 58 _avfrac]
    [time-base _avrational]
    [start-time _int64]
    [duration _int64]
@@ -721,9 +724,10 @@
    [internal _pointer]
    [codecpar _avcodec-parameters-pointer/null]))
 
-
-;; DEP AVCODEC 59
-(define-cstruct _av-picture
+(define-ffmpeg-cstruct _av-picture
+  #:min-version 55
+  #:max-version 58
+  #:version-proc avcodec-version
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]))
 
@@ -736,7 +740,10 @@
 
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
-(define-cstruct _av-frame
+(define-ffmpeg-cstruct _av-frame
+  #:min-version 55
+  #:max-version 59
+  #:version-proc avutil-version
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]
    [extended-data _pointer]
@@ -748,13 +755,13 @@
    [pict-type _avpicture-type]
    [sample-aspect-ration _avrational]
    [pts _int64]
-   [pkt-pts _int64] ;; DEP AVUTIL 56
+   [pkt-pts #:deprecated 56 _int64]
    [pkt-dts _int64]
    [coded-picture-number _int]
    [display-picture-number _int]
    [quality _int]
    [opaque _pointer]
-   [error (_array _uint64 AV-NUM-DATA-POINTERS)] ;; DEP AVUTIL 56
+   [error #:deprecated 56 (_array _uint64 AV-NUM-DATA-POINTERS)]
    [repeate-pict _int]
    [interlaced-frame _int]
    [top-field-first _int]
@@ -780,10 +787,10 @@
    [decode-error-flags _ff-decode-error-flags]
    [channels _int]
    [pkt-size _int]
-   [qscale-table _int8] ;; DEP AVUTIL 56
-   [qstride _int] ;; DEP AVUTIL 56
-   [qscale-type _int] ;; DEP AVUTIL 56
-   [qp-table-ref _pointer] ;; DEP AVUTIL 56
+   [qscale-table #:deprecated 56 _int8]
+   [qstride #:deprecated 56 _int]
+   [qscale-type #:deprecated 56 _int]
+   [qp-table-ref #:deprecated 56 _pointer]
    [hw-frames-ctx _pointer]
    [opaque-ref _pointer]))
 (define (av-frame-format/video frame)
@@ -913,12 +920,15 @@
    [sample-rate _int]
    [channel-layout _av-channel-layout]))
 
-(define-cstruct _avsubtitle-rect
+(define-ffmpeg-cstruct _avsubtitle-rect
+  #:min-version 55
+  #:max-version 59
+  #:version-proc avcodec-version
   ([x _int]
    [y _int]
    [w _int]
    [h _int]
-   [pict _av-picture] ;; DEP AVCODEC 59
+   [pict #:deprecated 59 _av-picture]
    [data (_array _uint8 4)]
    [linesize (_array _int 4)]
    [type _avsubtitle-type]
