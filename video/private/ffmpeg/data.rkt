@@ -54,7 +54,7 @@
     (define/syntax-parse getter-name (format-id field* "~a-~a" (remove-underscore cstruct) (attribute field.name)))
     (define/syntax-parse setter-name (format-id field* "set-~a-~a!" (remove-underscore cstruct) (attribute field.name)))
     (define start (max min-version (attribute field.added)))
-    (define end (inexact->exact (min max-version (attribute field.deprecated))))
+    (define end (inexact->exact (min (add1 max-version) (attribute field.deprecated))))
     (define (struct-getter version)
       (format-id cstruct "~a/~a-~a" (remove-underscore cstruct) version (attribute field.name)))
     (define (struct-setter version)
@@ -62,14 +62,14 @@
     #`(begin
         (define setter-name
           (case (version-major (#,version-proc))
-            #,@(for/list ([i (in-range start (add1 end))])
+            #,@(for/list ([i (in-range start end)])
                  #`[(#,i) #,(struct-setter i)])
-            [else #,(struct-setter end)]))
+            [else #,(struct-setter start)]))
         (define getter-name
           (case (version-major (#,version-proc))
-            #,@(for/list ([i (in-range start (add1 end))])
+            #,@(for/list ([i (in-range start end)])
                  #`[(#,i) #,(struct-getter i)])
-            [else #,(struct-getter end)])))))
+            [else #,(struct-getter start)])))))
 
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
@@ -86,6 +86,7 @@
      #:with id-pointer/null (format-id stx "~a-pointer/null" #'id)
      #:with id->list (format-id stx "~a->list" (remove-underscore #'id))
      #:with make-id (format-id stx "make-~a" (remove-underscore #'id))
+     #:with id? (format-id stx "~a?" (remove-underscore #'id))
      (define max-version (syntax-e (attribute max-v)))
      (define min-version (syntax-e (attribute min-v)))
      (define version-structs
@@ -109,27 +110,32 @@
            (case (version-major (version-proc))
              #,@(for/list ([i (in-range min-version (add1 max-version))])
                   #`[(#,i) #,(format-id stx "make-~a/~a" (remove-underscore #'id) i)])
-             [else #,(format-id stx "make-~a/~a" (remove-underscore #'id) max-version)]))
+             [else #,(format-id stx "make-~a/~a" (remove-underscore #'id) min-version)]))
         (define id
           (case (version-major (version-proc))
             #,@(for/list ([i (in-range min-version (add1 max-version))])
                  #`[(#,i) #,(format-id stx "~a/~a" #'id i)])
-            [else #,(format-id stx "~a/~a" #'id max-version)]))
+            [else #,(format-id stx "~a/~a" #'id min-version)]))
         (define id-pointer
           (case (version-major (version-proc))
             #,@(for/list ([i (in-range min-version (add1 max-version))])
                  #`[(#,i) #,(format-id stx "~a/~a-pointer" #'id i)])
-            [else #,(format-id stx "~a/~a-pointer" #'id max-version)]))
+            [else #,(format-id stx "~a/~a-pointer" #'id min-version)]))
         (define id-pointer/null
           (case (version-major (version-proc))
             #,@(for/list ([i (in-range min-version (add1 max-version))])
                  #`[(#,i) #,(format-id stx "~a/~a-pointer/null" #'id i)])
-            [else #,(format-id stx "~a/~a-pointer/null" #'id max-version)]))
+            [else #,(format-id stx "~a/~a-pointer/null" #'id min-version)]))
         (define id->list
           (case (version-major (version-proc))
             #,@(for/list ([i (in-range min-version (add1 max-version))])
                  #`[(#,i) #,(format-id stx "~a/~a->list" (remove-underscore #'id) i)])
-            [else #,(format-id stx "~a/~a->list" (remove-underscore #'id) max-version)]))
+            [else #,(format-id stx "~a/~a->list" (remove-underscore #'id) min-version)]))
+        (define id?
+          (case (version-major (version-proc))
+            #,@(for/list ([i (in-range min-version (add1 max-version))])
+                 #`[(#,i) #,(format-id stx "~a/~a?" (remove-underscore #'id) i)])
+            [else #,(format-id stx "~a/~a?" (remove-underscore #'id) min-version)]))
          #,@(for/list ([f (in-list (attribute fields))])
               (field->getter/setter f #'id #'version-proc min-version max-version))))]))
 
@@ -343,7 +349,10 @@
    [data _pointer]
    [size _int]))
 
-(define-cstruct _avpacket
+(define-ffmpeg-cstruct _avpacket
+  #:min-version 57
+  #:max-version 59
+  #:version-proc avcodec-version
   ([buf _avbuffer-ref-pointer/null]
    [pts _int64]
    [dts _int64]
@@ -355,8 +364,7 @@
    [side-data-elems _int]
    [durration _int64]
    [pos _int64]
-   [convergence-duration _int64] ;; DEP AVCODEC 59
-   ))
+   [convergence-duration #:deprecated 59 _int64]))
 
 (define-cstruct _avpacket-list
   ([pkt _avpacket]
@@ -425,15 +433,18 @@
    [init-thread-copy _fpointer]
    [update-thread-context _fpointer]))
 
-(define-cstruct _avcodec-context
+(define-ffmpeg-cstruct _avcodec-context
+  #:min-version 57
+  #:max-version 59
+  #:version-proc avcodec-version
   ([av-class _pointer]
    [log-level-offset _int]
    [codec-type* _avmedia-type]
    [codec _avcodec-pointer/null]
-   [codec-name (_array _byte 32)] ;; DEP AVCODEC 58
+   [codec-name #:deprecated 58 (_array _byte 32)]
    [codec-id _avcodec-id]
    [codec-tag _uint]
-   [stream-codec-tag _uint] ;; DEP AVCODEC 59
+   [stream-codec-tag #:deprecated 59 _uint]
    [priv-data _pointer]
    [internal _pointer]
    [opaque _pointer]
@@ -454,16 +465,16 @@
    [coded-height _int]
    [gop-size _int]
    [pix-fmt _avpixel-format]
-   [me-method _int] ;; DEP AVCODEC 59
+   [me-method #:deprecated 59 _int]
    [draw-horiz-band _fpointer]
    [get-format _fpointer]
    [max-b-frames _int]
    [b-quant-factor _float]
-   [rc-strategy _int] ;; DEP AVCODEC 59
-   [b-frame-strategy _int] ;; DEP AVCODEC 59
+   [rc-strategy #:deprecated 59 _int]
+   [b-frame-strategy #:deprecated 59 _int]
    [b-quant-offset _float]
    [has-b-frames _int]
-   [mpeg-quant _int] ;; DEP AVCODEC 59
+   [mpeg-quant #:deprecated 59 _int]
    [i-quant-factor _float]
    [i-quant-offset _float]
    [lumi-masking _float]
@@ -472,7 +483,7 @@
    [p-masking _float]
    [dark-masking _float]
    [slice-count _int]
-   [prediction-method _int] ;; DEP AVCODEC 59
+   [prediction-method #:deprecated 59 _int]
    [slice-offset _pointer]
    [sample-aspect-ratio _avrational]
    [me-cmp _int]
@@ -481,38 +492,38 @@
    [ildct-cmp _int]
    [dia-size _int]
    [last-predictor-count _int]
-   [pre-me _int] ;; DEP AVCODEC 59
+   [pre-me #:deprecated 59 _int]
    [me-pre-cmp _int]
    [pre-dia-size _int]
    [me-subpel-quality _int]
-   [dtg-active-format _int] ;; DEP AVCODEC 58
+   [dtg-active-format #:deprecated 58 _int]
    [me-range _int]
-   [intra-quant-bias _int] ;; DEP AVCODEC 59
-   [inter-quant-bias _int] ;; DEP AVCODEC 59
+   [intra-quant-bias #:deprecated 59 _int]
+   [inter-quant-bias #:deprecated 59 _int]
    [slice-flags _int]
-   [xvmc-acceleration _int] ;; DEP AVCODEC 58
+   [xvmc-acceleration #:deprecated 58 _int]
    [mb-decision _int]
    [intra-matrix _pointer]
    [inter-matrix _pointer]
-   [scenechange-threashold _int] ;; DEP AVCODEC 59
-   [noise-reduction _int] ;; DEP AVCODEC 59
-   [me-threashold _int] ;; DEP AVCODEC 59
-   [mb-threashold _int] ;; DEP AVCODEC 59
+   [scenechange-threashold #:deprecated 59 _int]
+   [noise-reduction #:deprecated 59 _int]
+   [me-threashold #:deprecated 59 _int]
+   [mb-threashold #:deprecated 59 _int]
    [intra-dc-precision _int]
    [skip-top _int]
    [skip-bottom _int]
-   [border-masking _float] ;; DEP AVCODEC 59
+   [border-masking #:deprecated 59 _float]
    [mb-lmin _int]
    [mb-lmax _int]
-   [me-penalty-compensation _int] ;; DEP AVCODEC 59
+   [me-penalty-compensation #:deprecated 59 _int]
    [bidir-refine _int]
-   [brd-scale _int] ;; DEP AVCODEC 59
+   [brd-scale #:deprecated 59 _int]
    [keyint-min _int]
    [refs _int]
-   [chromaoffset _int] ;; DEP AVCODEC 59
-   [scenechange-factor _int] ;; DEP AVCODEC 58
+   [chromaoffset #:deprecated 59 _int]
+   [scenechange-factor #:deprecated 58 _int]
    [mv0-threashold _int]
-   [b-sensitivity _int] ;; DEP AVCODEC 59
+   [b-sensitivity #:deprecated 59 _int]
    [color-primaries _avcolor-primaries]
    [color-trc _avcolor-transfer-characteristic]
    [colorspace _avcolor-space]
@@ -638,8 +649,10 @@
    [buf-size _int]
    [mime-type _bytes]))
 
-;; DEP AVFORMAT 58
-(define-cstruct _avfrac
+(define-ffmpeg-cstruct _avfrac
+  #:min-version 56
+  #:max-version 58
+  #:version-proc avformat-version
   ([val _int64]
    [num _int64]
    [den _int64]))
