@@ -20,11 +20,20 @@
 (require "lib.rkt"
          "constants.rkt"
          ffi/unsafe
+         racket/format
          (for-syntax racket/base
                      syntax/parse
                      racket/syntax))
 
 (begin-for-syntax
+  ;; Remove the underscore from id, used for cstructs which
+  ;; are defined with an underscore...for reasons...
+  ;; Identifier -> String
+  (define (remove-underscore id)
+    (define name (syntax->datum id))
+    (substring (symbol->string name) 1))
+
+  ;; Syntax class for handling the fields of an ffmpeg cstruct.
   (define-syntax-class ffmpeg-cstruct-field
     (pattern [name
               (~or (~optional (~seq #:deprecated deprecated-stx))
@@ -35,21 +44,50 @@
                                    +inf.0)
              #:attr added (if (attribute added-stx)
                               (syntax-e (attribute added-stx))
-                              0))))
+                              0)))
+  
+  ;; Takes an ffmpeg cstruct field syntax class and generates the getters and
+  ;;   setters. Would be added directly to the syntax class, but adding the extra
+  ;;   information removes some of the nice syntax created by syntax-class.
+  (define (field->getter/setter field* cstruct version-proc min-version max-version)
+    (define/syntax-parse field:ffmpeg-cstruct-field field*)
+    (define/syntax-parse getter-name (format-id field* "~a-~a" (remove-underscore cstruct) (attribute field.name)))
+    (define/syntax-parse setter-name (format-id field* "set-~a-~a!" (remove-underscore cstruct) (attribute field.name)))
+    (define start (max min-version (attribute field.added)))
+    (define end (inexact->exact (min max-version (attribute field.deprecated))))
+    (define (struct-getter version)
+      (format-id cstruct "~a/~a-~a" (remove-underscore cstruct) version (attribute field.name)))
+    (define (struct-setter version)
+      (format-id cstruct "set-~a/~a-~a!" (remove-underscore cstruct) version (attribute field.name)))
+    #`(begin
+        (define setter-name
+          (case (version-major (#,version-proc))
+            #,@(for/list ([i (in-range start (add1 end))])
+                 #`[(#,i) #,(struct-setter i)])
+            [else #,(struct-setter end)]))
+        (define getter-name
+          (case (version-major (#,version-proc))
+            #,@(for/list ([i (in-range start (add1 end))])
+                 #`[(#,i) #,(struct-getter i)])
+            [else #,(struct-getter end)])))))
 
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
     [(_ id
-        (~or (~optional (~seq #:max-version max-v) #:defaults ([max-v #'0]))
-             (~optional (~seq #:default-version vers) #:defaults ([vers #'0]))
+        (~or (~optional (~seq #:version-proc version-proc)
+                        #:defaults ([version-proc #'(λ () (mk-version #:major 0))]))
+             (~optional (~seq #:max-version max-v) #:defaults ([max-v #'0]))
              (~optional (~seq #:min-version min-v) #:defaults ([min-v #'0])))
         ...
         (fields:ffmpeg-cstruct-field ...)
         rest ...)
      #:with id-field-names (format-id stx "~a-field-names" #'id)
+     #:with id-pointer (format-id stx "~a-pointer" #'id)
+     #:with id-pointer/null (format-id stx "~a-pointer/null" #'id)
+     #:with id->list (format-id stx "~a->list" (remove-underscore #'id))
+     #:with make-id (format-id stx "make-~a" (remove-underscore #'id))
      (define max-version (syntax-e (attribute max-v)))
      (define min-version (syntax-e (attribute min-v)))
-     (define version (syntax-e (attribute vers)))
      (define version-structs
        (for/list ([i (in-range min-version (add1 max-version))])
          (quasisyntax/loc stx
@@ -66,10 +104,34 @@
        (begin
          #,(quasisyntax/loc stx
              (define id-field-names '#,#'(fields.name ...)))
-         #,(syntax/loc stx
-             (define-cstruct id ([fields.name fields.rest ...] ...) rest ...))
-         #,@version-structs))]))
-
+         #,@version-structs
+         (define make-id
+           (case (version-major (version-proc))
+             #,@(for/list ([i (in-range min-version (add1 max-version))])
+                  #`[(#,i) #,(format-id stx "make-~a/~a" (remove-underscore #'id) i)])
+             [else #,(format-id stx "make-~a/~a" (remove-underscore #'id) max-version)]))
+        (define id
+          (case (version-major (version-proc))
+            #,@(for/list ([i (in-range min-version (add1 max-version))])
+                 #`[(#,i) #,(format-id stx "~a/~a" #'id i)])
+            [else #,(format-id stx "~a/~a" #'id max-version)]))
+        (define id-pointer
+          (case (version-major (version-proc))
+            #,@(for/list ([i (in-range min-version (add1 max-version))])
+                 #`[(#,i) #,(format-id stx "~a/~a-pointer" #'id i)])
+            [else #,(format-id stx "~a/~a-pointer" #'id max-version)]))
+        (define id-pointer/null
+          (case (version-major (version-proc))
+            #,@(for/list ([i (in-range min-version (add1 max-version))])
+                 #`[(#,i) #,(format-id stx "~a/~a-pointer/null" #'id i)])
+            [else #,(format-id stx "~a/~a-pointer/null" #'id max-version)]))
+        (define id->list
+          (case (version-major (version-proc))
+            #,@(for/list ([i (in-range min-version (add1 max-version))])
+                 #`[(#,i) #,(format-id stx "~a/~a->list" (remove-underscore #'id) i)])
+            [else #,(format-id stx "~a/~a->list" (remove-underscore #'id) max-version)]))
+         #,@(for/list ([f (in-list (attribute fields))])
+              (field->getter/setter f #'id #'version-proc min-version max-version))))]))
 
 (define _avrational
   (let ()
@@ -190,7 +252,6 @@
   (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
-  #:default-version 57
   #:min-version 56
   #:max-version 57
   ([av-class _pointer]
