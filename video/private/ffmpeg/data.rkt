@@ -30,7 +30,7 @@
 ;;   was also added to the public API for Racket 2.10.2. This should
 ;;   be removed from this codebase once we increase the minimum version
 ;;   to be 6.10.2 (or higher).
-(define (compute-offsets types [alignment #f] [declared '()])
+(define (compute-offsets* types [alignment #f] [declared '()])
   (unless (and (list? types) (map ctype? types))
     (raise-argument-error 'compute-offsets "(listof ctype?)" types))
   (unless (memq alignment '(#f 1 2 4 8 16))
