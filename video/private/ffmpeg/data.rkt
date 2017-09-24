@@ -25,6 +25,32 @@
                      syntax/parse
                      racket/syntax))
 
+;; Taken from `ffi/unsafe` based on the suggestions from Matthew
+;;   Flatt and Ryan Culpepper on Friday, Sept. 22, 2017. This function
+;;   was also added to the public API for Racket 2.10.2. This should
+;;   be removed from this codebase once we increase the minimum version
+;;   to be 6.10.2 (or higher).
+(define (compute-offsets types [alignment #f] [declared '()])
+  (unless (and (list? types) (map ctype? types))
+    (raise-argument-error 'compute-offsets "(listof ctype?)" types))
+  (unless (memq alignment '(#f 1 2 4 8 16))
+    (raise-argument-error 'compute-offsets "(or/c #f 1 2 4 8 16)" alignment))
+  (unless (and (list? declared) (map (λ (v) (or (not v) (exact-integer? v))) declared))
+    (raise-argument-error 'compute-offsets "(listof (or/c exact-integer? #f))" declared))
+  (let ([declared (append declared (build-list (- (length types) (length declared)) (λ (n) #f)))])
+    (let loop ([ts types] [ds declared] [cur 0] [r '()])
+      (if (null? ts)
+          (reverse r)
+          (let* ([algn (if alignment 
+                           (min alignment (ctype-alignof (car ts)))
+                           (ctype-alignof (car ts)))]
+                 [pos (or (car ds)
+                          (+ cur (modulo (- (modulo cur algn)) algn)))])
+            (loop (cdr ts)
+                  (cdr ds)
+                  (+ pos (ctype-sizeof (car ts)))
+                  (cons pos r)))))))
+
 (begin-for-syntax
   ;; Remove the underscore from id, used for cstructs which
   ;; are defined with an underscore...for reasons...
