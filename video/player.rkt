@@ -30,6 +30,7 @@
          racket/file
          racket/match
          racket/set
+         (prefix-in vidbase: "base.rkt")
          "convert.rkt"
          "render.rkt"
          "devices.rkt"
@@ -390,25 +391,34 @@
                [min-height 600])
 
     ;; Video capture state
-    (define video-choice #f)
-    (define audio-choice #f)
-    (define camera-choice #f)
+    (define video-choice (box #f))
+    (define audio-choice (box #f))
+    (define camera-choice (box #f))
     (define devices (list-input-devices))
-    (define vps #f)
+    (define vps (new video-player-server%
+                     [video (video:make-input-device)]
+                     [convert-database convert-database]))
     
     ;; Grab the current feeds and determine how they should get
     ;;   converted to a single output.
     (define (update-vps!)
-      (set! vps (new video-player-server%
-                     [convert-database convert-database]))
-      (send vps set-canvas screen))
+      (if (unbox camera-choice)
+          (send vps set-video (video:make-input-device
+                               #:video (unbox camera-choice)
+                               #:render-settings (make-render-settings #:width 1280
+                                                                       #:height 720
+                                                                       #:fps 30
+                                                                       #:pix-fmt '0rgb
+                                                                       #:seek? #f)))
+          (send vps set-video (vidbase:color "black")))
+      (send vps play))
 
     ;; Need to change the choice and update the VPS whenever
     ;; a new device is chosen.
     (define ((set-choice! val) c e)
       (case (send c get-selection)
-        [(0 #f) (set! val #f)]
-        [else (set! val (send c get-string-selection))])
+        [(0 #f) (set-box! val #f)]
+        [else (set-box! val (send c get-string-selection))])
       (update-vps!))
     
     (define screen-row
@@ -454,9 +464,11 @@
            [stretchable-width #t]
            [style '(vertical-label)]))
     ;; Initialize the class
+    (send vps set-canvas screen)
     (update-vps!)))
 
 ;; Helper function to set up a video-capture% device
 (define (record #:convert-database [convert-database #f])
   (define recorder (new video-capture% [convert-database convert-database]))
+  (send recorder show #t)
   recorder)

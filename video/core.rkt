@@ -42,6 +42,8 @@
   transition?
   make-producer
   producer?
+  make-input-device
+  input-device?
   make-blank
   blank?
   make-playlist
