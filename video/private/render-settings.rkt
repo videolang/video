@@ -40,6 +40,8 @@
                          sample-rate
                          channel-layout
                          speed
+                         render-video?
+                         render-audio?
                          video-frames
                          audio-frames
                          data-frames
@@ -59,8 +61,10 @@
                               #:sample-rate [sr 44100]
                               #:channel-layout [cl 'stereo]
                               #:speed [sp 1]
+                              #:render-video? [rv? #t]
+                              #:render-audio? [rc? #t]
                               #:video-frames [vfr #f]
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
                               #:seek? [s? #t])
-  (render-settings d w h s e f fo vc ac sc pf sf sr cl sp vfr afr dfr s?))
+  (render-settings d w h s e f fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))

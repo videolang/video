@@ -294,8 +294,10 @@
                                            (error "dup-packet?"))))
   (define-avcodec av-packet-rescale-ts (_fun _avpacket-pointer _avrational _avrational
                                              -> _void))
-  (define-avcodec avcodec-find-encoder (_fun _avcodec-id
-                                             -> _avcodec-pointer))
+  (define-avcodec
+    avcodec-find-encoder (_fun [id : _avcodec-id]
+                               -> [ret : _avcodec-pointer/null]
+                               -> (or ret (error 'avcodec-find-encoder "No valid stream for ~a" id))))
   (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                              -> _avcodec-pointer))
   (define-avcodec avcodec-alloc-context3 (_fun _avcodec-pointer/null
@@ -502,7 +504,10 @@
     (_fun _av-output-format-pointer _string _string _string _avmedia-type -> _avcodec-id))
   
   (define-avformat avformat-alloc-output-context2
-    (_fun [out : (_ptr o _avformat-context-pointer/null)] _av-output-format-pointer/null _string _string
+    (_fun [out : (_ptr o _avformat-context-pointer/null)]
+          _av-output-format-pointer/null
+          _string
+          _string
           -> [ret : _int]
           -> (cond
                [(>= ret 0) out]

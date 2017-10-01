@@ -59,6 +59,9 @@
                 #:video-frames (or/c nonnegative-integer? #f)
                 #:audio-frames (or/c nonnegative-integer? #f)
                 #:data-frames (or/c nonnegative-integer? #f)
+                #:pix-fmt symbol?
+                #:render-video? boolean?
+                #:render-audio? boolean?
                 #:start (or/c (and/c real? (>=/c 0)) #f)
                 #:end (or/c (and/c real? (>=/c 0)) #f)]
                void?)]
@@ -80,6 +83,9 @@
                       #:video-frames (or/c nonnegative-integer? #f)
                       #:audio-frames (or/c nonnegative-integer? #f)
                       #:data-frames (or/c nonnegative-integer? #f)
+                      #:pix-fmt symbol?
+                      #:render-video? boolean?
+                      #:render-audio? boolean?
                       #:mode (or/c 'verbose #f)]
                      (values async-channel? (-> void?)))]
 
@@ -100,6 +106,9 @@
                        #:video-frames (or/c nonnegative-integer? #f)
                        #:audio-frames (or/c nonnegative-integer? #f)
                        #:data-frames (or/c nonnegative-integer? #f)
+                       #:pix-fmt symbol?
+                       #:render-video? boolean?
+                       #:render-audio? boolean?
                        #:mode (or/c 'verbose 'silent #f)]
                       void?)]
 
@@ -147,6 +156,8 @@
                              #:video-frames (or/c nonnegative-integer? #f)
                              #:audio-frames (or/c nonnegative-integer? #f)
                              #:data-frames (or/c nonnegative-integer? #f)
+                             #:render-video? boolean?
+                             #:render-audio? boolean?
                              #:seek? boolean?)
                             render-settings?)])
 
@@ -162,9 +173,12 @@
                 #:height [height 1080]
                 #:start [start #f]
                 #:end [end #f]
+                #:pix-fmt [pf 'yuv420p]
                 #:video-frames [vf #f]
                 #:audio-frames [af #f]
                 #:data-frames [df #f]
+                #:render-video? [rv? #t]
+                #:render-audio? [ra? #t]
                 #:fps [fps 25])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define r% ((or render-mixin values) render%))
@@ -181,6 +195,9 @@
                               #:video-frames vf
                               #:audio-frames af
                               #:data-frames df
+                              #:pix-fmt pf
+                              #:render-video? rv?
+                              #:render-audio? ra?
                               #:fps fps))
   (send r start-rendering #t))
 
@@ -196,6 +213,9 @@
                       #:video-frames [vf #f]
                       #:audio-frames [af #f]
                       #:data-frames [df #f]
+                      #:pix-fmt [pf 'yuv420p]
+                      #:render-video? [rv? #t]
+                      #:render-audio? [ra? #t]
                       #:mode [mode #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define channel (make-async-channel))
@@ -213,6 +233,9 @@
                               #:video-frames vf
                               #:audio-frames af
                               #:data-frames df
+                              #:pix-fmt pf
+                              #:render-video? rv?
+                              #:render-audio? ra?
                               #:fps fps))
   (when (eq? mode 'verbose)
     (async-channel-put channel (send r get-render-graph)))
@@ -243,6 +266,9 @@
                        #:video-frames [vf #f]
                        #:audio-frames [af #f]
                        #:data-frames [df #f]
+                       #:pix-fmt [pf 'yuv420p]
+                       #:render-video? [rv? #t]
+                       #:render-audio? [ra? #t]
                        #:mode [mode #f])
   (define port (or (and (not (eq? mode 'silent)) port*)
                    (open-output-nowhere)))
@@ -258,6 +284,9 @@
                   #:video-frames vf
                   #:audio-frames af
                   #:data-frames df
+                  #:pix-fmt pf
+                  #:render-video? rv?
+                  #:render-audio? ra?
                   #:mode (if (eq? mode 'silent) #f mode)))
   (when (eq? mode 'verbose)
     (displayln (graphviz (async-channel-get channel))))
@@ -334,11 +363,15 @@
                                       [format format]
                                       [video-codec video-codec]
                                       [audio-codec audio-codec]
+                                      [render-video? render-video?*]
+                                      [render-audio? render-audio?*]
                                       [pix-fmt pix-fmt]
                                       [sample-fmt sample-fmt]
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
                                       [speed speed]))
+            (set! render-video? render-video?*)
+            (set! render-audio? render-audio?*)
             ;; Raw videos should output two streams, one for video and one for audio.
             ;; Needed because there is no single container for raw video
             ;;   and audio.
@@ -649,7 +682,7 @@
       (define r (rendering?))
       (when r
         (stop-rendering))
-      (set! render-audio? val)
+      (set! render-video? val)
       (when r
         (setup (struct-copy render-settings current-render-settings
                             [start (get-current-position)])))
