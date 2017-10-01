@@ -56,6 +56,9 @@
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps real?
+                #:video-frames (or/c nonnegative-integer? #f)
+                #:audio-frames (or/c nonnegative-integer? #f)
+                #:data-frames (or/c nonnegative-integer? #f)
                 #:start (or/c (and/c real? (>=/c 0)) #f)
                 #:end (or/c (and/c real? (>=/c 0)) #f)]
                void?)]
@@ -74,6 +77,9 @@
                       #:fps real?
                       #:start (or/c (and/c real? (>=/c 0)) #f)
                       #:end (or/c (and/c real? (>=/c 0)) #f)
+                      #:video-frames (or/c nonnegative-integer? #f)
+                      #:audio-frames (or/c nonnegative-integer? #f)
+                      #:data-frames (or/c nonnegative-integer? #f)
                       #:mode (or/c 'verbose #f)]
                      (values async-channel? (-> void?)))]
 
@@ -91,6 +97,9 @@
                        #:start (or/c (and/c real? (>=/c 0)) #f)
                        #:end (or/c (and/c real? (>=/c 0)) #f)
                        #:port (or/c output-port? #f)
+                       #:video-frames (or/c nonnegative-integer? #f)
+                       #:audio-frames (or/c nonnegative-integer? #f)
+                       #:data-frames (or/c nonnegative-integer? #f)
                        #:mode (or/c 'verbose 'silent #f)]
                       void?)]
 
@@ -153,6 +162,9 @@
                 #:height [height 1080]
                 #:start [start #f]
                 #:end [end #f]
+                #:video-frames [vf #f]
+                #:audio-frames [af #f]
+                #:data-frames [df #f]
                 #:fps [fps 25])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define r% ((or render-mixin values) render%))
@@ -166,6 +178,9 @@
                               #:height height
                               #:start start
                               #:end end
+                              #:video-frames vf
+                              #:audio-frames af
+                              #:data-frames df
                               #:fps fps))
   (send r start-rendering #t))
 
@@ -178,6 +193,9 @@
                       #:start [start #f]
                       #:end [end #f]
                       #:fps [fps 25]
+                      #:video-frames [vf #f]
+                      #:audio-frames [af #f]
+                      #:data-frames [df #f]
                       #:mode [mode #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define channel (make-async-channel))
@@ -192,6 +210,9 @@
                               #:height height
                               #:start start
                               #:end end
+                              #:video-frames vf
+                              #:audio-frames af
+                              #:data-frames df
                               #:fps fps))
   (when (eq? mode 'verbose)
     (async-channel-put channel (send r get-render-graph)))
@@ -219,6 +240,9 @@
                        #:end [end #f]
                        #:fps [fps 25]
                        #:port [port* (current-output-port)]
+                       #:video-frames [vf #f]
+                       #:audio-frames [af #f]
+                       #:data-frames [df #f]
                        #:mode [mode #f])
   (define port (or (and (not (eq? mode 'silent)) port*)
                    (open-output-nowhere)))
@@ -231,6 +255,9 @@
                   #:start start
                   #:end end
                   #:fps fps
+                  #:video-frames vf
+                  #:audio-frames af
+                  #:data-frames df
                   #:mode (if (eq? mode 'silent) #f mode)))
   (when (eq? mode 'verbose)
     (displayln (graphviz (async-channel-get channel))))
