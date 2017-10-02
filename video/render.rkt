@@ -318,6 +318,7 @@
 
     (define render-audio? #t)
     (define render-video? #t)
+    (define manual-rendering-enable? #f)
     
     (define graph-obj #f)
     (define input-bundles #f)
@@ -370,8 +371,9 @@
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
                                       [speed speed]))
-            (set! render-video? render-video?*)
-            (set! render-audio? render-audio?*)
+            (unless manual-rendering-enable?
+              (set! render-video? render-video?*)
+              (set! render-audio? render-audio?*))
             ;; Raw videos should output two streams, one for video and one for audio.
             ;; Needed because there is no single container for raw video
             ;;   and audio.
@@ -672,6 +674,7 @@
       (define r (rendering?))
       (when r
         (stop-rendering))
+      (set! manual-rendering-enable? #t)
       (set! render-audio? val)
       (when r
         (setup (struct-copy render-settings current-render-settings
@@ -682,6 +685,7 @@
       (define r (rendering?))
       (when r
         (stop-rendering))
+      (set! manual-rendering-enable? #t)
       (set! render-video? val)
       (when r
         (setup (struct-copy render-settings current-render-settings

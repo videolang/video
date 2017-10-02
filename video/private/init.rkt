@@ -131,6 +131,7 @@
     (avformat-network-init)
     (avdevice-register-all)))
 
+#|
 ;; Set up the logger.
 ;; This must be done a new time the module is instantiated, and
 ;;    we unset the logger after its finished.
@@ -141,8 +142,7 @@
 (define (finish-execution v)
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
-(when (and (ffmpeg-installed?) (libvid-installed?)
-           #;(eq? (system-type 'os) 'macosx)) ;; <-- Maybe?
+(when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback)
   (thread
@@ -153,6 +153,7 @@
    (λ (handler)
      (stop-ffmpeg-logging)))
   (void))
+|#
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
