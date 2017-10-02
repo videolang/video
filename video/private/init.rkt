@@ -142,7 +142,7 @@
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
 (when (and (ffmpeg-installed?) (libvid-installed?)
-           (eq? (system-type 'os) 'macosx))
+           #;(eq? (system-type 'os) 'macosx)) ;; <-- Maybe?
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback)
   (thread
