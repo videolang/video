@@ -131,13 +131,11 @@
     (avformat-network-init)
     (avdevice-register-all)))
 
-#|
 ;; Set up the logger.
 ;; This must be done a new time the module is instantiated, and
 ;;    we unset the logger after its finished.
 ;; Only ONE logger can be installed at a time. This is not a problem
 ;;  as init should only really be running once.
-;; XXX Sadly this is only working on OS X. :(
 (define callback-executor (make-will-executor))
 (define (finish-execution v)
   (set-racket-log-callback #f))
@@ -153,7 +151,6 @@
    (λ (handler)
      (stop-ffmpeg-logging)))
   (void))
-|#
 
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
