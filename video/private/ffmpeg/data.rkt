@@ -21,6 +21,8 @@
          "constants.rkt"
          ffi/unsafe
          racket/format
+         racket/set
+         racket/list
          (for-syntax racket/base
                      syntax/parse
                      racket/syntax))
@@ -51,6 +53,22 @@
                   (+ pos (ctype-sizeof (car ts)))
                   (cons pos r)))))))
 
+(define (build-getter field-name fields types offsets [who #f])
+  (define index (index-of fields field-name))
+  (if index
+     (λ (this)
+       (ptr-ref this (list-ref types index) 'abs (list-ref offsets index)))
+     (λ (this)
+       (error who "Field ~a not defined in current ffmpeg build" field-name))))
+
+(define (build-setter field-name fields types offsets [who #f])
+  (define index (index-of fields field-name))
+  (if index
+      (λ (this val)
+        (ptr-set! this (list-ref types index) 'abs (list-ref offsets index) val))
+      (λ (this val)
+        (error who "Field ~a not defined in current ffmpeg build" field-name))))
+
 (begin-for-syntax
   ;; Remove the underscore from id, used for cstructs which
   ;; are defined with an underscore...for reasons...
@@ -62,116 +80,82 @@
   ;; Syntax class for handling the fields of an ffmpeg cstruct.
   (define-syntax-class ffmpeg-cstruct-field
     (pattern [name
-              (~or (~optional (~seq #:deprecated deprecated-stx))
-                   (~optional (~seq #:added added-stx)))
-              rest  ...]
-             #:attr deprecated (if (attribute deprecated-stx)
-                                   (syntax-e (attribute deprecated-stx))
-                                   +inf.0)
-             #:attr added (if (attribute added-stx)
-                              (syntax-e (attribute added-stx))
-                              0)))
-  
-  ;; Takes an ffmpeg cstruct field syntax class and generates the getters and
-  ;;   setters. Would be added directly to the syntax class, but adding the extra
-  ;;   information removes some of the nice syntax created by syntax-class.
-  (define (field->getter/setter field* cstruct version-proc min-version max-version)
-    (define/syntax-parse field:ffmpeg-cstruct-field field*)
-    (define/syntax-parse getter-name (format-id field* "~a-~a" (remove-underscore cstruct) (attribute field.name)))
-    (define/syntax-parse setter-name (format-id field* "set-~a-~a!" (remove-underscore cstruct) (attribute field.name)))
-    (define start (max min-version (attribute field.added)))
-    (define end (inexact->exact (min (add1 max-version) (attribute field.deprecated))))
-    (define (struct-getter version)
-      (format-id cstruct "~a/~a-~a" (remove-underscore cstruct) version (attribute field.name)))
-    (define (struct-setter version)
-      (format-id cstruct "set-~a/~a-~a!" (remove-underscore cstruct) version (attribute field.name)))
-    #`(begin
-        (define setter-name
-          (case (version-major (#,version-proc))
-            #,@(for/list ([i (in-range start end)])
-                 #`[(#,i) #,(struct-setter i)])
-            [else #,(struct-setter start)]))
-        (define getter-name
-          (case (version-major (#,version-proc))
-            #,@(for/list ([i (in-range start end)])
-                 #`[(#,i) #,(struct-getter i)])
-            [else #,(struct-getter start)]))))
-
-  ;; Helper function to create the syntax for the dynamic getter/setter syntax.
-  ;; Broken out because it is used a lot.
-  ;; (-> Integer Identifier) Identifier Integer Integer -> Syntax
-  (define (dynamic-getter/setter-dispatch name-builder version-proc start end)
-    #`(case (version-major (#,version-proc))
-        #,@(for/list ([i (in-range start end)])
-             #`[(#,i) #,(name-builder i)]))))
+              type
+              (~or (~optional (~seq #:deprecated deprecated) #:defaults ([deprecated #'+inf.0]))
+                   (~optional (~seq #:added added) #:defaults ([added #'0]))
+                   (~optional (~seq #:offset offset) #:defaults ([offset #'#f])))
+              ...])))
 
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
-    [(_ id
+    [(_ _id:id
         (~or (~optional (~seq #:version-proc version-proc)
                         #:defaults ([version-proc #'(λ () (mk-version #:major 0))]))
-             (~optional (~seq #:max-version max-v) #:defaults ([max-v #'0]))
-             (~optional (~seq #:min-version min-v) #:defaults ([min-v #'0])))
+             (~optional (~seq #:max-version max-version) #:defaults ([max-version #'0]))
+             (~optional (~seq #:min-version min-version) #:defaults ([min-version #'0])))
         ...
         (fields:ffmpeg-cstruct-field ...)
-        rest ...)
-     #:with id-field-names (format-id stx "~a-field-names" #'id)
-     #:with id-pointer (format-id stx "~a-pointer" #'id)
-     #:with id-pointer/null (format-id stx "~a-pointer/null" #'id)
-     #:with id->list (format-id stx "~a->list" (remove-underscore #'id))
-     #:with make-id (format-id stx "make-~a" (remove-underscore #'id))
-     #:with id? (format-id stx "~a?" (remove-underscore #'id))
-     (define max-version (syntax-e (attribute max-v)))
-     (define min-version (syntax-e (attribute min-v)))
-     (define version-structs
-       (for/list ([i (in-range min-version (add1 max-version))])
-         (quasisyntax/loc stx
-           (define-cstruct #,(format-id stx "~a/~a" #'id i)
-             #,(for/list ([n (in-list (syntax-e #'(fields.name ...)))]
-                          [r (in-list (syntax-e #'((fields.rest ...) ...)))]
-                          [dep (in-list (attribute fields.deprecated))]
-                          [add (in-list (attribute fields.added))]
-                          #:when (and (< i dep)
-                                      (<= add i)))
-                 #`[#,n #,@r])
-           rest ...))))
+        (~optional (~seq #:alignment alignment) #:defaults ([alignment #'#f])))
+     #:with id (format-id stx "~a" (remove-underscore #'_id))
+     #:with id-field-names (format-id stx "~a-field-names" #'_id)
+     #:with id-pointer (format-id stx "~a-pointer" #'_id)
+     #:with id-pointer/null (format-id stx "~a-pointer/null" #'_id)
+     #:with id->list (format-id stx "~a->list" #'id)
+     #:with make-id (format-id stx "make-~a" #'id)
+     #:with id-tag (format-id stx "~a-tag" #'id)
+     #:with id? (format-id stx "~a?" #'id)
+     #:with (id-field ...) (for/list ([i (in-list (attribute fields.name))])
+                             (format-id stx "~a-~a" #'id i))
+     #:with (set-id-field! ...) (for/list ([i (in-list (attribute fields.name))])
+                                  (format-id stx "set-~a-~a!" #'id i))
      (quasisyntax/loc stx
        (begin
-         #,(quasisyntax/loc stx
-             (define id-field-names '#,#'(fields.name ...)))
-         #,@version-structs
-         (define make-id
-           (case (version-major (version-proc))
-             #,@(for/list ([i (in-range min-version (add1 max-version))])
-                  #`[(#,i) #,(format-id stx "make-~a/~a" (remove-underscore #'id) i)])
-             [else #,(format-id stx "make-~a/~a" (remove-underscore #'id) min-version)]))
-        (define id
-          (case (version-major (version-proc))
-            #,@(for/list ([i (in-range min-version (add1 max-version))])
-                 #`[(#,i) #,(format-id stx "~a/~a" #'id i)])
-            [else #,(format-id stx "~a/~a" #'id min-version)]))
-        (define id-pointer
-          (case (version-major (version-proc))
-            #,@(for/list ([i (in-range min-version (add1 max-version))])
-                 #`[(#,i) #,(format-id stx "~a/~a-pointer" #'id i)])
-            [else #,(format-id stx "~a/~a-pointer" #'id min-version)]))
-        (define id-pointer/null
-          (case (version-major (version-proc))
-            #,@(for/list ([i (in-range min-version (add1 max-version))])
-                 #`[(#,i) #,(format-id stx "~a/~a-pointer/null" #'id i)])
-            [else #,(format-id stx "~a/~a-pointer/null" #'id min-version)]))
-        (define id->list
-          (case (version-major (version-proc))
-            #,@(for/list ([i (in-range min-version (add1 max-version))])
-                 #`[(#,i) #,(format-id stx "~a/~a->list" (remove-underscore #'id) i)])
-            [else #,(format-id stx "~a/~a->list" (remove-underscore #'id) min-version)]))
-        (define id?
-          (case (version-major (version-proc))
-            #,@(for/list ([i (in-range min-version (add1 max-version))])
-                 #`[(#,i) #,(format-id stx "~a/~a?" (remove-underscore #'id) i)])
-            [else #,(format-id stx "~a/~a?" (remove-underscore #'id) min-version)]))
-         #,@(for/list ([f (in-list (attribute fields))])
-              (field->getter/setter f #'id #'version-proc min-version max-version))))]))
+         (define the-fields
+           (list (vector 'fields.name
+                         (max fields.added min-version)
+                         (min fields.deprecated max-version)
+                         fields.type
+                         fields.offset)
+                 ...))
+         (define the-version (version-major (version-proc)))
+         (define current-fields
+           (for/list ([i (in-list the-fields)]
+                      #:when (<= (vector-ref i 1) the-version (vector-ref i 2)))
+             (list (vector-ref i 0) (vector-ref i 3) (vector-ref i 4))))
+         (define field-names (map first current-fields))
+         (define field-types (map second current-fields))
+         (define field-manual-offsets (map third current-fields))
+         (define offsets (compute-offsets* field-types alignment field-manual-offsets))
+         (define-cpointer-type _^TYPE #:tag 'id)
+         (define _id
+           (make-ctype
+            (make-cstruct-type field-types #f alignment)
+            (λ (x)
+              (set-cpointer-tag! x 'id)
+              x)
+            (λ (x)
+              (unless (eq? (cpointer-tag x) 'id)
+                (error 'id "Not right type, expected: ~a found: ~a"
+                       (cpointer-tag x)
+                       'id))
+              x)))
+         (define id-field (build-getter 'fields.name field-names field-types offsets _id)) ...
+         (define set-id-field! (build-setter 'fields.name field-names field-types offsets _id)) ...
+         (define id-field-names (for/list ([i (in-list the-fields)])
+                                  (vector-ref i 0)))
+         (define (make-id . inits)
+           (define block (malloc _id))
+           (for ([n (in-list id-field-names)]
+                 [i (in-list inits)]
+                 [s! (list set-id-field! ...)]
+                 #:when (set-member? field-names n))
+             (s! block i))
+           (set-cpointer-tag! block 'id)
+           block)
+         (define id-pointer _^TYPE)
+         (define id-pointer/null _^TYPE/null)
+         (define id-tag ^TYPE-tag)
+         (define id? ^TYPE?)))]))
 
 (define _avrational
   (let ()
@@ -194,7 +178,7 @@
   ([key _pointer]
    [value _pointer]))
 
-(define-cstruct _av-dictionary
+(define-ffmpeg-cstruct _av-dictionary
   ([count _int]
    [elems _av-dictionary-entry-pointer/null]))
 
@@ -294,6 +278,7 @@
 (define-ffmpeg-cstruct _avformat-context
   #:min-version 55
   #:max-version 57
+  #:version-proc avformat-version
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
@@ -398,7 +383,7 @@
    [side-data-elems _int]
    [durration _int64]
    [pos _int64]
-   [convergence-duration #:deprecated 59 _int64]))
+   [convergence-duration _int64 #:deprecated 59]))
 
 (define-cstruct _avpacket-list
   ([pkt _avpacket]
@@ -475,10 +460,10 @@
    [log-level-offset _int]
    [codec-type* _avmedia-type]
    [codec _avcodec-pointer/null]
-   [codec-name #:deprecated 58 (_array _byte 32)]
+   [codec-name (_array _byte 32) #:deprecated 58]
    [codec-id _avcodec-id]
    [codec-tag _uint]
-   [stream-codec-tag #:deprecated 59 _uint]
+   [stream-codec-tag _uint #:deprecated 59]
    [priv-data _pointer]
    [internal _pointer]
    [opaque _pointer]
@@ -499,16 +484,16 @@
    [coded-height _int]
    [gop-size _int]
    [pix-fmt _avpixel-format]
-   [me-method #:deprecated 59 _int]
+   [me-method _int #:deprecated 59]
    [draw-horiz-band _fpointer]
    [get-format _fpointer]
    [max-b-frames _int]
    [b-quant-factor _float]
-   [rc-strategy #:deprecated 59 _int]
-   [b-frame-strategy #:deprecated 59 _int]
+   [rc-strategy _int #:deprecated 59]
+   [b-frame-strategy _int #:deprecated 59]
    [b-quant-offset _float]
    [has-b-frames _int]
-   [mpeg-quant #:deprecated 59 _int]
+   [mpeg-quant _int #:deprecated 59]
    [i-quant-factor _float]
    [i-quant-offset _float]
    [lumi-masking _float]
@@ -517,7 +502,7 @@
    [p-masking _float]
    [dark-masking _float]
    [slice-count _int]
-   [prediction-method #:deprecated 59 _int]
+   [prediction-method _int #:deprecated 59]
    [slice-offset _pointer]
    [sample-aspect-ratio _avrational]
    [me-cmp _int]
@@ -526,38 +511,38 @@
    [ildct-cmp _int]
    [dia-size _int]
    [last-predictor-count _int]
-   [pre-me #:deprecated 59 _int]
+   [pre-me _int #:deprecated 59]
    [me-pre-cmp _int]
    [pre-dia-size _int]
    [me-subpel-quality _int]
-   [dtg-active-format #:deprecated 58 _int]
+   [dtg-active-format _int #:deprecated 58]
    [me-range _int]
-   [intra-quant-bias #:deprecated 59 _int]
-   [inter-quant-bias #:deprecated 59 _int]
+   [intra-quant-bias _int #:deprecated 59]
+   [inter-quant-bias _int #:deprecated 59]
    [slice-flags _int]
-   [xvmc-acceleration #:deprecated 58 _int]
+   [xvmc-acceleration _int #:deprecated 58]
    [mb-decision _int]
    [intra-matrix _pointer]
    [inter-matrix _pointer]
-   [scenechange-threashold #:deprecated 59 _int]
-   [noise-reduction #:deprecated 59 _int]
-   [me-threashold #:deprecated 59 _int]
-   [mb-threashold #:deprecated 59 _int]
+   [scenechange-threashold _int #:deprecated 59]
+   [noise-reduction _int #:deprecated 59]
+   [me-threashold _int #:deprecated 59]
+   [mb-threashold _int #:deprecated 59]
    [intra-dc-precision _int]
    [skip-top _int]
    [skip-bottom _int]
-   [border-masking #:deprecated 59 _float]
+   [border-masking _float #:deprecated 59]
    [mb-lmin _int]
    [mb-lmax _int]
-   [me-penalty-compensation #:deprecated 59 _int]
+   [me-penalty-compensation _int #:deprecated 59]
    [bidir-refine _int]
-   [brd-scale #:deprecated 59 _int]
+   [brd-scale _int #:deprecated 59]
    [keyint-min _int]
    [refs _int]
-   [chromaoffset #:deprecated 59 _int]
-   [scenechange-factor #:deprecated 58 _int]
+   [chromaoffset _int #:deprecated 59]
+   [scenechange-factor _int #:deprecated 58]
    [mv0-threashold _int]
-   [b-sensitivity #:deprecated 59 _int]
+   [b-sensitivity _int #:deprecated 59]
    [color-primaries _avcolor-primaries]
    [color-trc _avcolor-transfer-characteristic]
    [colorspace _avcolor-space]
@@ -697,9 +682,9 @@
   #:version-proc avformat-version
   ([index _int]
    [id _int]
-   [codec #:deprecated 58 _pointer] ;_avcodec-context-pointer]
+   [codec _pointer #:deprecated 58] ;_avcodec-context-pointer]
    [priv-data _pointer]
-   [pts #:deprecated 58 _avfrac]
+   [pts _avfrac #:deprecated 58]
    [time-base _avrational]
    [start-time _int64]
    [duration _int64]
@@ -789,13 +774,13 @@
    [pict-type _avpicture-type]
    [sample-aspect-ration _avrational]
    [pts _int64]
-   [pkt-pts #:deprecated 56 _int64]
+   [pkt-pts _int64 #:deprecated 56]
    [pkt-dts _int64]
    [coded-picture-number _int]
    [display-picture-number _int]
    [quality _int]
    [opaque _pointer]
-   [error #:deprecated 56 (_array _uint64 AV-NUM-DATA-POINTERS)]
+   [error (_array _uint64 AV-NUM-DATA-POINTERS) #:deprecated 56]
    [repeate-pict _int]
    [interlaced-frame _int]
    [top-field-first _int]
@@ -821,10 +806,10 @@
    [decode-error-flags _ff-decode-error-flags]
    [channels _int]
    [pkt-size _int]
-   [qscale-table #:deprecated 56 _int8]
-   [qstride #:deprecated 56 _int]
-   [qscale-type #:deprecated 56 _int]
-   [qp-table-ref #:deprecated 56 _pointer]
+   [qscale-table _int8 #:deprecated 56]
+   [qstride _int #:deprecated 56]
+   [qscale-type _int #:deprecated 56]
+   [qp-table-ref _pointer #:deprecated 56]
    [hw-frames-ctx _pointer]
    [opaque-ref _pointer]))
 (define (av-frame-format/video frame)
@@ -962,7 +947,7 @@
    [y _int]
    [w _int]
    [h _int]
-   [pict #:deprecated 59 _av-picture]
+   [pict _av-picture #:deprecated 59]
    [data (_array _uint8 4)]
    [linesize (_array _int 4)]
    [type _avsubtitle-type]

@@ -58,7 +58,7 @@
 (let ()
   (define b (file->stream-bundle vid-mp4))
   (define ctx (stream-bundle-avformat-context b))
-  (avformat-context->list ctx)
+  ;(avformat-context->list ctx)
   (for ([name (in-list _avformat-context-field-names)])
     (define accessor (eval (string->symbol (format "avformat-context-~a" name)) here))
     (accessor ctx)))
