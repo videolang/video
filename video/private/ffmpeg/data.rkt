@@ -56,16 +56,22 @@
 (define (build-getter field-name fields types offsets [who #f])
   (define index (index-of fields field-name))
   (if index
+      (procedure-rename
+       (λ (this)
+         (ptr-ref this (list-ref types index) 'abs (list-ref offsets index)))
+       (string->symbol (format "~a-~a" who field-name)))
      (λ (this)
-       (ptr-ref this (list-ref types index) 'abs (list-ref offsets index)))
-     (λ (this)
-       (error who "Field ~a not defined in current ffmpeg build" field-name))))
+       (raise (exn:ffmpeg:lib
+               (format "Field ~a in struct ~a not defined in current ffmpeg build" field-name who)
+               (current-continuation-marks))))))
 
 (define (build-setter field-name fields types offsets [who #f])
   (define index (index-of fields field-name))
   (if index
-      (λ (this val)
-        (ptr-set! this (list-ref types index) 'abs (list-ref offsets index) val))
+      (procedure-rename
+       (λ (this val)
+         (ptr-set! this (list-ref types index) 'abs (list-ref offsets index) val))
+       (string->symbol (format "set-~a-~a!" who field-name)))
       (λ (this val)
         (error who "Field ~a not defined in current ffmpeg build" field-name))))
 
@@ -81,7 +87,7 @@
   (define-syntax-class ffmpeg-cstruct-field
     (pattern [name
               type
-              (~or (~optional (~seq #:deprecated deprecated) #:defaults ([deprecated #'+inf.0]))
+              (~or (~optional (~seq #:removed deprecated) #:defaults ([deprecated #'+inf.0]))
                    (~optional (~seq #:added added) #:defaults ([added #'0]))
                    (~optional (~seq #:offset offset) #:defaults ([offset #'#f])))
               ...])))
@@ -90,9 +96,7 @@
   (syntax-parse stx
     [(_ _id:id
         (~or (~optional (~seq #:version-proc version-proc)
-                        #:defaults ([version-proc #'(λ () (mk-version #:major 0))]))
-             (~optional (~seq #:max-version max-version) #:defaults ([max-version #'0]))
-             (~optional (~seq #:min-version min-version) #:defaults ([min-version #'0])))
+                        #:defaults ([version-proc #'(λ () (mk-version #:major 0))])))
         ...
         (fields:ffmpeg-cstruct-field ...)
         (~optional (~seq #:alignment alignment) #:defaults ([alignment #'#f])))
@@ -112,15 +116,16 @@
        (begin
          (define the-fields
            (list (vector 'fields.name
-                         (max fields.added min-version)
-                         (min fields.deprecated max-version)
+                         fields.added
+                         fields.deprecated
                          fields.type
                          fields.offset)
                  ...))
          (define the-version (version-major (version-proc)))
          (define current-fields
            (for/list ([i (in-list the-fields)]
-                      #:when (<= (vector-ref i 1) the-version (vector-ref i 2)))
+                      #:when (and (<= (vector-ref i 1) the-version)
+                                  (< the-version (vector-ref i 2))))
              (list (vector-ref i 0) (vector-ref i 3) (vector-ref i 4))))
          (define field-names (map first current-fields))
          (define field-types (map second current-fields))
@@ -131,16 +136,16 @@
            (make-ctype
             (make-cstruct-type field-types #f alignment)
             (λ (x)
-              (set-cpointer-tag! x 'id)
-              x)
-            (λ (x)
               (unless (eq? (cpointer-tag x) 'id)
                 (error 'id "Not right type, expected: ~a found: ~a"
-                       (cpointer-tag x)
-                       'id))
+                       'id
+                       (cpointer-tag x)))
+              x)
+            (λ (x)
+              (set-cpointer-tag! x 'id)
               x)))
-         (define id-field (build-getter 'fields.name field-names field-types offsets _id)) ...
-         (define set-id-field! (build-setter 'fields.name field-names field-types offsets _id)) ...
+         (define id-field (build-getter 'fields.name field-names field-types offsets 'id)) ...
+         (define set-id-field! (build-setter 'fields.name field-names field-types offsets 'id)) ...
          (define id-field-names (for/list ([i (in-list the-fields)])
                                   (vector-ref i 0)))
          (define (make-id . inits)
@@ -174,7 +179,7 @@
                   (/ (avrational-num x)
                      (avrational-den x))))))
 
-(define-cstruct _av-dictionary-entry
+(define-ffmpeg-cstruct _av-dictionary-entry
   ([key _pointer]
    [value _pointer]))
 
@@ -182,7 +187,8 @@
   ([count _int]
    [elems _av-dictionary-entry-pointer/null]))
 
-(define-cstruct _avclass
+(define-ffmpeg-cstruct _avclass
+  #:version-proc avutil-version
   ([class-name _bytes]
    [item-name (_fun _pointer -> _string)]
    [option _pointer]
@@ -190,12 +196,15 @@
    [log-level-offset-offset _int]
    [parent-log-context-offset _int]
    [child-next _pointer]
+   [child-class-next _pointer] 
    [catagory _avclass-category]
    [get-catagory _fpointer]
    [query-range _fpointer]))
 
-(define-cstruct _avio-context
-  ([buffer _bytes]
+(define-ffmpeg-cstruct _avio-context
+  #:version-proc avformat-version
+  ([av-class _pointer]
+   [buffer _bytes]
    [buffer-size _int]
    [buf-ptr _bytes]
    [buf-end _bytes]
@@ -220,37 +229,31 @@
    [bytes-read _int64]
    [seek-count _int]
    [writeout-count _int]
-   [orig-buffer-size _int]))
+   [orig-buffer-size _int]
+   [short-seek-threashold _int]
+   [protocol-whitelist _string #:added 55]
+   [protocol-blacklist _string #:added 55]
+   [write-data-type _pointer #:added 55]
+   [ignore-boundary-point _int #:added 55]
+   [current-type _avio-data-marker-type #:added 55]
+   [last-time _int64]))
 
-(define-cstruct _avio-interrupt-cb
+(define-ffmpeg-cstruct _avio-interrupt-cb
   ([callback _fpointer]
    [opaque _pointer]))
 
-(define-cstruct _av-input-format
+(define-ffmpeg-cstruct _av-input-format
+  #:version-proc avformat-version
   ([name _string]
    [long-name _string]
    [flags _avio-format-flags]
    [extensions _string]
    [codec-tag _pointer]
    [priv-class _pointer]
-   [mime-type _string]
-   [next _pointer]
-   [raw-codec-id _int]
-   [priv-data-size _int]
-   [read-probe _fpointer]
-   [read-header _fpointer]
-   [read-packet _fpointer]
-   [read-close _fpointer]
-   [read-seek _fpointer]
-   [read-timestamp _fpointer]
-   [read-play _fpointer]
-   [read-pause _fpointer]
-   [read-seek2 _fpointer]
-   [get-device-list _fpointer]
-   [create-device-capabilities _fpointer]
-   [free-device-capabilities _fpointer]))
+   [mime-type _string]))
 
-(define-cstruct _av-output-format
+(define-ffmpeg-cstruct _av-output-format
+  #:version-proc avformat-version
   ([name _string]
    [long-name _string]
    [mime-type _string]
@@ -276,15 +279,13 @@
   (make-avchapter id tb s e m))
 
 (define-ffmpeg-cstruct _avformat-context
-  #:min-version 55
-  #:max-version 57
   #:version-proc avformat-version
   ([av-class _pointer]
    [iformat _av-input-format-pointer/null]
    [oformat _av-output-format-pointer/null]
-   [priv_data _pointer]
+   [priv-data _pointer]
    [pb _avio-context-pointer/null]
-   [ctx-flags _int] ; _avformat-context-flags
+   [ctx-flags _avformat-context-flags]
    [nb-streams _uint]
    [streams-data _pointer]
    [filename (_array _byte 1024)]
@@ -294,8 +295,8 @@
    [packet-size _uint]
    [max-delay _uint]
    [flags _avformat-flags]
-   [probesize _uint]
-   [max-anlayze-duration _int]
+   [probesize _uint]           ; Un-deprecated in 57
+   [max-analyze-duration _int] ; Un-deprecated in 57
    [key _pointer]
    [keylen _int]
    [nb-programs _uint]
@@ -315,15 +316,15 @@
    [debug _int]
    [max-interleave-delay _int64]
    [string-std-compliance _int]
-   [event-flags _int]
+   [event-flags _avformat-event-flags]
    [max-ts-probe _int]
-   [avoid-negative-ts _int]
+   [avoid-negative-ts _avformat-avoid-negative-ts]
    [ts-id _int]
    [audio-preload _int]
    [max-chunk-duration _int]
    [max-chunk-size _int]
    [use-wallclock-as-timestamps _int]
-   [avio-flags _int]
+   [avio-flags _avio-flags]
    [durration-estimation-method _av-duration-estimation-method]
    [skip-initial-bytes _int64]
    [correct-ts-overflow _uint]
@@ -343,11 +344,15 @@
    [opaque _pointer]
    [control-message-cb _pointer]
    [output-ts-offset _int64]
-   [max-analyze-duration2 _int64]
-   [probesize2 _int64]
+   [max-analyze-duration2 _int64 #:removed 57]
+   [probesize2 _int64 #:removed 57]
    [dump-separator _uint8]
    [data-codec-id _avcodec-id]
-   [open-cb _pointer]))
+   [open-cb _pointer #:removed 58]
+   [protocall-whitelist _pointer #:added 57]
+   [io-open _pointer #:added 57]
+   [io-close _pointer #:added 57]
+   [protocall-blacklist _pointer #:added 57]))
 (define (avformat-context-streams v)
   (cblock->list (avformat-context-streams-data v)
                 _avstream-pointer
@@ -363,14 +368,12 @@
   (set-avformat-context-chapters-data! v key)
   key)
 
-(define-cstruct _avbuffer-ref
+(define-ffmpeg-cstruct _avbuffer-ref
   ([buffer _pointer]
    [data _pointer]
    [size _int]))
 
 (define-ffmpeg-cstruct _avpacket
-  #:min-version 55
-  #:max-version 59
   #:version-proc avcodec-version
   ([buf _avbuffer-ref-pointer/null]
    [pts _int64]
@@ -382,14 +385,17 @@
    [side-data _pointer]
    [side-data-elems _int]
    [durration _int64]
+   [destruct _pointer #:removed 57]
+   [priv _pointer #:removed 57]
    [pos _int64]
-   [convergence-duration _int64 #:deprecated 59]))
+   [convergence-duration _int64 #:removed 59]))
 
-(define-cstruct _avpacket-list
+(define-ffmpeg-cstruct _avpacket-list
   ([pkt _avpacket]
    [next _avpacket-pointer]))
 
-(define-cstruct _avcodec-parameters
+(define-ffmpeg-cstruct _avcodec-parameters
+  #:version-proc avcodec-version
   ([codec-type _avmedia-type]
    [codec-id _avcodec-id]
    [codec-tag _uint32]
@@ -420,7 +426,7 @@
    [trailing-padding _int]
    [seek-preroll _int]))
 
-(define-cstruct _avcodec
+(define-ffmpeg-cstruct _avcodec
   ([name _bytes]
    [long-name _bytes]
    [type _avmedia-type]
@@ -433,37 +439,18 @@
    [channel-layouts _av-channel-layout-pointer/null]
    [max-lowres _uint8]
    [priv-class _pointer]
-   [profiles _pointer]
-   [priv-data-size _int]
-   [next _pointer]
-   [defaults _pointer]
-   [init-static-data _fpointer]
-   [init _fpointer]
-   [encode-sub _fpointer]
-   [encode2 _fpointer]
-   [decode _fpointer]
-   [close* _fpointer]
-   [send-frame* _fpointer]
-   [send-packet* _fpointer]
-   [receive-frame* _fpointer]
-   [receive-packet* _fpointer]
-   [flush _fpointer]
-   [caps-internal _int]
-   [init-thread-copy _fpointer]
-   [update-thread-context _fpointer]))
+   [profiles _pointer]))
 
 (define-ffmpeg-cstruct _avcodec-context
-  #:min-version 55
-  #:max-version 59
   #:version-proc avcodec-version
   ([av-class _pointer]
    [log-level-offset _int]
    [codec-type* _avmedia-type]
    [codec _avcodec-pointer/null]
-   [codec-name (_array _byte 32) #:deprecated 58]
+   [codec-name (_array _byte 32) #:removed 58]
    [codec-id _avcodec-id]
    [codec-tag _uint]
-   [stream-codec-tag _uint #:deprecated 59]
+   [stream-codec-tag _uint #:removed 59]
    [priv-data _pointer]
    [internal _pointer]
    [opaque _pointer]
@@ -484,16 +471,16 @@
    [coded-height _int]
    [gop-size _int]
    [pix-fmt _avpixel-format]
-   [me-method _int #:deprecated 59]
+   [me-method _int #:removed 59]
    [draw-horiz-band _fpointer]
    [get-format _fpointer]
    [max-b-frames _int]
    [b-quant-factor _float]
-   [rc-strategy _int #:deprecated 59]
-   [b-frame-strategy _int #:deprecated 59]
+   [rc-strategy _int #:removed 59]
+   [b-frame-strategy _int #:removed 59]
    [b-quant-offset _float]
    [has-b-frames _int]
-   [mpeg-quant _int #:deprecated 59]
+   [mpeg-quant _int #:removed 59]
    [i-quant-factor _float]
    [i-quant-offset _float]
    [lumi-masking _float]
@@ -502,47 +489,47 @@
    [p-masking _float]
    [dark-masking _float]
    [slice-count _int]
-   [prediction-method _int #:deprecated 59]
+   [prediction-method _int #:removed 59]
    [slice-offset _pointer]
    [sample-aspect-ratio _avrational]
    [me-cmp _int]
    [me-sub-cmp _int]
    [mb-cmp _int]
-   [ildct-cmp _int]
+   [ildct-cmp _interlaced-compare]
    [dia-size _int]
    [last-predictor-count _int]
-   [pre-me _int #:deprecated 59]
+   [pre-me _int #:removed 59]
    [me-pre-cmp _int]
    [pre-dia-size _int]
    [me-subpel-quality _int]
-   [dtg-active-format _int #:deprecated 58]
+   [dtg-active-format _int #:removed 58]
    [me-range _int]
-   [intra-quant-bias _int #:deprecated 59]
-   [inter-quant-bias _int #:deprecated 59]
-   [slice-flags _int]
-   [xvmc-acceleration _int #:deprecated 58]
-   [mb-decision _int]
+   [intra-quant-bias _int #:removed 59]
+   [inter-quant-bias _int #:removed 59]
+   [slice-flags _slice-flags]
+   [xvmc-acceleration _int #:removed 58]
+   [mb-decision _mb-decision]
    [intra-matrix _pointer]
    [inter-matrix _pointer]
-   [scenechange-threashold _int #:deprecated 59]
-   [noise-reduction _int #:deprecated 59]
-   [me-threashold _int #:deprecated 59]
-   [mb-threashold _int #:deprecated 59]
+   [scenechange-threashold _int #:removed 59]
+   [noise-reduction _int #:removed 59]
+   [me-threashold _int #:removed 59]
+   [mb-threashold _int #:removed 59]
    [intra-dc-precision _int]
    [skip-top _int]
    [skip-bottom _int]
-   [border-masking _float #:deprecated 59]
+   [border-masking _float #:removed 59]
    [mb-lmin _int]
    [mb-lmax _int]
-   [me-penalty-compensation _int #:deprecated 59]
+   [me-penalty-compensation _int #:removed 59]
    [bidir-refine _int]
-   [brd-scale _int #:deprecated 59]
+   [brd-scale _int #:removed 59]
    [keyint-min _int]
    [refs _int]
-   [chromaoffset _int #:deprecated 59]
-   [scenechange-factor _int #:deprecated 58]
+   [chromaoffset _int #:removed 59]
+   [scenechange-factor _int #:removed 58]
    [mv0-threashold _int]
-   [b-sensitivity _int #:deprecated 59]
+   [b-sensitivity _int #:removed 59]
    [color-primaries _avcolor-primaries]
    [color-trc _avcolor-transfer-characteristic]
    [colorspace _avcolor-space]
@@ -557,10 +544,14 @@
    [frame-number _int]
    [block-align _int]
    [cutoff _int]
+   [request-channels _int #:removed 57]
    [channel-layout _av-channel-layout]
    [request-channel-layout _av-channel-layout]
    [audio-service-type _avaudio-service-type]
    [request-sample-format _avsample-format]
+   [get-buffer _fpointer #:removed 57]
+   [release-buffer _fpointer #:removed 57]
+   [reget-buffer _fpointer #:removed 57]
    [get-buffer2 _fpointer]
    [refcounted-frames _int]
    [qcompress _float]
@@ -568,49 +559,51 @@
    [qmin _int]
    [qmax _int]
    [max-qdiff _int]
-   [rc-qsquish _float]
-   [rc-qmod-amp _float]
-   [rc-qmod-freq _int]
+   [rc-qsquish _float #:removed 59]
+   [rc-qmod-amp _float #:removed 59]
+   [rc-qmod-freq _int #:removed 59]
    [rc-buffer-size _int]
    [rc-override-count _int]
    [rc-override _pointer]
-   [rc-eq _bytes]
+   [rc-eq _bytes #:removed 59]
    [rc-max-rate _int64]
    [rc-min-rate _int64]
-   [rc-buffer-aggressivity _float]
-   [rc-initial-cpix _float]
+   [rc-buffer-aggressivity _float #:removed 59]
+   [rc-initial-cpix _float #:removed 59]
    [rc-max-available-vbv-use _float]
+   [rc-min-available-vbv-use _float]
    [rc-initial-buffer-occupancy _int]
-   [coder-type _int]
-   [context-model _int]
-   [lmin _int]
-   [lmax _int]
-   [frame-skip-threshold _int]
-   [frame-skip-factor _int]
-   [frame-skip-exp _int]
-   [frame-skip-cmp _int]
-   [trellis _int]
-   [min-prediction-order _int]
-   [max-prediction-order _int]
+   [coder-type _int #:removed 59]
+   [context-model _int #:removed 59]
+   [lmin _int #:removed 59]
+   [lmax _int #:removed 59]
+   [frame-skip-threshold _int #:removed 59]
+   [frame-skip-factor _int #:removed 59]
+   [frame-skip-exp _int #:removed 59]
+   [frame-skip-cmp _int #:removed 59]
+   [trellis _int #:removed 59]
+   [min-prediction-order _int #:removed 59]
+   [max-prediction-order _int #:removed 59]
    [timecode-frame-start _int64]
-   [rtp-callback _fpointer]
-   [rtp-payload-size _int]
-   [mv-bits _int]
-   [header-bits _int]
-   [i-tex-bits _int]
-   [p-tex-bits _int]
-   [i-count _int]
-   [p-count _int]
-   [skip-count _int]
-   [misc-bits _int]
-   [frame-bits _int]
+   [rtp-callback _fpointer #:removed 59]
+   [rtp-payload-size _int #:removed 59]
+   [mv-bits _int #:removed 59]
+   [header-bits _int #:removed 59]
+   [i-tex-bits _int #:removed 59]
+   [p-tex-bits _int #:removed 59]
+   [i-count _int #:removed 59]
+   [p-count _int #:removed 59]
+   [skip-count _int #:removed 59]
+   [misc-bits _int #:removed 59]
+   [frame-bits _int #:removed 59]
    [stats-out _bytes]
    [stats-in _bytes]
-   [workaround-bugs _int]
-   [strict-std-compliance _int]
-   [error-concealment _int]
-   [debug _int]
-   [debug-mv _int]
+   [workaround-bugs _workaround-bugs]
+   [strict-std-compliance _compliance]
+   [error-concealment _error-concealment]
+   [debug _debug]
+   [debug-mv _int #:removed 58]
+   ;; TODO rest of remove fields in this struct!
    [err-recognition _int]
    [reordered-opaque _int64]
    [hwaccel _pointer]
@@ -662,29 +655,26 @@
    [sub-text-format _int]
    [trailling-padding _int]))
 
-(define-cstruct _avprobe-data
+(define-ffmpeg-cstruct _avprobe-data
   ([filename _bytes]
    [buf _pointer]
    [buf-size _int]
    [mime-type _bytes]))
 
 (define-ffmpeg-cstruct _avfrac
-  #:min-version 55
-  #:max-version 58
   #:version-proc avformat-version
   ([val _int64]
    [num _int64]
    [den _int64]))
 
+;; TODO, this struct
 (define-ffmpeg-cstruct _avstream
-  #:min-version 55
-  #:max-version 59
   #:version-proc avformat-version
   ([index _int]
    [id _int]
-   [codec _pointer #:deprecated 58] ;_avcodec-context-pointer]
+   [codec _pointer #:removed 58] ;_avcodec-context-pointer]
    [priv-data _pointer]
-   [pts _avfrac #:deprecated 58]
+   [pts _avfrac #:removed 58]
    [time-base _avrational]
    [start-time _int64]
    [duration _int64]
@@ -744,13 +734,11 @@
    [codecpar _avcodec-parameters-pointer/null]))
 
 (define-ffmpeg-cstruct _av-picture
-  #:min-version 55
-  #:max-version 58
   #:version-proc avcodec-version
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]))
 
-(define-cstruct _av-frame-side-data
+(define-ffmpeg-cstruct _av-frame-side-data
   ([type _av-frame-side-data-type]
    [data _pointer]
    [size _int]
@@ -759,9 +747,8 @@
 
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
+;; TODO, this struct
 (define-ffmpeg-cstruct _av-frame
-  #:min-version 55
-  #:max-version 59
   #:version-proc avutil-version
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
    [linesize (_array _int AV-NUM-DATA-POINTERS)]
@@ -774,13 +761,13 @@
    [pict-type _avpicture-type]
    [sample-aspect-ration _avrational]
    [pts _int64]
-   [pkt-pts _int64 #:deprecated 56]
+   [pkt-pts _int64 #:removed 56]
    [pkt-dts _int64]
    [coded-picture-number _int]
    [display-picture-number _int]
    [quality _int]
    [opaque _pointer]
-   [error (_array _uint64 AV-NUM-DATA-POINTERS) #:deprecated 56]
+   [error (_array _uint64 AV-NUM-DATA-POINTERS) #:removed 56]
    [repeate-pict _int]
    [interlaced-frame _int]
    [top-field-first _int]
@@ -806,10 +793,10 @@
    [decode-error-flags _ff-decode-error-flags]
    [channels _int]
    [pkt-size _int]
-   [qscale-table _int8 #:deprecated 56]
-   [qstride _int #:deprecated 56]
-   [qscale-type _int #:deprecated 56]
-   [qp-table-ref _pointer #:deprecated 56]
+   [qscale-table _int8 #:removed 56]
+   [qstride _int #:removed 56]
+   [qscale-type _int #:removed 56]
+   [qp-table-ref _pointer #:removed 56]
    [hw-frames-ctx _pointer]
    [opaque-ref _pointer]))
 (define (av-frame-format/video frame)
@@ -939,15 +926,14 @@
    [sample-rate _int]
    [channel-layout _av-channel-layout]))
 
+;; TODO, this struct
 (define-ffmpeg-cstruct _avsubtitle-rect
-  #:min-version 55
-  #:max-version 59
   #:version-proc avcodec-version
   ([x _int]
    [y _int]
    [w _int]
    [h _int]
-   [pict _av-picture #:deprecated 59]
+   [pict _av-picture #:removed 59]
    [data (_array _uint8 4)]
    [linesize (_array _int 4)]
    [type _avsubtitle-type]

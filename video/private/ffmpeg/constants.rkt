@@ -337,6 +337,14 @@
               shortest
               auto-bsf)))
 
+(define _avformat-context-flags
+  (_bitmask `(noheader)
+            _int))
+
+(define _avformat-event-flags
+  (_bitmask `(metadata-updated)
+            _int))
+
 (define _avcodec-flags
   (_bitmask `(unaligned
               qscale
@@ -450,6 +458,51 @@
               export
               readonly
               filtering-param = ,(arithmetic-shift 1 16))))
+
+(define _slice-flags
+  (_bitmask `(coded-order
+              allow-field
+              allow-pane)
+            _int))
+
+(define _workaround-bugs
+  (_bitmask '(autodetect
+              msmpeg4  ; <- Deprecated
+              xvid-ilace
+              ump4
+              no-padding
+              amv
+              qpel-chroma
+              std-qpel
+              qpel-chroma2
+              direct-blocksize
+              edge
+              hpel-chroma
+              dc-clip
+              ms
+              truncated)
+            _int))
+
+(define _debug
+  (_bitmask '(info
+              rc
+              bitstream
+              mb-type
+              qp
+              mv ; <- deprecated, does nothing
+              dct-coeff = #x40
+              skip
+              startcode
+              pts ; <- deprecated
+              er
+              mmco
+              bugs
+              vis-qp ; <- deprecated
+              vis-mb-type ; <- deprecated
+              buffers
+              threads
+              green-md = #x800000
+              nomc = #x1000000)))
 
 ;; ===================================================================================================
 
@@ -1328,3 +1381,53 @@
            color = ,(MK-BE-TAG #\C #\O #\L #\R)
            channel-layout = ,(MK-BE-TAG #\C #\H #\L #\A)
            bool = ,(MK-BE-TAG #\B #\O #\O #\L))))
+
+(define _avio-data-marker-type
+  (_enum '(header
+           sync-point
+           boundary-point
+           unknown
+           trailer)))
+
+(define _avformat-avoid-negative-ts
+  (_enum '(auto = -1
+           default = 0
+           make-non-negative = 1
+           make-zero = 2)))
+
+(define _interlaced-compare
+  (_enum '(sad = 0
+           sse
+           satd
+           dct
+           psnr
+           bit
+           rd
+           zero
+           vsad
+           vsse
+           nsse
+           w53
+           w97
+           dctmax
+           dct264
+           chroma = 256)))
+
+(define _mb-decision
+  (_enum '(simple = 0
+           bits
+           rd)))
+
+(define _compliance
+  (_enum '(experimental = -2
+           unofficial = -1
+           normal = 0
+           strict = 1
+           very-strict = 2)
+         _int))
+
+(define _error-concealment
+  (_enum '(guess-mvs = 1
+           deblock = 2
+           favor-inter = 256)
+         _int))

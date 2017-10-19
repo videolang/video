@@ -61,7 +61,8 @@
   ;(avformat-context->list ctx)
   (for ([name (in-list _avformat-context-field-names)])
     (define accessor (eval (string->symbol (format "avformat-context-~a" name)) here))
-    (accessor ctx)))
+    (with-handlers ([exn:ffmpeg:lib? (λ (e) (void))])
+      (accessor ctx))))
 
 (let ()
   (define c (mk-command "str0" "fade"))
