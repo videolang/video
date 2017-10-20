@@ -504,6 +504,10 @@
               green-md = #x800000
               nomc = #x1000000)))
 
+(define _codec-properties
+  (_bitmask '(lossless
+              closed-captions)))
+
 ;; ===================================================================================================
 
 (define _is-output (_enum '(input = 0
@@ -1431,3 +1435,116 @@
            deblock = 2
            favor-inter = 256)
          _int))
+
+(define _dct-algorithm
+  (_enum '(auto = 0
+           fastint
+           int
+           mmx
+           altivec
+           faan)))
+
+(define _idct-algorithm
+  (_enum '(auto = 0
+           int
+           simple
+           simplemax
+           arm
+           altivec
+           sh4 ; <- deprecated
+           simplearm
+           ipp = 13 ; <- deprecated
+           xvid
+           simplearmv5te = 16
+           simplearmv6
+           simplevis ; <- deprecated
+           faan = 20
+           simpleneon = 22
+           simple-alpha ; <- deprecated
+           simpleauto = 128)))
+
+(define _ff-profile
+  (let ()
+    (define FF_PROFILE_UNKNOWN -99)
+    (define FF_PROFILE_RESERVED -100)
+
+    (define FF_PROFILE_AAC_MAIN 0)
+    (define FF_PROFILE_AAC_LOW  1)
+    (define FF_PROFILE_AAC_SSR  2)
+    (define FF_PROFILE_AAC_LTP  3)
+    (define FF_PROFILE_AAC_HE   4)
+    (define FF_PROFILE_AAC_HE_V2 28)
+    (define FF_PROFILE_AAC_LD   22)
+    (define FF_PROFILE_AAC_ELD  38)
+    (define FF_PROFILE_MPEG2_AAC_LOW 128)
+    (define FF_PROFILE_MPEG2_AAC_HE  131)
+    
+    (define FF_PROFILE_DTS         20)
+    (define FF_PROFILE_DTS_ES      30)
+    (define FF_PROFILE_DTS_96_24   40)
+    (define FF_PROFILE_DTS_HD_HRA  50)
+    (define FF_PROFILE_DTS_HD_MA   60)
+    (define FF_PROFILE_DTS_EXPRESS 70)
+    
+    (define FF_PROFILE_MPEG2_422    0)
+    (define FF_PROFILE_MPEG2_HIGH   1)
+    (define FF_PROFILE_MPEG2_SS     2)
+    (define FF_PROFILE_MPEG2_SNR_SCALABLE  3)
+    (define FF_PROFILE_MPEG2_MAIN   4)
+    (define FF_PROFILE_MPEG2_SIMPLE 5)
+    
+    (define FF_PROFILE_H264_CONSTRAINED  (arithmetic-shift 1 9))
+    (define FF_PROFILE_H264_INTRA        (arithmetic-shift 1 11))
+    
+    (define FF_PROFILE_H264_BASELINE             66)
+    (define FF_PROFILE_H264_CONSTRAINED_BASELINE (bitwise-ior 66 FF_PROFILE_H264_CONSTRAINED))
+    (define FF_PROFILE_H264_MAIN                 77)
+    (define FF_PROFILE_H264_EXTENDED             88)
+    (define FF_PROFILE_H264_HIGH                 100)
+    (define FF_PROFILE_H264_HIGH_10              110)
+    (define FF_PROFILE_H264_HIGH_10_INTRA        (bitwise-ior 110 FF_PROFILE_H264_INTRA))
+    (define FF_PROFILE_H264_HIGH_422             122)
+    (define FF_PROFILE_H264_HIGH_422_INTRA       (bitwise-ior 122 FF_PROFILE_H264_INTRA))
+    (define FF_PROFILE_H264_HIGH_444             144)
+    (define FF_PROFILE_H264_HIGH_444_PREDICTIVE  244)
+    (define FF_PROFILE_H264_HIGH_444_INTRA       (bitwise-ior 244 FF_PROFILE_H264_INTRA))
+    (define FF_PROFILE_H264_CAVLC_444            44)
+    
+    (define FF_PROFILE_VC1_SIMPLE   0)
+    (define FF_PROFILE_VC1_MAIN     1)
+    (define FF_PROFILE_VC1_COMPLEX  2)
+    (define FF_PROFILE_VC1_ADVANCED 3)
+    
+    (define FF_PROFILE_MPEG4_SIMPLE                     0)
+    (define FF_PROFILE_MPEG4_SIMPLE_SCALABLE            1)
+    (define FF_PROFILE_MPEG4_CORE                       2)
+    (define FF_PROFILE_MPEG4_MAIN                       3)
+    (define FF_PROFILE_MPEG4_N_BIT                      4)
+    (define FF_PROFILE_MPEG4_SCALABLE_TEXTURE           5)
+    (define FF_PROFILE_MPEG4_SIMPLE_FACE_ANIMATION      6)
+    (define FF_PROFILE_MPEG4_BASIC_ANIMATED_TEXTURE     7)
+    (define FF_PROFILE_MPEG4_HYBRID                     8)
+    (define FF_PROFILE_MPEG4_ADVANCED_REAL_TIME         9)
+    (define FF_PROFILE_MPEG4_CORE_SCALABLE             10)
+    (define FF_PROFILE_MPEG4_ADVANCED_CODING           11)
+    (define FF_PROFILE_MPEG4_ADVANCED_CORE             12)
+    (define FF_PROFILE_MPEG4_ADVANCED_SCALABLE_TEXTURE 13)
+    (define FF_PROFILE_MPEG4_SIMPLE_STUDIO             14)
+    (define FF_PROFILE_MPEG4_ADVANCED_SIMPLE           15)
+    
+    (define FF_PROFILE_JPEG2000_CSTREAM_RESTRICTION_0   0)
+    (define FF_PROFILE_JPEG2000_CSTREAM_RESTRICTION_1   1)
+    (define FF_PROFILE_JPEG2000_CSTREAM_NO_RESTRICTION  2)
+    (define FF_PROFILE_JPEG2000_DCINEMA_2K              3)
+    (define FF_PROFILE_JPEG2000_DCINEMA_4K              4)
+    
+    (define FF_PROFILE_VP9_0                            0)
+    (define FF_PROFILE_VP9_1                            1)
+    (define FF_PROFILE_VP9_2                            2)
+    (define FF_PROFILE_VP9_3                            3)
+    
+    (define FF_PROFILE_HEVC_MAIN                        1)
+    (define FF_PROFILE_HEVC_MAIN_10                     2)
+    (define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3)
+    (define FF_PROFILE_HEVC_REXT                        4)
+    'TODO))
