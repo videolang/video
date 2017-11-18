@@ -297,13 +297,19 @@
            [label "00:00:00.00"]
            [font (make-object font% 32 'modern 'normal 'bold)]
            [stretchable-width #f]))
-    (define render-row
-      (new horizontal-pane%
+    (define control-row
+      (new horizontal-panel%
            [parent this]
+           [style '[border]]
+           [alignment '(center center)]))
+    (define render-row
+      (new horizontal-panel%
+           [parent control-row]
+           [style '[border]]
            [alignment '(center center)]))
     (new check-box%
          [parent render-row]
-         [label "Render Video"]
+         [label "Video"]
          [value #t]
          [callback
           (λ (c e)
@@ -311,15 +317,16 @@
             (render-video v))])
     (new check-box%
          [parent render-row]
-         [label "Render Audio"]
+         [label "Audio"]
          [value #t]
          [callback
           (λ (c e)
             (define v (send c get-value))
             (render-audio v))])
     (define seek-row
-      (new horizontal-pane%
-           [parent this]
+      (new horizontal-panel%
+           [parent control-row]
+           [style '[border]]
            [alignment '(center center)]))
     (define seek-field
       (new text-field%
@@ -339,8 +346,9 @@
             (define frame (send seek-field get-value))
             (send vps seek (string->number frame)))])
     (define speed-row
-      (new horizontal-pane%
-           [parent this]
+      (new horizontal-panel%
+           [parent control-row]
+           [style '[border]]
            [alignment '(center center)]))
     (define speed-field
       (new text-field%
@@ -361,12 +369,14 @@
              (define speed (string->number (send speed-field get-value)))
              (when speed
                (send vps set-speed speed)))])
-    (new message%
-         [parent this]
-         [label (format "FPS: ~a" (send vps get-fps))])
 
     ;; Start the initial video
     (send vps set-video video)
+    (define fps-indicator-updater
+      (new timer%
+           [interval 250]
+           [notify-callback
+            (λ () (send this set-label (format "Video Player (FPS:~a)" (send vps get-fps))))]))
     (define seek-bar-updater
       (new timer%
            [interval 50]
