@@ -22,7 +22,8 @@ video
 #:wrapper1 (λ (x) (list* 'vid 'values '() (x)))
 #:info make-info
 
-(require scribble/reader)
+(require scribble/reader
+         syntax-color/scribble-lexer)
 
 (define (make-info key default use-default)
   (case key
@@ -30,4 +31,6 @@ video
      (define camera-button
        (dynamic-require 'video/private/camera-icon 'camera-button))
      (list camera-button)]
+    [(color-lexer)
+     scribble-lexer]
     [else (use-default key default)]))
