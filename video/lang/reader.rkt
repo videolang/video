@@ -31,6 +31,7 @@ video
      (define camera-button
        (dynamic-require 'video/private/camera-icon 'camera-button))
      (list camera-button)]
-    [(color-lexer)
-     scribble-lexer]
+    [(color-lexer) scribble-lexer]
+    [(drracket:default-filters) '(("Video Sources" "*.vid"))]
+    [(drracket:default-extension) "vid"]
     [else (use-default key default)]))
