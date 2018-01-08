@@ -34,6 +34,7 @@
                 "opengl"
                 "portaudio"
                 "net-lib"
+                "syntax-color-lib"
                 ("graph" "0.3.1")
                 ("libvid-x86_64-macosx" #:platform "x86_64-macosx")
                 ("libvid-x86_64-win32" #:platform "win32\\x86_64")
