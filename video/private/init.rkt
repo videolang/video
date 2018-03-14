@@ -43,7 +43,7 @@
                     level
                     msg))
 
-(define (callback-proc name level len msg)
+(define (callback-proc level name msg)
   (define name* (or name #"???"))
   (set! ffmpeg-log-list (cons (ffmpeg-msg name* level msg) ffmpeg-log-list)))
 

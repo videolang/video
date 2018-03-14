@@ -255,7 +255,13 @@
                [(< ret 0) (error 'av-log-format-line2 "~a : ~a" ret (convert-err ret))]
                [else
                 (define out-len (min (sub1 len) ret))
-                (bytes->string/locale (subbytes out 0 out-len))]))))
+                (bytes->string/locale (subbytes out 0 out-len))])))
+  (define-avutil av-bprint-init (_fun (_ptr io _av-bprint) _uint _uint -> _void))
+  (define-avutil av-bprint-is-complete (_fun _av-bprint-pointer -> _bool))
+  (define-avutil av-bprint-finalize (_fun _av-bprint-pointer [out : (_ptr o _bytes)]
+                                          -> [res : _int]
+                                          -> (cond [(zero? res) out]
+                                                   [else (error 'bprint-finalize res)]))))
 (require 'avutil)
 (provide (all-from-out 'avutil))
   

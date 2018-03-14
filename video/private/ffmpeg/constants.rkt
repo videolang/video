@@ -1548,3 +1548,7 @@
     (define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3)
     (define FF_PROFILE_HEVC_REXT                        4)
     'TODO))
+
+(define av-bprint-size-unlimited -1)
+(define av-bprint-size-automatic 1)
+(define av-bprint-size-count-only 0)

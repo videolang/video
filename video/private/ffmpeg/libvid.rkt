@@ -43,16 +43,14 @@
 (define-libvid set-racket-log-callback
   (_fun (_fun #:async-apply (λ (x) (x))
               #:keep malloc-immobile-cell
-              _bytes _av-log-constant _int _bytes
+              _av-log-constant _av-bprint-pointer _av-bprint-pointer
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 
-(define-libvid libvid-get-version-major
-  (_fun -> _int))
-(define-libvid libvid-get-version-minor
-  (_fun -> _int))
-(define-libvid libvid-get-version-patch
-  (_fun -> _int))
+(define-libvid libvid-get-version-major (_fun -> _int))
+(define-libvid libvid-get-version-minor (_fun -> _int))
+(define-libvid libvid-get-version-patch (_fun -> _int))
+(define-libvid libvid-get-version-prerelease (_fun -> _int))
 
 ;; Determin if libvid is installed.
 ;; -> boolean?

@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -96,10 +96,11 @@
   (syntax-parse stx
     [(_ _id:id
         (~or (~optional (~seq #:version-proc version-proc)
-                        #:defaults ([version-proc #'(λ () (mk-version #:major 0))])))
-        ...
-        (fields:ffmpeg-cstruct-field ...)
-        (~optional (~seq #:alignment alignment) #:defaults ([alignment #'#f])))
+                        #:defaults ([version-proc #'(λ () (mk-version #:major 0))]))
+             (~once (fields:ffmpeg-cstruct-field ...))
+             (~optional (~seq #:size size-expr) #:defaults ([size-expr #'#f]))
+             (~optional (~seq #:alignment alignment) #:defaults ([alignment #'#f])))
+        ...)
      #:with id (format-id stx "~a" (remove-underscore #'_id))
      #:with id-field-names (format-id stx "~a-field-names" #'_id)
      #:with id-pointer (format-id stx "~a-pointer" #'_id)
@@ -114,6 +115,7 @@
                                   (format-id stx "set-~a-~a!" #'id i))
      (quasisyntax/loc stx
        (begin
+         (define size size-expr)
          (define the-fields
            (list (vector 'fields.name
                          fields.added
@@ -132,9 +134,13 @@
          (define field-manual-offsets (map third current-fields))
          (define offsets (compute-offsets* field-types alignment field-manual-offsets))
          (define-cpointer-type _^TYPE #:tag 'id)
+         (define base-id
+           (make-cstruct-type field-types #f alignment))
          (define _id
            (make-ctype
-            (make-cstruct-type field-types #f alignment)
+            (if size
+                (make-union-type base-id (make-array-type _byte size))
+                base-id)
             (λ (x)
               (unless (eq? (cpointer-tag x) 'id)
                 (error 'id "Not right type, expected: ~a found: ~a"
@@ -1010,3 +1016,11 @@
    [frame-width _int]
    [frame-height _int]
    [fps _avrational]))
+
+(define-ffmpeg-cstruct _av-bprint
+  #:size 1024
+  ([str _pointer]
+   [len _uint]
+   [size _uint]
+   [size-max _uint]
+   [reserved-internal-buffer _pointer]))
