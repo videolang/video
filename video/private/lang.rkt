@@ -17,7 +17,7 @@
 |#
 
 (provide (all-defined-out))
-(require (prefix-in core: video/core)
+(require (prefix-in core: "../core.rkt")
          (only-in "video.rkt" current-video-directory)
          "../base.rkt"
          racket/list
