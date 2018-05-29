@@ -56,6 +56,7 @@
                 #:width (and/c integer? positive?)
                 #:height (and/c integer? positive?)
                 #:fps real?
+                #:format (or/c symbol? #f)
                 #:video-frames (or/c nonnegative-integer? #f)
                 #:audio-frames (or/c nonnegative-integer? #f)
                 #:data-frames (or/c nonnegative-integer? #f)
@@ -78,6 +79,7 @@
                       #:width (and/c integer? positive?)
                       #:height (and/c integer? positive?)
                       #:fps real?
+                      #:format (or/c symbol? #f)
                       #:start (or/c (and/c real? (>=/c 0)) #f)
                       #:end (or/c (and/c real? (>=/c 0)) #f)
                       #:video-frames (or/c nonnegative-integer? #f)
@@ -100,6 +102,7 @@
                        #:width (and/c integer? positive?)
                        #:height (and/c integer? positive?)
                        #:fps real?
+                       #:format (or/c symbol? #f)
                        #:start (or/c (and/c real? (>=/c 0)) #f)
                        #:end (or/c (and/c real? (>=/c 0)) #f)
                        #:port (or/c output-port? #f)
@@ -171,6 +174,7 @@
                 #:convert-database [convert-database #f]
                 #:width [width 1920]
                 #:height [height 1080]
+                #:format [format #f]
                 #:start [start #f]
                 #:end [end #f]
                 #:pix-fmt [pf 'yuv420p]
@@ -190,6 +194,7 @@
         (make-render-settings #:destination dest*
                               #:width width
                               #:height height
+                              #:format format
                               #:start start
                               #:end end
                               #:video-frames vf
@@ -207,6 +212,7 @@
                       #:convert-database [convert-database #f]
                       #:width [width 1920]
                       #:height [height 1080]
+                      #:format [format #f]
                       #:start [start #f]
                       #:end [end #f]
                       #:fps [fps 25]
@@ -230,6 +236,7 @@
                               #:height height
                               #:start start
                               #:end end
+                              #:format format
                               #:video-frames vf
                               #:audio-frames af
                               #:data-frames df
@@ -259,6 +266,7 @@
                        #:convert-database [convert-database #f]
                        #:width [width 1920]
                        #:height [height 1080]
+                       #:format [format #f]
                        #:start [start #f]
                        #:end [end #f]
                        #:fps [fps 25]
@@ -278,6 +286,7 @@
                   #:convert-database convert-database
                   #:width width
                   #:height height
+                  #:format format
                   #:start start
                   #:end end
                   #:fps fps
@@ -405,7 +414,7 @@
             (define format-names
               (match format
                 ['raw (list "rawvideo" "s16be")]
-                [_ (list #f)]))
+                [_ (list (and format (symbol->string format)))]))
             (define video-streams (if render-video? 1 0))
             (define audio-streams (if render-audio? 1 0))
             (define out-paths

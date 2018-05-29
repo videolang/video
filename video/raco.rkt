@@ -143,6 +143,7 @@
                        #:width (output-width)
                        #:height (output-height)
                        #:render-mixin render-mixin
+                       #:format (output-type)
                        #:mode (cond
                                 [(output-silent) 'silent]
                                 [(output-verbose) 'verbose]
