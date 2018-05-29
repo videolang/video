@@ -61,6 +61,7 @@
                 #:audio-frames (or/c nonnegative-integer? #f)
                 #:data-frames (or/c nonnegative-integer? #f)
                 #:pix-fmt symbol?
+                #:sample-fmt symbol?
                 #:render-video? boolean?
                 #:render-audio? boolean?
                 #:start (or/c (and/c real? (>=/c 0)) #f)
@@ -86,6 +87,7 @@
                       #:audio-frames (or/c nonnegative-integer? #f)
                       #:data-frames (or/c nonnegative-integer? #f)
                       #:pix-fmt symbol?
+                      #:sample-fmt symbol?
                       #:render-video? boolean?
                       #:render-audio? boolean?
                       #:mode (or/c 'verbose #f)]
@@ -110,6 +112,7 @@
                        #:audio-frames (or/c nonnegative-integer? #f)
                        #:data-frames (or/c nonnegative-integer? #f)
                        #:pix-fmt symbol?
+                       #:sample-fmt symbol?
                        #:render-video? boolean?
                        #:render-audio? boolean?
                        #:mode (or/c 'verbose 'silent #f)]
@@ -178,6 +181,7 @@
                 #:start [start #f]
                 #:end [end #f]
                 #:pix-fmt [pf 'yuv420p]
+                #:sample-fmt [sf 'fltp]
                 #:video-frames [vf #f]
                 #:audio-frames [af #f]
                 #:data-frames [df #f]
@@ -201,6 +205,7 @@
                               #:audio-frames af
                               #:data-frames df
                               #:pix-fmt pf
+                              #:sample-fmt sf
                               #:render-video? rv?
                               #:render-audio? ra?
                               #:fps fps))
@@ -220,6 +225,7 @@
                       #:audio-frames [af #f]
                       #:data-frames [df #f]
                       #:pix-fmt [pf 'yuv420p]
+                      #:sample-fmt [sf 'fltp]
                       #:render-video? [rv? #t]
                       #:render-audio? [ra? #t]
                       #:mode [mode #f])
@@ -241,6 +247,7 @@
                               #:audio-frames af
                               #:data-frames df
                               #:pix-fmt pf
+                              #:sample-fmt sf
                               #:render-video? rv?
                               #:render-audio? ra?
                               #:fps fps))
@@ -275,6 +282,7 @@
                        #:audio-frames [af #f]
                        #:data-frames [df #f]
                        #:pix-fmt [pf 'yuv420p]
+                       #:sample-fmt [sf 'fltp]
                        #:render-video? [rv? #t]
                        #:render-audio? [ra? #t]
                        #:mode [mode #f])
@@ -294,6 +302,7 @@
                   #:audio-frames af
                   #:data-frames df
                   #:pix-fmt pf
+                  #:sample-fmt sf
                   #:render-video? rv?
                   #:render-audio? ra?
                   #:mode (if (eq? mode 'silent) #f mode)))

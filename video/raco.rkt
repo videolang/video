@@ -27,6 +27,8 @@
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
 (define output-video-codec (make-parameter 'h264))
+(define output-video? (make-parameter #t))
+(define output-audio? (make-parameter #t))
 (define output-audio-codec (make-parameter 'aac))
 (define output-subtitle-codec (make-parameter #f))
 (define output-pixel-format (make-parameter 'yuv420p))
@@ -57,6 +59,16 @@
   (define video-file
     (command-line
      #:program "video"
+     #:once-any
+     [("--enable-video") "Enable Video Output"
+                         (output-video? #t)]
+     [("--disable-video") "Disable Video Output"
+                          (output-video? #f)]
+     #:once-any
+     [("--enable-audio") "Enable Audio Output"
+                         (output-audio? #t)]
+     [("--disable-audio") "Disable Audio Output"
+                          (output-audio? #f)]
      #:once-each
      [("-f" "--format") format
                         "Output type"
@@ -72,7 +84,7 @@
                            (output-subtitle-codec (string->symbol subtitle-codec))]
      [("--pixel-format") pixel-format
                          "Output pixel format"
-                         (output-pixel-format pixel-format)]
+                         (output-pixel-format (string->symbol pixel-format))]
      [("--sample-format") sample-format
                           "Output sample format"
                           (output-sample-format (string->symbol sample-format))]
@@ -143,7 +155,11 @@
                        #:width (output-width)
                        #:height (output-height)
                        #:render-mixin render-mixin
+                       #:render-video? (output-video?)
+                       #:render-audio? (output-audio?)
                        #:format (output-type)
+                       #:sample-fmt (output-sample-format)
+                       #:pix-fmt (output-pixel-format)
                        #:mode (cond
                                 [(output-silent) 'silent]
                                 [(output-verbose) 'verbose]
