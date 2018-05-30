@@ -66,6 +66,7 @@
                        stream-table
                        avformat-context
                        options-dict
+                       start-offset
                        file)
   #:mutable)
 (define (mk-stream-bundle #:raw-streams [rs #'()]
@@ -73,8 +74,9 @@
                           #:stream-table [st (make-hash)]
                           #:avformat-context [ctx #f]
                           #:options-dict [o #f]
+                          #:start-offset [so #f]
                           #:file [f #f])
-  (stream-bundle rs s st ctx o f))
+  (stream-bundle rs s st ctx o so f))
 
 (struct codec-obj (codec-parameters
                    type
@@ -92,7 +94,6 @@
                    callback-data
                    extra-parameters
                    start-time
-                   start-offset
                    flags)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -111,9 +112,8 @@
                       #:callback-data [cd #f]
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
                       #:start-time [st (current-inexact-milliseconds)]
-                      #:start-offset [so #f]
                       #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st #f f))
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
@@ -362,22 +362,21 @@
         (for ([(k vs) (in-hash stream-table)])
           (for ([v vs])
             ((callback-ref callback-table k)) 'init v #f)))
-      (for  ([i streams])
-        (match i
-          [(struct* codec-obj ([start-offset start-offset]
-                               [stream stream]
-                               [index index]))
+      (match bundle
+        [(struct* stream-bundle ([start-offset start-offset]
+                                 [file file]))
            (when (and start-offset (not (= start-offset +inf.0)))
              (with-handlers ([exn:fail?
                               (λ (e)
-                                (log-video-error
-                                 "Cannot seek stream ~a from ~a, starting from beginning"
-                                 index avformat))])
+                                (log-video-warning "Cannot seek from ~a, starting from beginning"
+                                                   file))])
+               (define seek-point
+                 (exact-floor (/ (max 0 (- start-offset 1))
+                                 AV-TIME-BASE)))
                (av-seek-frame avformat
-                              index
-                              (exact-floor (/ (max 0 (- start-offset 1))
-                                              (avstream-time-base stream)))
-                              '(backwards))))])))
+                              -1
+                              seek-point
+                              '(backwards))))]))
 
     ;; #t - More to read
     ;; #f - Done reading
@@ -1216,11 +1215,14 @@
   (log-video-debug "Video Graph Created: ~a" (graphviz g))
   (log-video-debug "Filter Graph Created: ~a" g-str)
   (define seek-points (get-seek-point g 0))
-  (log-video-info "Starting Streams at points: ~a" seek-points)
+  (log-video-info "Starting Streams at points: ~a" (for/hash ([(k v) (in-hash seek-points)])
+                                                     (values (stream-bundle-file k) v)))
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
               ([bundle bundles])
+      (when seek?
+        (set-stream-bundle-start-offset! bundle (dict-ref seek-points bundle)))
       (for/fold ([ins ins])
                 ([str (stream-bundle-streams bundle)])
         (match str
@@ -1246,8 +1248,6 @@
                                (avcodec-context-sample-rate ctx))]))
            (define n (make-inout type* name (if (null? ins) #f (car ins)) args))
            (set-codec-obj-buffer-context! str (avfilter-in-out-filter-ctx n))
-           (when seek?
-             (set-codec-obj-start-offset! str (dict-ref seek-points bundle)))
            (cons n ins)]))))
   (define inputs
     (for/fold ([outs '()])
