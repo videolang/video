@@ -281,8 +281,8 @@
       (define codec-id (avcodec-parameters-codec-id codec-parameters))
       (define codec (avcodec-find-decoder codec-id))
       (define codec-ctx (avcodec-parameters-to-context codec codec-parameters))
+      (set-avcodec-context-time-base! codec-ctx (avstream-time-base i))
       (when (eq? codec-name 'video)
-        (set-avcodec-context-time-base! codec-ctx (avstream-time-base i))
         (set-avcodec-context-framerate! codec-ctx (av-guess-frame-rate avformat i #f)))
       (avcodec-open2 codec-ctx codec #f)
       (define obj (mk-codec-obj #:codec-parameters codec-parameters
@@ -384,6 +384,7 @@
       (define packet (av-read-frame avformat))
       (cond
         [packet
+         ;(log-video-debug "Read packet: ~a" packet)
          (define index (avpacket-stream-index packet))
          (define obj (vector-ref streams index))
          (cond [by-index-callback (by-index-callback 'loop obj packet)]
@@ -691,6 +692,7 @@
                                                (avstream-time-base stream))
                          (set-avpacket-stream-index!
                           next-packet (avstream-index (codec-obj-stream min-stream)))
+                         ;(log-video-debug "Wrote packet: ~a" next-packet)
                          (av-interleaved-write-frame output-context next-packet)
                          (av-packet-free next-packet)
                          1])]))]))
