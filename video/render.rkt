@@ -422,7 +422,8 @@
                 [else (list #f)]))
             (define format-names
               (match format
-                ['raw (list "rawvideo" "s16be")]
+                ['raw (append (if render-video? '("rawvideo") '())
+                              (if render-audio? '("s16be") '()))]
                 [_ (list (and format (symbol->string format)))]))
             (define video-streams (if render-video? 1 0))
             (define audio-streams (if render-audio? 1 0))
@@ -549,6 +550,7 @@
               (for/list ([spec (in-list bundle-specs)]
                          [format-name (in-list format-names)]
                          [out-path (in-list out-paths)])
+                (newline)
                 (stream-bundle->file out-path spec
                                      #:format-name format-name)))
             (define sink-node
@@ -707,8 +709,8 @@
       (set! render-video? val)
       (when r
         (setup (struct-copy render-settings current-render-settings
-                            [start (get-current-position)])))
-      (start-rendering))
+                            [start (get-current-position)]))
+        (start-rendering)))
 
     ;; Seek to a specific position (in seconds). Convience method
     ;;    whose functionality can be duplicated entirely from other methods.
