@@ -140,7 +140,7 @@
 (define (finish-execution v)
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
-(when #f (and (ffmpeg-installed?) (libvid-installed?))
+(when (and (ffmpeg-installed?) (libvid-installed?))
   (set-racket-log-callback callback-proc)
   (av-log-set-callback ffmpeg-log-callback)
   (thread
