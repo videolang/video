@@ -302,7 +302,7 @@
 (define buffer%
   (class object%
     (super-new)
-    (field [buff (make-async-channel)]
+    (field [buff (make-async-channel 1000)]
            [curr-frame #f]
            [curr-frame-lock (make-semaphore 1)]
            [time-base #f]
