@@ -340,13 +340,26 @@
     (avcodec-parameters-to-context ctx param))
   (define (avcodec-open2 ctx codec [dict #f])
     (define-avcodec avcodec-open2
-      (_fun _avcodec-context-pointer
-            _avcodec-pointer
+      (_fun [codec-ctx : _avcodec-context-pointer]
+            [codec : _avcodec-pointer]
             [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
             -> [ret : _int]
             -> (cond [(= ret 0) dict]
-                     [(= (- ret) EINVAL) (error 'avcodec-open2 "Invalid Argument")]
-                     [else (error 'vcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
+                     [(= (- ret) EINVAL)
+                      (raise-arguments-error
+                       'avcodec-open2 "Invalid Argument"
+                       "Codec Context" codec-ctx
+                       "Codec Name" (avcodec-name codec)
+                       "Codec Type" (avcodec-type codec)
+                       "Codec ID" (avcodec-id codec)
+                       "Pixel Format" (let ([x (avcodec-pix-fmts codec)])
+                                        (and x (ptr-ref x _avpixel-format)))
+                       "Sample Format" (let ([x (avcodec-sample-fmts codec)])
+                                         (and x (ptr-ref x _avsample-format)))
+                       "Channel Layout" (let ([x (avcodec-channel-layouts codec)])
+                                          (and x (ptr-ref x _av-channel-layout)))
+                       "Options" dict)]
+                     [else (error 'avcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
     (avcodec-open2 ctx codec dict))
   (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
   (define-avcodec avcodec-send-packet

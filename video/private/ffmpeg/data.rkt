@@ -439,7 +439,7 @@
    [id _avcodec-id]
    [capabilities _int]
    [supported-framerates _pointer]
-   [pix-fmts _pointer]
+   [pix-fmts _avpixel-format-pointer/null]
    [supported-samplerates (_cpointer/null 'int)]
    [sample-fmts _avsample-format-pointer/null]
    [channel-layouts _av-channel-layout-pointer/null]
