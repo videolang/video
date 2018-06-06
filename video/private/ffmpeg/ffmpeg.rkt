@@ -348,7 +348,9 @@
                      [(= (- ret) EINVAL)
                       (raise-arguments-error
                        'avcodec-open2 "Invalid Argument"
-                       "Codec Context" codec-ctx
+                       "Codec Context ID" (avcodec-context-codec-id codec-ctx)
+                       "Codec Context Pixel Format" (avcodec-context-pix-fmt codec-ctx)
+                       "Codec Context Sample Format" (avcodec-context-sample-fmt codec-ctx)
                        "Codec Name" (avcodec-name codec)
                        "Codec Type" (avcodec-type codec)
                        "Codec ID" (avcodec-id codec)

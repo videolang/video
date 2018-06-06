@@ -1162,7 +1162,10 @@
                                  gray10be
                                  gray10le
                                  p016le
-                                 p016be)))
+                                 p016be
+                                 ;;MORE!!!
+                                 )
+                               #:unknown (λ (x) (string->symbol (format "other:~a" x)))))
 (define-cpointer-type _avpixel-format-pointer)
 
 (define _avcolor-range
