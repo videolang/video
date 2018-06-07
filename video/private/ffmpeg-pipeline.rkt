@@ -475,7 +475,10 @@
                              #:format-name [format-name #f]
                              #:options-dict [options-dict #f])
   (unless (or file output-format format-name)
-    (error 'stream-bundle->file "No File, output-format or format-name specified"))
+    (raise-arguments-error 'stream-bundle->file "No File, output-format or format-name specified"
+                           "Output Format" output-format
+                           "Format Name" format-name
+                           "File" file))
   (define stream-table (make-hash))
   (define streams
     (match bundle/spec
@@ -544,7 +547,13 @@
            [else #f]))
        (define codec-id (or id type-codec-id))
        (define codec
-         (avcodec-find-encoder codec-id))
+         (with-handlers ([exn:ffmpeg:fail?
+                          (λ (e)
+                            (raise-arguments-error
+                             'mux (base:format "Cannot find ~a codec: ~a"  type codec-id)
+                             "File" file
+                             "Format" format-name))])
+           (avcodec-find-encoder codec-id)))
        (set-codec-obj-codec! i codec)
        (define str (avformat-new-stream output-context #f))
        (set-codec-obj-stream! i str)

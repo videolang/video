@@ -303,7 +303,8 @@
   (define-avcodec
     avcodec-find-encoder (_fun [id : _avcodec-id]
                                -> [ret : _avcodec-pointer/null]
-                               -> (or ret (error 'avcodec-find-encoder "No valid stream for ~a" id))))
+                               -> (or ret (raise-ffmpeg-error 'avcodec-find-encoder
+                                                              (format "No valid stream for ~a" id)))))
   (define-avcodec avcodec-find-decoder (_fun _avcodec-id
                                              -> _avcodec-pointer))
   (define-avcodec avcodec-alloc-context3 (_fun _avcodec-pointer/null
