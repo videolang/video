@@ -34,6 +34,13 @@
 (struct exn:ffmpeg:stream-not-found exn:ffmpeg ())
 (struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
 (struct exn:ffmpeg:version exn:ffmpeg ())
+(struct exn:ffmpeg:fail exn:ffmpeg (name message env))
+
+;; ===================================================================================================
+
+(define (raise-ffmpeg-error name message . env)
+  (raise (exn:ffmpeg:fail (format "~a : ~a" name message) (current-continuation-marks) name message
+                          (apply hash env))))
 
 ;; ===================================================================================================
 

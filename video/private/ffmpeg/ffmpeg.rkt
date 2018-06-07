@@ -346,21 +346,21 @@
             -> [ret : _int]
             -> (cond [(= ret 0) dict]
                      [(= (- ret) EINVAL)
-                      (raise-arguments-error
+                      (raise-ffmpeg-error
                        'avcodec-open2 "Invalid Argument"
-                       "Codec Context ID" (avcodec-context-codec-id codec-ctx)
-                       "Codec Context Pixel Format" (avcodec-context-pix-fmt codec-ctx)
-                       "Codec Context Sample Format" (avcodec-context-sample-fmt codec-ctx)
-                       "Codec Name" (avcodec-name codec)
-                       "Codec Type" (avcodec-type codec)
-                       "Codec ID" (avcodec-id codec)
-                       "Pixel Format" (let ([x (avcodec-pix-fmts codec)])
-                                        (and x (ptr-ref x _avpixel-format)))
-                       "Sample Format" (let ([x (avcodec-sample-fmts codec)])
-                                         (and x (ptr-ref x _avsample-format)))
-                       "Channel Layout" (let ([x (avcodec-channel-layouts codec)])
-                                          (and x (ptr-ref x _av-channel-layout)))
-                       "Options" dict)]
+                       'codec-context-id (avcodec-context-codec-id codec-ctx)
+                       'codec-context-pixel-format (avcodec-context-pix-fmt codec-ctx)
+                       'codec-context-sample-format (avcodec-context-sample-fmt codec-ctx)
+                       'codec-name (avcodec-name codec)
+                       'codec-type (avcodec-type codec)
+                       'codec-id (avcodec-id codec)
+                       'pixel-format (let ([x (avcodec-pix-fmts codec)])
+                                       (and x (ptr-ref x _avpixel-format)))
+                       'sample-format (let ([x (avcodec-sample-fmts codec)])
+                                        (and x (ptr-ref x _avsample-format)))
+                       'channel-layout (let ([x (avcodec-channel-layouts codec)])
+                                         (and x (ptr-ref x _av-channel-layout)))
+                       'Options dict)]
                      [else (error 'avcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
     (avcodec-open2 ctx codec dict))
   (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))

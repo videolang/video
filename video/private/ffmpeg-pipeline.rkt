@@ -626,7 +626,16 @@
                                [codec-context ctx]
                                [stream stream]))
            (define str-opt (av-dict-copy options '()))
-           (avcodec-open2 ctx codec str-opt)
+           (with-handlers ([exn:ffmpeg:fail?
+                            (λ (e)
+                              (match-define (struct* exn:ffmpeg:fail ([env env])) e)
+                              (raise-arguments-error
+                               'mux "Cannot use sample or pixel format in given codec"
+                               "Codec Type" (hash-ref env 'codec-type)
+                               "Codec" (hash-ref env 'codec-context-id)
+                               "Pixel Format" (hash-ref env 'codec-context-pixel-format)
+                               "Sample Format" (hash-ref env 'codec-context-sample-format)))])
+             (avcodec-open2 ctx codec str-opt))
            (av-dict-free str-opt)
            ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
            (if by-index-callback
