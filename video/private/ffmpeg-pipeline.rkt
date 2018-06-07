@@ -1221,7 +1221,17 @@
 (define (init-filter-graph g #:seek? [seek? #t])
   (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
-    (define inout-ctx (avfilter-graph-create-filter type name args #f graph))
+    (define inout-ctx
+      (with-handlers ([exn:ffmpeg:fail?
+                       (λ (e)
+                         (match-define (struct* exn:ffmpeg:fail ([env env])) e)
+                         (raise-arguments-error
+                          'render
+                          (~a "Cannot create in/out filter node "
+                              "(Video bug, report at https://github.com/videolang/video/issues)")
+                          "Name" (hash-ref env 'name)
+                          "Args" (hash-ref env 'args)))])
+        (avfilter-graph-create-filter type name args #f graph)))
     (set-avfilter-in-out-name! inout (av-strdup name))
     (set-avfilter-in-out-filter-ctx! inout inout-ctx)
     (set-avfilter-in-out-pad-idx! inout 0)

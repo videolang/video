@@ -683,14 +683,19 @@
     (_fun _avfilter-graph-pointer _string -> _avfilter-context-pointer/null))
   (define-avfilter avfilter-graph-create-filter
     (_fun [out : (_ptr o _avfilter-context-pointer/null)]
-          _avfilter-pointer
-          _string
-          _string
-          _pointer
-          _avfilter-graph-pointer
+          [filter : _avfilter-pointer]
+          [name : _string]
+          [args : _string]
+          [opaque : _pointer]
+          [graph : _avfilter-graph-pointer]
           -> [ret : _int]
           -> (cond
                [(>= ret 0) out]
+               [(= (- ret) EINVAL)
+                (raise-ffmpeg-error
+                 'avfilter "Invalid Argument"
+                 'name name
+                 'args args)]
                [else (error 'graph-create-filter "~a : ~a" ret (convert-err ret))])))
   (define-avfilter avfilter-graph-parse
     (_fun _avfilter-graph-pointer
