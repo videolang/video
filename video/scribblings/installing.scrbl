@@ -46,7 +46,7 @@ or from your distro's repository. See
 @secref["ffmpeg-specs"] to make sure you have the correct
 version installed.
 
-@note{FFmpeg 4.0 support for Video is still under
+@margin-note{FFmpeg 4.0 support for Video is still under
  development.}
 
 @section[#:tag "ffmpeg-specs"]{FFmpeg Requirements}
