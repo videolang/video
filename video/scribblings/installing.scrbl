@@ -1,7 +1,7 @@
 #lang reader video/scribblings/viddoclang
 
 @;{
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -35,11 +35,19 @@ documented in @secref["ffmpeg-specs"].
 
 @section{macOS}
 
-You're good to go.
+As with Windows, Video comes bundled with macOS. If you want
+to use your own build of FFmpeg, ad the path to the dylib to
+your @envvar{LD_LIBRARY_PATH}.
 
 @section{Linux}
 
-You need to install ffmpeg.
+You need to install FFmpeg. Either from the FFmpeg website,
+or from your distro's repository. See
+@secref["ffmpeg-specs"] to make sure you have the correct
+version installed.
+
+@note{FFmpeg 4.0 support for Video is still under
+ development.}
 
 @section[#:tag "ffmpeg-specs"]{FFmpeg Requirements}
 
@@ -75,3 +83,5 @@ Recommended Version:
 Note that the miner version is a minimum, while the major
 version is exact. Video has this requirement because major
 versions of FFmpeg libraries breaks backwards compatibility.
+
+You can test your version of FFmpeg with @exec{ffmpeg -v}.
