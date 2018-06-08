@@ -727,9 +727,15 @@
                [(= ret 0) (values in out)]
                [else (error 'graph-parse-ptr "~a : ~a" ret (convert-err ret))])))
   (define-avfilter avfilter-graph-config
-    (_fun _avfilter-graph-pointer _pointer -> [ret : _int]
+    (_fun [graph : _avfilter-graph-pointer]
+          [log-ctx : _pointer]
+          -> [ret : _int]
           -> (cond
                [(>= ret 0) (void)]
+               [(= ret (- EINVAL))
+                (raise-ffmpeg-error
+                 'graph-config "Invalid Argument")
+                'size (avfilter-graph-nb-filters graph)]
                [else (error 'graph-config "~a : ~a" ret (convert-err ret))])))
   (define-avfilter avfilter-graph-set-auto-convert
     (_fun _avfilter-graph-pointer _avfilter-auto-convert -> _void))

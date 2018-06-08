@@ -1300,7 +1300,13 @@
                               (if (null? inputs) #f (car inputs))
                               (if (null? outputs) #f (car outputs))
                               #f))
-  (avfilter-graph-config graph #f)
+  (with-handlers ([exn:ffmpeg:fail?
+                   (λ (e)
+                     (raise-arguments-error
+                      'render "Invalid Video Graph (Video bug, report to https://github.com/videolang/video)"
+                      "Video Graph" (graphviz g)
+                      "Filter Graph" g-str))])
+    (avfilter-graph-config graph #f))
   ;; Set various properties of the output node.
   ;; If the ffmpeg version is new enough (v3.3), we can check the graph directly.
   ;;   otherwise we will need to make a best effort attempt to predict it.

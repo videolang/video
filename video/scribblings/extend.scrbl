@@ -26,7 +26,7 @@ primitives. There is some overlap in what the extensions are
 capable of, but each are useful in different circumstances.
 
 @colorize[#:color "red"]{
- The documentation in this section is needs a lot of work.}
+ The documentation in this section needs a lot of work.}
 
 @section{Video Convert}
 
