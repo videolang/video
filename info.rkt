@@ -1,7 +1,7 @@
 #lang info
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 (define collection 'multi)
 
-(define deps '(("base" "6.9.0.6")
+(define deps '(("base" "6.10")
                 "rackunit-lib"
                 "gui-lib"
                 "draw-lib"
@@ -37,14 +37,14 @@
                 "syntax-color-lib"
                 "parser-tools-lib"
                 ("graph" "0.3.1")
-                ("libvid-x86_64-macosx" #:platform "x86_64-macosx")
-                ("libvid-x86_64-win32" #:platform "win32\\x86_64")
-                ("libvid-i386-win32" #:platform "win32\\i386")
-                ("libvid-x86_64-linux" #:platform "x86_64-linux")
-                ("libvid-i386-linux" #:platform "i386-linux")
-                ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
-                ("ffmpeg-x86_64-win32" #:platform "win32\\x86_64")
-                ("ffmpeg-i386-win32" #:platform "win32\\i386")))
+                ("libvid-x86_64-macosx-0-2" #:platform "x86_64-macosx")
+                ("libvid-x86_64-win32-0-2" #:platform "win32\\x86_64")
+                ("libvid-i386-win32-0-2" #:platform "win32\\i386")
+                ("libvid-x86_64-linux-0-2" #:platform "x86_64-linux")
+                ("libvid-i386-linux-0-2" #:platform "i386-linux")
+                ("ffmpeg-x86_64-macosx-3-4" #:platform "x86_64-macosx")
+                ("ffmpeg-x86_64-win32-3-4" #:platform "win32\\x86_64")
+                ("ffmpeg-i386-win32-3-4" #:platform "win32\\i386")))
 (define build-deps '("scribble-lib"
                      "racket-doc"
                      "gui-doc"
