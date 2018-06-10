@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -140,18 +140,20 @@
 (define (finish-execution v)
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
-(when (and (not (equal? (getenv "FF_LOG") "stdout")) (ffmpeg-installed?) (libvid-installed?))
-  (set-racket-log-callback callback-proc)
-  (av-log-set-callback ffmpeg-log-callback)
-  (thread
-   (λ ()
-     (will-execute callback-executor)))
-  (plumber-add-flush!
-   (current-plumber)
-   (λ (handler)
-     (stop-ffmpeg-logging)))
-  (void))
-
+(unless (equal? (getenv "FF_LOG") "stdout")
+  (av-log-set-callback #f)
+  (when (ffmpeg-installed?) (libvid-installed?)
+    (set-racket-log-callback callback-proc)
+    (av-log-set-callback ffmpeg-log-callback)
+    (thread
+     (λ ()
+       (will-execute callback-executor)))
+    (plumber-add-flush!
+     (current-plumber)
+     (λ (handler)
+       (stop-ffmpeg-logging)))
+    (void)))
+  
 ;; Because portaudio has a nasty tendency to output a lot of garbadge to stdout, only
 ;; require it in situations where its actually needed.
 (module* portaudio racket
