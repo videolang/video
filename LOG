@@ -1,3 +1,13 @@
+v0.2-rc
+Date: 2018-06-10
+Commit#: TBD
+* Update Video to use a version of libvid that does not segfault.
+* More precise dependencies in Video's info file.
+* If FF_LOG=stdout, then do no redirection of ffmpeg's logging.
+* More complete render parameterization.
+* Cleaner error messages.
+* Fixed bug preventing Video from rendering audio-only files.
+
 v0.2-beta.1
 Date: 2017-09-20
 Commit#: 88b62773d0b444ecf8581c92780b59ed2425b961
