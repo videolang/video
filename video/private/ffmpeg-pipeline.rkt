@@ -365,19 +365,19 @@
       (match bundle
         [(struct* stream-bundle ([start-offset start-offset]
                                  [file file]))
-           (when (and start-offset (not (= start-offset +inf.0)))
-             (with-handlers ([exn:fail?
-                              (λ (e)
-                                (log-video-warning "Cannot seek from ~a, starting from beginning"
-                                                   file))])
-               (define seek-point
-                 (exact-floor (/ (max 0 (- start-offset 1))
-                                 AV-TIME-BASE)))
-               (av-seek-frame avformat
-                              -1
-                              seek-point
-                              '(backwards))))]))
-
+         (when (and start-offset (not (= start-offset +inf.0)))
+           (with-handlers ([exn:fail?
+                            (λ (e)
+                              (log-video-warning "Cannot seek from ~a, starting from beginning"
+                                                 file))])
+             (define seek-point
+               (exact-floor (* (max 0 (- start-offset 1))
+                               AV-TIME-BASE)))
+             (av-seek-frame avformat
+                            -1
+                            seek-point
+                            '(backwards))))]))
+    
     ;; #t - More to read
     ;; #f - Done reading
     (define/public (read-packet)
@@ -1245,8 +1245,10 @@
   (log-video-debug "Video Graph Created: ~a" (graphviz g))
   (log-video-debug "Filter Graph Created: ~a" g-str)
   (define seek-points (get-seek-point g 0))
-  (log-video-info "Starting Streams at points: ~a" (for/hash ([(k v) (in-hash seek-points)])
-                                                     (values (stream-bundle-file k) v)))
+  (if seek?
+      (log-video-info "Starting Streams at points: ~a" (for/hash ([(k v) (in-hash seek-points)])
+                                                         (values (stream-bundle-file k) v)))
+      (log-video-info "Seeking disabled, starting from beginning of stream"))
   (define graph (avfilter-graph-alloc))
   (define outputs
     (for/fold ([ins '()])
