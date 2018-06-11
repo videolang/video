@@ -1,6 +1,6 @@
 v0.2-rc
 Date: 2018-06-10
-Commit#: TBD
+Commit#: d65af7c7826210b6ba8c777bc83b2f4c535be2e7
 * Update Video to use a version of libvid that does not segfault.
 * More precise dependencies in Video's info file.
 * If FF_LOG=stdout, then do no redirection of ffmpeg's logging.
