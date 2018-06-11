@@ -31,6 +31,7 @@
                          start
                          end
                          fps
+                         time-base
                          format
                          video-codec
                          audio-codec
@@ -51,7 +52,8 @@
                               #:height [h 1080]
                               #:start [s #f]
                               #:end [e #f]
-                              #:fps [f 25]
+                              #:fps [fr #f]
+                              #:time-base [tb #f]
                               #:format [fo #f]
                               #:video-codec [vc #f]
                               #:audio-codec [ac #f]
@@ -67,4 +69,4 @@
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
                               #:seek? [s? #t])
-  (render-settings d w h s e f fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))
+  (render-settings d w h s e fr tb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))

@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -486,7 +486,7 @@
             (define fps-node
               (mk-filter-node
                (hash 'video (mk-filter "fps"
-                                       (hash "fps" fps)))
+                                       (hash "fps" (or fps 25))))
                #:props props
                #:counts (node-counts trim-node)))
             (add-vertex! render-graph fps-node)

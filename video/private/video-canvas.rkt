@@ -1,7 +1,7 @@
 #lang at-exp racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -306,17 +306,11 @@
            [curr-frame #f]
            [curr-frame-lock (make-semaphore 1)]
            [time-base #f]
-           [fps #f]
            [start-time (current-inexact-milliseconds)])
 
     ;; Set the timebase for the frame's PTSs.
-    (define/public (set-timebase tb)
+    (define/public (set-time-base tb)
       (set! time-base tb))
-
-    ;; Sets the fps for this buffer. This determines roughly how long
-    ;; it should sleep between refreshes.
-    (define/public (set-fps f)
-      (set! fps f))
 
     ;; Get the time (in seconds) of the buffer's current position. This
     ;;    does not add or remove anything from the buffer.
@@ -357,7 +351,10 @@
   (class buffer%
     (super-new)
     (init-field canvas)
-    (inherit-field buff curr-frame curr-frame-lock)
+    (inherit-field buff
+                   curr-frame
+                   curr-frame-lock
+                   start-time time-base)
 
     ;; Grab the next frame from the queue
     (define/override (read-frame [block #t])
@@ -375,12 +372,21 @@
       (unless canvas
         (error 'video-buffer "Must set canvas before calling draw-frame"))
       (let/ec return
-        (read-frame block) ;; XXX Need to check PTS!
+        (read-frame block)
         (call-with-semaphore
          curr-frame-lock
          (λ ()
            (unless curr-frame
              (return))
+           ;; Wait until to show
+           (let loop ()
+             (define now (current-inexact-milliseconds))
+             (define viewer-pos (/ (- now start-time) 1000))
+             (define frame-pos (* time-base (av-frame-pts curr-frame)))
+             (define to-wait (- frame-pos viewer-pos))
+             (when (<= 0 to-wait)
+               (sleep 0.01)
+               (loop)))
            (define linesize (array-ref (av-frame-linesize curr-frame) 0))
            (send canvas draw-frame
                  (λ ()
@@ -524,8 +530,9 @@
               ;; simply turn off audio playing.
               ;; TODO, should test this _before_ starting to play
               (when play-audio?
+                (send audio-buffer set-time-base (avcodec-context-time-base ctx))
                 (with-handlers ([exn:fail? (λ (e)
-                                             (log-video-error "Cought error: ~a" e)
+                                             (log-video-error "Caught error: ~a" e)
                                              (set! play-audio? #f))])
                   (match (stream-play/unsafe (λ (buff count)
                                                (when audio-buffer
@@ -553,6 +560,7 @@
                 (set! stop-audio #f))]
              [('video 'open)
               (set! video-buffer (new video-buffer% [canvas canvas]))
+              (send video-buffer set-time-base (avcodec-context-time-base ctx))
               (set! stop-video-thread-flag #f)
               (set! video-thread
                     (thread
