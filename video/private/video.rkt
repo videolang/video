@@ -516,7 +516,6 @@
               (add-vertex! (current-render-graph) c-node)
               (add-directed-edge! (current-render-graph) b-node c-node 1)
               (add-directed-edge! (current-render-graph) node c-node 2)
-              (displayln (graphviz (current-render-graph)))
               c-node]))
 
 
