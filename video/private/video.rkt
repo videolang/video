@@ -467,17 +467,19 @@
        (hash-update! count-tab type
                      add1
                      0)
+       (when (or (eq? type 'video)
+                 (eq? type 'audio))
+         (set!/error ftime-base (avstream-time-base stream) =)
+         (define avst (avstream-start-time stream))
+         (set!/error fstart
+                     (if (= avst AV-NOPTS-VALUE) #f avst)
+                     =)
+         (set!/error fduration (avstream-duration stream) =))
        (match type
          ['video
           (set!/error fwidth (avcodec-context-width cctx) =)
           (set!/error fheight (avcodec-context-height cctx) =)
           (set!/error ffps (avcodec-context-framerate cctx) =)
-          (set!/error ftime-base (avstream-time-base stream) =)
-          (define avst (avstream-start-time stream))
-          (set!/error fstart
-                      (if (= avst AV-NOPTS-VALUE) #f avst)
-                      =)
-          (set!/error fduration (avstream-duration stream) =)
           (set!/error fpix-fmt (avcodec-context-pix-fmt cctx) eq?)]
          ['audio
           (set!/error fsample-fmt (avcodec-context-sample-fmt cctx) eq?)
@@ -514,6 +516,7 @@
               (add-vertex! (current-render-graph) c-node)
               (add-directed-edge! (current-render-graph) b-node c-node 1)
               (add-directed-edge! (current-render-graph) node c-node 2)
+              (displayln (graphviz (current-render-graph)))
               c-node]))
 
 
