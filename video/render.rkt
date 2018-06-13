@@ -645,7 +645,7 @@
         (wait-for-rendering)))
 
     (define/public (pause-rendering)
-      (when stop-rendering-flag
+      (when (eq? stop-rendering-flag #t)
         (error 'render "Media stopped"))
       (set! stop-rendering-flag 'pause))
 

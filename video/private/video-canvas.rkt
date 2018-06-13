@@ -365,7 +365,7 @@
            (av-frame-free curr-frame))
          (set! curr-frame ((if block async-channel-get async-channel-try-get) buff))
          (unless curr-frame
-           (log-video-debug "Buffer: No frame currently in queue"))
+           (log-video-debug "VideoBuffer: No frame currently in queue"))
          (not (not curr-frame)))))
     
     (define/public (draw-frame [block #t])
@@ -451,7 +451,6 @@
              curr-frame-lock
              (λ ()
                (unless curr-frame
-                 #;
                  (memset buffer
                          pos
                          0
