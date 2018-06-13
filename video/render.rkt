@@ -550,7 +550,6 @@
               (for/list ([spec (in-list bundle-specs)]
                          [format-name (in-list format-names)]
                          [out-path (in-list out-paths)])
-                (newline)
                 (stream-bundle->file out-path spec
                                      #:format-name format-name)))
             (define sink-node
