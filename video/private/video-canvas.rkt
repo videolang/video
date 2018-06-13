@@ -548,7 +548,7 @@
                   (if play-audio?
                       (send audio-buffer add-frame out-frame)
                       (av-frame-free out-frame))
-                  (if stop-rendering-flag
+                  (if (eq? stop-rendering-flag #t)
                       eof
                       (loop))))]
              [('audio 'close)
@@ -577,7 +577,7 @@
                   (if play-video?
                       (send video-buffer add-frame out-frame)
                       (av-frame-free out-frame))
-                  (if stop-rendering-flag
+                  (if (eq? stop-rendering-flag #t)
                       eof
                       (loop))))]
              [('video 'close)
