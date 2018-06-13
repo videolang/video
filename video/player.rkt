@@ -84,23 +84,27 @@
         (stop))
       (send render get-length))
     (define/public (play)
-      (send render setup render-settings)
-      (send render start-rendering))
-    (define/public (is-paused?)
-      (and (send render rendering?)
-           (= current-speed 0)))
+      (cond
+        [(is-paused?)
+         (send render resume-rendering)]
+        [else
+         (send render setup render-settings)
+         (send render start-rendering)]))
     (define/public (get-status)
       (cond [(send render rendering?)
-             (cond [(= current-speed 1) 'playing]
-                   [(= current-speed 0) 'paused]
+             (cond [(or (= current-speed 0) (is-paused?))
+                    'paused]
+                   [(= current-speed 1) 'playing]
                    [(< current-speed 0) 'rewinding]
                    [(> current-speed 1) 'fast-forwarding]
                    [else 'playing-slow])]
             [else 'stopped]))
     (define/public (is-stopped?)
       (not (send render rendering?)))
+    (define/public (is-paused?)
+      (send render paused?))
     (define/public (pause)
-      (send render set-speed 0))
+      (send render pause-rendering))
     (define/public (stop)
       (send render stop-rendering))
     (define/public (seek position)

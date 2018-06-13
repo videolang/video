@@ -18,6 +18,8 @@
 
 (provide (all-defined-out))
 (require racket/match
+         racket/function
+         racket/list
          ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/define/conventions
@@ -186,31 +188,39 @@
 ;;   version is installed, return #f, otherwise return #t. To be a valid version the `major` field
 ;;   must match EXACTLY, and the minor field must be AT LEAST the specified version.
 ;; Version Int Int -> Boolean
-(define (version-check libname version major minor)
-  (and (= (version-major version) major)
-       (>= (version-minor version) minor)))
+(define (version-check libname version . mm-pair)
+  (for/or ([mm (in-list mm-pair)])
+    (and (= (version-major version) (first mm))
+         (>= (version-minor version) (second mm)))))
 
 ;; Check to ensure that ffmpeg meets the minimum required version.
 ;; returns #t if it does, otherwise returns #f.
 ;; -> Boolean
 (define (ffmpeg-min-version?)
-  (and (version-check "libavutil" (avutil-version) 55 34)
-       (version-check "libavcodec" (avcodec-version) 57 64)
-       (version-check "libavformat" (avformat-version) 57 56)
-       (version-check "libavfilter" (avfilter-version) 6 65)
-       (version-check "libswscale" (swscale-version) 4 2)
-       (version-check "libswresample" (swresample-version) 2 3)
-       (version-check "libavdevice" (avdevice-version) 57 1)))
+  (and (version-check "libavutil" (avutil-version) '(55 34))
+       (version-check "libavcodec" (avcodec-version) '(57 64))
+       (version-check "libavformat" (avformat-version) '(57 56))
+       (version-check "libavfilter" (avfilter-version) '(6 65))
+       (version-check "libswscale" (swscale-version) '(4 2))
+       (version-check "libswresample" (swresample-version) '(2 3))
+       (version-check "libavdevice" (avdevice-version) '(57 1))))
 
 ;; Test to see if FFMPEG meets the recommended versions.
 ;; Video should work with versions lower than this, but will not
 ;;   perform as well
 ;; -> Boolean
 (define (ffmpeg-recommended-version?)
-  (and (version-check "libavutil" (avutil-version) 55 58)
-       (version-check "libavcodec" (avcodec-version) 57 89)
-       (version-check "libavformat" (avformat-version) 57 71)
-       (version-check "libavfilter" (avfilter-version) 6 82)
-       (version-check "libswscale" (swscale-version) 4 6)
-       (version-check "libswresample" (swresample-version) 2 7)
-       (version-check "libavdevice" (avdevice-version) 57 6)))
+  (and (version-check "libavutil" (avutil-version)
+                      '(55 58) '(56 14))
+       (version-check "libavcodec" (avcodec-version)
+                      '(57 89) '(58 18))
+       (version-check "libavformat" (avformat-version)
+                      '(57 71) '(58 12))
+       (version-check "libavfilter" (avfilter-version)
+                      '(6 82) '(7 16))
+       (version-check "libswscale" (swscale-version)
+                      '(4 6) '(5 1))
+       (version-check "libswresample" (swresample-version)
+                      '(2 7) '(3 1))
+       (version-check "libavdevice" (avdevice-version)
+                      '(57 6) '(58 3))))

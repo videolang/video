@@ -346,10 +346,11 @@
 
     ;; Flag states:
     ;; #f - The reader/writer can continue running
+    ;; 'pause - The reader/writer can continue, but should sleep until the flag returns to #t.
     ;; #t - The reader/writer should make a best effort attempt to close down
     (field [reading-thread #f]
            [writing-thread #f]
-           [stop-rendering-flag #f])
+           [stop-rendering-flag #t])
 
     (define current-render-settings-lock (make-semaphore 1))
     (define current-render-settings (make-render-settings))
@@ -587,14 +588,19 @@
                                 [bundle bundle]
                                 [by-index-callback callback]))
              (send demux init)
+             ;; Read loop. When paused sleep and pull again.
              (let loop ()
                (sleep 0)
-               (unless stop-rendering-flag
-                 (define got-data?
-                   (send demux wait-for-packet-need 1))
-                 (cond [(not got-data?) (loop)]
-                       [(send demux read-packet) (loop)]
-                       [else (void)])))
+               (case stop-rendering-flag
+                 [(#f)
+                  (define got-data?
+                    (send demux wait-for-packet-need 1))
+                  (cond [(not got-data?) (loop)]
+                        [(send demux read-packet) (loop)]
+                        [else (void)])]
+                 [(pause)
+                  (sleep 0.1)
+                  (loop)]))
              (send demux close)))))
       (for-each thread-wait threads)
       (void))
@@ -638,6 +644,19 @@
       (when wait
         (wait-for-rendering)))
 
+    (define/public (pause-rendering)
+      (when stop-rendering-flag
+        (error 'render "Media stopped"))
+      (set! stop-rendering-flag 'pause))
+
+    (define/public (resume-rendering)
+      (unless (eq? stop-rendering-flag 'pause)
+        (error 'render "Media not paused"))
+      (set! stop-rendering-flag #f))
+
+    (define/public (paused?)
+      (eq? stop-rendering-flag 'pause))
+
     (define/public (write-output-callback-constructor #:render-status render-status)
       (define-values (video-frames audio-frames data-frames) (values #f #f #f))
       (call-with-semaphore current-render-settings-lock
@@ -677,12 +696,17 @@
                                    #:time-base (/ 1 base)
                                    #:id id)))
              (send mux write-header)
+             ;; Write loop. When paused sleep and pull again.
              (let loop ()
                (sleep 0)
-               (unless stop-rendering-flag
-                 (define continue? (send mux write-packet))
-                 (when continue?
-                   (loop))))
+               (case stop-rendering-flag
+                 [(#f)
+                  (define continue? (send mux write-packet))
+                  (when continue?
+                    (loop))]
+                 [(pause)
+                  (sleep 0.1)
+                  (loop)]))
              (send mux write-trailer)
              (send mux close)))))
       (map thread-wait threads)
