@@ -142,7 +142,7 @@
 (will-register callback-executor callback-proc finish-execution)
 (unless (equal? (getenv "FF_LOG") "stdout")
   (av-log-set-callback #f)
-  (when (ffmpeg-installed?) (libvid-installed?)
+  (when (and (ffmpeg-installed?) (libvid-installed?))
     (set-racket-log-callback callback-proc)
     (av-log-set-callback ffmpeg-log-callback)
     (thread
