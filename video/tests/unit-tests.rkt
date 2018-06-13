@@ -85,7 +85,7 @@
 (check-producer (blank #f) #:len +inf.0)
 (check-producer (blank 6) #:len 6)
 (check-producer circ-img #:len +inf.0)
-(check-producer vid-clip #:len 83/15)
+(check-producer vid-clip #:len 696/125)
 (check-producer (playlist circ-img vid-clip) #:len +inf.0)
 (check-producer (playlist (blank 2) circ-img vid-clip) #:len +inf.0)
 
@@ -150,7 +150,7 @@
   (clip vid-mp4)
   (composite-merge 0 0 3/4 3/4)
   (image circ-png))
- #:len 83/15)
+ #:len 696/125)
 
 (check-producer
  (multitrack
@@ -160,7 +160,7 @@
    (image circ-png)
    (composite-merge 0 1/2 1/2 1/2)
    (color "green")))
- #:len 83/15)
+ #:len 696/125)
 
 (check-producer
  (multitrack
@@ -177,7 +177,7 @@
   (list (composite-merge 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
         (composite-merge 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
         (composite-merge 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
- #:len 83/15)
+ #:len 696/125)
 
 
 (check-producer (fading-playlist (image circ-png) (color "green")))
