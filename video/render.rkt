@@ -779,8 +779,8 @@
     ;; Remember that, depending on how you call these methods, it could
     ;;    start rendering after it returns `#f`
     (define/public (rendering?)
-      (or (and reading-thread (thread-running? reading-thread))
-          (and writing-thread (thread-running? writing-thread))))
+      (or (and reading-thread (not (thread-dead? reading-thread)))
+          (and writing-thread (not (thread-dead? writing-thread)))))
     
     ;; Possible Results:
     ;; #t   : Rendering
