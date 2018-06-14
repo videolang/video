@@ -480,6 +480,7 @@
   (mixin (render<%>) ()
     (super-new)
     (inherit-field stop-rendering-flag)
+    (init [(ic canvas) #f])
     (define canvas #f)
     (define play-video? #t)
     (define play-audio? #t)
@@ -490,6 +491,15 @@
     (define stop-video-thread-flag #f)
     (define width #f)
     (define height #f)
+    (define/public (set-canvas c)
+      (set! canvas c)
+      (set! width (if c
+                      (send c get-video-width)
+                      50))
+      (set! height (if c
+                       (send c get-video-height)
+                       50)))
+    (set-canvas ic)
     (define/override (setup rs)
       (unless (and width height)
         (error 'video-canvas-render-mixin
@@ -503,10 +513,6 @@
                                 [sample-rate 44100]
                                 [channel-layout 'stereo]
                                 [format 'raw])))
-    (define/public (set-canvas c)
-      (set! canvas c)
-      (set! width (send c get-video-width))
-      (set! height (send c get-video-height)))
     (define/override (write-output-callback-constructor #:render-status rs-box)
       (λ (mode obj)
         (match obj
@@ -558,6 +564,8 @@
                 (stop-audio)
                 (set! stop-audio #f))]
              [('video 'open)
+              (unless canvas
+                (error 'player "Canvas must be set to play video"))
               (set! video-buffer (new video-buffer% [canvas canvas]))
               (send video-buffer set-time-base (avcodec-context-time-base ctx))
               (set! stop-video-thread-flag #f)

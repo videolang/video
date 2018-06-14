@@ -1,3 +1,11 @@
+v0.2-rc.1
+Date: TBD
+Commit#: TBD
+* Pause feature no longer additionally stops the video.
+* Improved audio/video syncing in live preview.
+* Fixed bugs in front half of Video compiler.
+* Made 'canvas' an optional parameter
+
 v0.2-rc
 Date: 2018-06-10
 Commit#: d65af7c7826210b6ba8c777bc83b2f4c535be2e7
