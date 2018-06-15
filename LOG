@@ -1,6 +1,6 @@
 v0.2-rc.1
 Date: TBD
-Commit#: TBD
+Commit#: 392dc4290336207a2a7d7cb2781a3a371b62110c
 * Pause feature no longer additionally stops the video.
 * Improved audio/video syncing in live preview.
 * Fixed bugs in front half of Video compiler.
