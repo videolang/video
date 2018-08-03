@@ -474,6 +474,16 @@
                  (loop (+ pos samples-to-get)))))
         (void)))))
 
+;; Windows audio devices work better at 48kHz, rather than 44.1kHz.
+;; Also portaudio needs to be properly initialized.
+(define os-sample-rate
+  (case (system-type 'os)
+    [(windows) 48000]
+    [else 44100]))
+(when (eq? (system-type 'os) 'windows)
+  (pa-maybe-initialize)
+  (host-api 'paWASAPI))
+
 ;; Similar to the Video Renderer, however adds `set-canvas` method for Video
 ;; to render to a canvas rather than a file.
 (define video-canvas-render-mixin
@@ -510,7 +520,7 @@
                                 [width width]
                                 [height height]
                                 [sample-fmt 's16]
-                                [sample-rate 44100]
+                                [sample-rate os-sample-rate]
                                 [channel-layout 'stereo]
                                 [format 'raw])))
     (define/override (write-output-callback-constructor #:render-status rs-box)
@@ -543,7 +553,7 @@
                                                (when audio-buffer
                                                  (send audio-buffer feed-samples! buff count #f)))
                                              0.1
-                                             44100)
+                                             os-sample-rate)
                     [(list stream-time stats stop)
                      (set! stop-audio stop)])))]
              [('audio 'write)
