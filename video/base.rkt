@@ -69,7 +69,7 @@
   [blank (->* () ((or/c nonnegative-integer? #f)) (or/c blank? producer?))]
   
   ;; Creates a producer that plays a clip from a file
-  [clip (->producer [(or/c path-string? path?)]
+  [clip (->producer [path-string?]
                     [])]
 
   ;; Creates a producer that is a solid color

@@ -20,6 +20,7 @@
          racket/file
          racket/path
          racket/match
+         "base.rkt"
          "render.rkt"
          "player.rkt"
          "convert.rkt")
@@ -46,6 +47,7 @@
 (define output-vframes (make-parameter #f))
 (define output-aframes (make-parameter #f))
 (define output-dframes (make-parameter #f))
+(define input-media? (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -56,7 +58,7 @@
   ret)
 
 (module+ main
-  (define video-file
+  (define video-string
     (command-line
      #:program "video"
      #:once-any
@@ -127,10 +129,23 @@
                         (output-silent #t)]
      [("-p" "--preview") "Preview the output in a player"
                          (output-preview? #t)]
+     [("-m" "--media") "Play or encode a media file directly"
+                       (input-media?)]
      #:args (video)
      video))
 
-  (define video (dynamic-require video-file 'vid))
+  (define video-path
+    (with-handlers ([exn:fail
+                     (λ (e)
+                       (raise-user-error '|raco video|
+                                         "The file parameter must be a path, given: ~a"
+                                         video-string))])
+      (string->path video-string)))
+
+  (define video
+    (if (input-media?)
+        (dynamic-require video-path 'vid)
+        (clip video-path)))
 
   (define render-mixin
     #f
