@@ -1,6 +1,6 @@
 v0.2-rc.w2
 Date: 2018-08-13
-Commit#: TBD
+Commit#: 3ea58fd2b8d5f0b6d4df793fe5999396c570d5e0
 * Improve pause responsiveness
 * Add `-m` flag to play media files without a video program
 * Fix bug where audio wouldn't play on windows
