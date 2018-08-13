@@ -1,5 +1,12 @@
+v0.2-rc.w2
+Date: 2018-08-13
+Commit#: TBD
+* Improve pause responsiveness
+* Add `-m` flag to play media files without a video program
+* Fix bug where audio wouldn't play on windows
+
 v0.2-rc.1
-Date: TBD
+Date: 2018-06-14
 Commit#: 392dc4290336207a2a7d7cb2781a3a371b62110c
 * Pause feature no longer additionally stops the video.
 * Improved audio/video syncing in live preview.
