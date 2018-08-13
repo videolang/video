@@ -672,7 +672,7 @@
       (avformat-write-header output-context #f)
       (for ([i (in-vector streams)])
         (set-add! remaining-streams i)))
-    
+
     ;; Integer - Number of packets written or streams closed
     ;; #f - No more packets to write
     (define/public (write-packet)

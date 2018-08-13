@@ -435,10 +435,17 @@
     ;; UNSAFE METHOD
     ;; Feed `count` samples into the `buffer` given.
     ;; This procedure usesee unsafe ffi calls!
-    ;; s16vector nonnegative-number -> Void
-    (define/public (feed-samples! buffer count [block #t])
+    ;; Only blocks if `block` is true (default)
+    ;; Calls pause-callback every frame if provided,
+    ;;   callback should return #t if safe to procede
+    ;; s16vector nonnegative-number boolean? (or/c #f (-> boolean)
+    ;;    -> Void
+    (define/public (feed-samples! buffer count [block #t] [pause-callback #f])
       (let/ec return
         (let loop ([pos 0])
+          (when (and pause-callback (pause-callback))
+            (sleep 0.1)
+            (loop pos))
           (define needed-samples (- count pos))
           (define samples-left #f)
           (define samples-to-get #f)
@@ -524,6 +531,7 @@
                                 [channel-layout 'stereo]
                                 [format 'raw])))
     (define/override (write-output-callback-constructor #:render-status rs-box)
+      (define (pc) (eq? stop-rendering-flag 'pause))
       (λ (mode obj)
         (match obj
           [(struct* codec-obj ([codec-context ctx]
@@ -551,7 +559,7 @@
                                              (set! play-audio? #f))])
                   (match (stream-play/unsafe (λ (buff count)
                                                (when audio-buffer
-                                                 (send audio-buffer feed-samples! buff count #f)))
+                                                 (send audio-buffer feed-samples! buff count #f pc)))
                                              0.1
                                              os-sample-rate)
                     [(list stream-time stats stop)
