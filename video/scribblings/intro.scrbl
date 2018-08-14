@@ -38,10 +38,10 @@ stream. Thus, Video allows authors to write videos in a
 similar fashion to how LaTeX enables authors to write
 documents.
 
-All VidLang programs begin with @code{#lang video}, the
-remaining program is a description of the resulting video.
-Each top level expression is a @deftech["producer"] which is
-anything that produces a video stream. For example, the
+All VidLang programs begin with the language declaration @code{#lang video}; and the
+remaining program below is a description of the resulting video, written in expressions.
+
+Each top-level expression is a @tech["producer"], which produces a video stream. For example, the
 @racket[color] producer generates a stream of green frames:
 
 @racketmod[
@@ -54,20 +54,23 @@ looks something like:
 @(inset-flow
   (scale (bitmap (build-path video-dir "scribblings" "sample.png")) 0.3))
 
-This picture also shows an example of playback controls.
-These are shown whenever previewing a video. The easiest way
+This picture also shows an example of the playback controls, which
+are shown whenever previewing a video. The easiest way
 to preview a video is to press the @onscreen{Preview Video}
-button in the DrRacket toolbar. Alternatively, the
+button (@(bitmap (build-path video-dir "scribblings" "preview.png")))
+in the DrRacket toolbar.
+
+Alternatively, the
 @exec["raco video"] tool can also preview videos. For
 example, say the above video was saved as
-@filepath["green.vid"], then the preview can be ran with:
+@filepath["green.vid"]. Then the preview can be run with:
 @;
 @nested[#:style 'inset]{@exec["raco video --preview green.vid"]}
 @;
 Note that simply running a
 program is not enough to render a video. Every Video
-programs describes a single @racket[vid] data structure.
-Thus, a renderer (or streamer) can prepare the Video in many
+program describes a single @racket[vid] data structure;
+thus, a renderer (or streamer) can prepare the video in many
 different formats. Additionally, Video programs can include
 the @racket[vid] structure from other programs. Evaluating
 @racket[vid] in DrRacket's REPL after running the module
@@ -78,12 +81,15 @@ shows the resulting structure:
             ;(playlist (color "green")))]
             (displayln "#<playlist>"))]
 
+@section{Producers}
+A @deftech["producer"] is anything that produces a video stream.
+
 The @racket[color] function creates an infinitely long
-@tech["producer"]. The @tech["producer"]'s length can optionally be set
+@tech["producer"]. The @tech["producer"]'s length---or number of frames---can optionally be set
 explicitly with its @tech["properties"]. If the length is
-not set, the @tech["producer"]s length will automatically set itself
+not set, the @tech["producer"]'s length will automatically set itself
 to fit the surrounding context. Another function,
-@racket[clip] does create a @tech["producer"] from a file:
+@racket[clip], creates a @tech["producer"] from a multimedia file:
 
 @racketmod[
  video
@@ -92,7 +98,7 @@ to fit the surrounding context. Another function,
 @inset-flow[
  (apply playlist-timeline the-rr-clip)]
 
-Like @racket[color], clips can also set their length with @tech["properties"]
+Like @racket[color], clips can also set their length with @tech["properties"]:
 
 @racketmod[
  video
@@ -106,12 +112,12 @@ Like @racket[color], clips can also set their length with @tech["properties"]
 
 @section{Filters}
 
-@deftech["Filters"] can be attached to every producer. These filters
-modify the producers behavior: turning it grayscale,
+@deftech["Filters"] can be attached to every @tech["producer"]. These filters
+modify the @tech["producer"]'s behavior: turning it grayscale,
 changing the aspect ratio, etc. The @racket[attach-filter]
-function attaches filters to an existing producer. For
+function attaches filters to an existing @tech["producer"]. For
 example, we can use the @racket[grayscale-filter] to remove
-the color from the rotating square clip earlier:
+the color from the rotating square clip shown earlier:
 
 @racketmod[
  video
@@ -121,7 +127,8 @@ the color from the rotating square clip earlier:
  (apply playlist-timeline (map (compose frame grayscale-pict) the-rr-clip))]
 
 An alternative approach would be to use the
-@racket[#:filters] keyword associated with producers.
+@racket[#:filters] keyword associated with @tech["producer"]s, which takes
+in a list of filters to apply.
 
 @racketmod[
  video
@@ -131,28 +138,17 @@ An alternative approach would be to use the
 
 @section{Playlists}
 
-Video shines when combining multiple producers. The language
-provides two ways of combining producers,
+Video shines when combining multiple @tech["producer"]s. The language
+provides two ways of combining producers:
 @deftech["playlists"] and @tech["multitracks"]. To a first
 approximation, @tech["playlists"] run producers
-sequentially, while @tech["multitracks"] play them
+sequentially, while multitracks play them
 simultaneously.
 
-Every Video module is implicitly a @tech["playlist"].
-Alternatively, @tech["playlists"] can be created with the
-@racket[playlist] function.
+Every Video module is implicitly a playlist.
+Alternatively, playlists can be created with the
+@racket[playlist] function, which encapsulates a subset of producers.
 
-@racketmod[
- video
- (clip "spinning_square.mp4"
-       #:properties (hash "start" 0 "end" 4))
- (clip "spinning_square.mp4"
-       #:properties (hash "start" 0 "end" 4)
-       #:filters (list (grayscale-filter)))]
-@inset-flow[
- (apply playlist-timeline
-        (append (slice the-rr-clip 0 4)
-                (slice the-grr-clip 4 8)))]
 @racketmod[
  video
  (playlist
@@ -168,8 +164,8 @@ Alternatively, @tech["playlists"] can be created with the
 
 @tech["Playlists"] are themselves producers. As such, the
 @racket[playlist] function also serves to append multiple playlists
-together. This example combines the playlist from above with
-another similar clip of a ball dropping:
+together. This example sequentially combines the playlist from above with
+another, similar clip of a ball dropping:
 
 @racketmod[
  video
@@ -197,11 +193,63 @@ another similar clip of a ball dropping:
                 (slice the-grall-drop 2 4)))]
 
 This clip also introduces @racket[define] in Video. Unlike
-many other @racket[racket]-based languages, module level
+many other @racket[racket]-based languages, module-level
 variables are defined for the whole module, not just after
 their definition.@margin-note{This is also true of functions
  created with @racket[λ/video] and @racket[define/video]. But
  this feature is experimental.}
+
+
+@section{Multitracks and Merges}
+
+@deftech["Multitracks"] play multiple @tech["producer"]s
+simultaneously. Unlike a @tech["playlist"], only the top-most track will be rendered. @deftech["Merges"] combine
+different tracks in a @racket[multitrack]. These combinations can be
+anything from a video overlay to a chroma key effect. As
+with @tech["transitions"] in @tech["playlists"], composite
+@tech["merges"] can be inlined with the @tech["producer"]s
+in the @tech["multitrack"]s.
+
+@racketmod[
+ video
+ (multitrack
+  (blank #f)
+  (composite-merge 0 0 1/2 1)
+  (clip "spinning_square.mp4")
+  (composite-merge 1/2 0 1/2 1)
+  (clip "dropping_ball.mp4"))]
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
+
+@tech["Merges"] can also be listed separately with the
+@racket[#:merges] keyword. This keyword takes a list of
+@tech["merges"] that specify their associated tracks with
+the @racket[#:top] and @racket[#:bottom] keywords:
+
+@racketmod[
+ video
+ (multitrack
+  bg
+  spinning-square
+  dropping-ball
+  #:merges (list (composite-merge 0 0 1/2 1
+                                  #:top spinning-square
+                                  #:bottom bg)
+                      (composite-merge 1/2 0 1/2 1
+                                       #:top dropping-ball
+                                       #:bottom bg)))
+ (define bg (blank #f))
+ (define spinning-square (clip "spinning_square.mp4"))
+ (define dropping-ball (clip "dropping_ball.mp4"))]
+@inset-flow[
+ (apply playlist-timeline
+        (for/list ([r (in-list the-rr-clip)]
+                   [b (in-list the-ball-drop)])
+          (shot (hc-append r b))))]
+
 
 @section{Transitions}
 
@@ -255,59 +303,7 @@ to specify what producers it connects:
                                        #:end black+white)))]
 
 @tech["Transitions"] themselves are not @tech["producers"], but
-server to combine producers in a @tech["playlist"]. However,
-@tech["properties"] can still be attached to a @tech["transition"].
-
-@section{Multitracks and Merges}
-
-@deftech["Multitracks"] play multiple producer
-simultaneously. Unlike in a @tech["playlist"], only the top
-most track will be rendered. @deftech["Merges"] combine
-different tracks in a @racket[multitrack]. These can be
-anything from a video overlay, to a chroma key effect. As
-with @tech["transitions"] in @tech["playlists"], composite
-@tech["merges"] can be inlined with the @tech["producers"]
-in the @tech["multitrack"]'s.
-
-@racketmod[
- video
- (multitrack
-  (blank #f)
-  (composite-merge 0 0 1/2 1)
-  (clip "spinning_square.mp4")
-  (composite-merge 1/2 0 1/2 1)
-  (clip "dropping_ball.mp4"))]
-@inset-flow[
- (apply playlist-timeline
-        (for/list ([r (in-list the-rr-clip)]
-                   [b (in-list the-ball-drop)])
-          (shot (hc-append r b))))]
-
-@tech["Merges"] can also be listed separately with the
-@racket[#:merges] keyword. This keyword takes a list of
-@tech["merges"] that specify their associated tracks with
-the @racket[#:top] and @racket[#:bottom] keywords:
-
-@racketmod[
- video
- (multitrack
-  bg
-  spinning-square
-  dropping-ball
-  #:merges (list (composite-merge 0 0 1/2 1
-                                  #:top spinning-square
-                                  #:bottom bg)
-                      (composite-merge 1/2 0 1/2 1
-                                       #:top dropping-ball
-                                       #:bottom bg)))
- (define bg (blank #f))
- (define spinning-square (clip "spinning_square.mp4"))
- (define dropping-ball (clip "dropping_ball.mp4"))]
-@inset-flow[
- (apply playlist-timeline
-        (for/list ([r (in-list the-rr-clip)]
-                   [b (in-list the-ball-drop)])
-          (shot (hc-append r b))))]
+serve to combine producers in a @tech["playlist"].
 
 @section{Video Properties}
 
