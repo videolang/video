@@ -261,8 +261,13 @@
 
 ;; Helper function to turn a file into a string bundle.
 (define (file->stream-bundle file)
-  (define avformat (avformat-open-input file #f #f))
-  (avformat-context->stream-bundle avformat file))
+  (with-handlers ([exn:ffmpeg:fail?
+                   (λ (e)
+                     (raise-arguments-error 'input-media
+                                            "Invalid Media file"
+                                            "file" file))])
+    (define avformat (avformat-open-input file #f #f))
+    (avformat-context->stream-bundle avformat file)))
 
 ;; General purpose function to create a stream-bundle from
 ;;   an ffmpeg level avformat-context. This pulls out the various streams 

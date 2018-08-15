@@ -449,6 +449,11 @@
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]
+                 [(= ret AVERROR-INVALIDDATA)
+                  (error 'avformat (raise-ffmpeg-error 'open-input
+                                                       "Invalid input media:"
+                                                       'input input
+                                                       'path path))]
                  [(< ret 0)
                   (error 'avformat "~a : ~a" ret (convert-err ret))])))
     (define opt* (if (void? opt) input/opt opt))

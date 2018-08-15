@@ -130,7 +130,7 @@
      [("-p" "--preview") "Preview the output in a player"
                          (output-preview? #t)]
      [("-m" "--media") "Play or encode a media file directly"
-                       (input-media?)]
+                       (input-media? #t)]
      #:args (video)
      video))
 
@@ -144,8 +144,8 @@
 
   (define video
     (if (input-media?)
-        (dynamic-require video-path 'vid)
-        (clip video-path)))
+        (clip video-path)
+        (dynamic-require video-path 'vid)))
 
   (define render-mixin
     #f
