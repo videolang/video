@@ -106,7 +106,8 @@
              (and (dict-ref prop "end" #f) 0)))
        (define end
          (or (dict-ref prop "end" #f)
-             (dict-ref prop "length" #f)))
+             (let ([l (dict-ref prop "length" #f)])
+               (and l (+ start l)))))
        (define trimmed-prop
          (cond
            [(and start end (not (equal? end +inf.0)))

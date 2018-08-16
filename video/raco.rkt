@@ -48,6 +48,7 @@
 (define output-aframes (make-parameter #f))
 (define output-dframes (make-parameter #f))
 (define input-media? (make-parameter #f))
+(define probe-media? (make-parameter #f))
 
 (define rendering-box (box #f))
 
@@ -131,6 +132,8 @@
                          (output-preview? #t)]
      [("-m" "--media") "Play or encode a media file directly"
                        (input-media? #t)]
+     [("--probe") "Probe a media file"
+                  (probe-media? #t)]
      #:args (video)
      video))
 
