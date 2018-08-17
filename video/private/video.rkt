@@ -581,7 +581,7 @@
   ;; Otherwise just add the compiled filter to the list.
   ;; Invariant assumed: Transitions are never the first or last filters in a list.
   ;; Invariant assumed: No two transitions happen side by side.
-  (define-values (rev-trans-vids rev-trans-nodes start end fps width height counts chapters)
+  (define-values (transition-videos transition-nodes start end fps width height counts chapters)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
                [start 0]
@@ -590,7 +590,11 @@
                [width 0]
                [height 0]
                [counts (hash)]
-               [chapters '()])
+               [chapters '()]
+                #:result (values (reverse prev-vids)
+                                 (reverse prev-nodes)
+                                 start end fps width height counts
+                                 (reverse chapters)))
               ([i (in-list elements*)]
                [index (in-naturals)])
       (match i
@@ -725,7 +729,14 @@
                         fps
                         width
                         height
-                        counts
+                        (hash-union counts
+                                    (if (dict-ref node 'track2)
+                                        (node-counts (dict-ref node 'track2))
+                                        (hash))
+                                    (if (dict-ref node 'combined)
+                                        (node-counts (dict-ref node 'combined))
+                                        (hash))
+                                    #:combine max)
                         (append (get-property pre-node "chapters" '())
                                 (update-chapters-list chapters clip-offset)))]
                [else
@@ -741,8 +752,6 @@
                         (hash-union counts (node-counts pre-node) #:combine max)
                         (append (get-property pre-node "chapters" '())
                                 (update-chapters-list chapters clip-offset)))])])))
-  (define transition-nodes (reverse rev-trans-nodes))
-  (define transition-videos (reverse rev-trans-vids))
   ;; Remove now unneded transitions
   ;; Go through again and fix frame rates and aspect ratios
   (define cleaned-nodes
