@@ -26,8 +26,11 @@
          racket/generic
          racket/hash
          racket/struct
+         racket/splicing
+         racket/math
          file/convertible
          (prefix-in file: file/convertible)
+         (prefix-in base: racket/base)
          graph
          "render-settings.rkt"
          "utils.rkt"
@@ -48,22 +51,25 @@
 
 ;; A helper function to convert videos to video nodes
 ;; Video (U Graph #f) -> _node
-(define (convert source*
+(define (convert source* [target-prop (hash)]
                  #:renderer [renderer* #f])
+  (struct default ())
   (define source
     (cond [(video? source*) source*]
-          [(video-convertible? source*)
-           (video-convert source*)]
+          [(and (video-convertible? source*)
+                (video-instance-convertible? source*))
+           source*]
           [(and (current-convert-database)
                 (send (current-convert-database) convertible? source*))
            (send (current-convert-database) convert source*)]
-          [(file:convertible? source*) source*]
+          [(file:convertible? source*)
+           (let ([ret (file:convert source* 'video (default))])
+             (when (default? ret)
+               (error 'convert "Object ~a cannot be converted to a video" source*))
+             ret)]
           [else (error 'convert "Object ~a cannot be converted to a video" source*)]))
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
-    (struct default ())
-    (define ret (file:convert source 'video (default)))
-    (when (default? ret)
-      (error 'convert "Object ~a cannot be compiled to video" source))
+    (define ret (video-convert source target-prop))
     ret))
 
 ;; DEBUG FUNCTION ONLY
@@ -73,94 +79,209 @@
 (define (debug/save-prop avformat path)
   (av-dump-format avformat 0 path 0))
 
-(define (finish-video-object-init video-node video-source)
+(define (finish-video-object-init video-node video-source target-prop)
   ;; Set user properties
   (define vprop
     (cond
       [(properties? video-source)
-       (define prop (properties-prop video-source))
-       (define demuxed-node
-         (cond [(dict-ref prop "video-index" #f)
-                video-node] ;; TODO
-               [(dict-ref prop "audio-index" #f)
-                video-node] ;; TODO
-               [else video-node]))
-       (define scaled-node
-         (cond [(and (dict-ref prop "width" #f)
-                     (dict-ref prop "height" #f))
-                (define s-node
-                  (mk-filter-node (hash 'video (mk-filter "scale"
-                                                          (hash "width" (dict-ref prop "width")
-                                                                "height" (dict-ref prop "height"))))
-                                  #:props (dict-set* (or (node-props demuxed-node) (hash))
-                                                     "width" (dict-ref prop "width")
-                                                     "height" (dict-ref prop "height"))
-                                  #:counts (node-counts video-node)))
-                (add-vertex! (current-render-graph) s-node)
-                (add-directed-edge! (current-render-graph) demuxed-node s-node 1)
-                s-node]
-               [else demuxed-node]))
-       (define start
-         (or (dict-ref prop "start" #f)
-             (and (dict-ref prop "length" #f) 0)
-             (and (dict-ref prop "end" #f) 0)))
-       (define end
-         (or (dict-ref prop "end" #f)
-             (let ([l (dict-ref prop "length" #f)])
-               (and l (+ start l)))))
-       (define trimmed-prop
-         (cond
-           [(and start end (not (equal? end +inf.0)))
-            (define node
-              (mk-filter-node (hash 'video (mk-filter "trim" (hash "start" (racket->ffmpeg start)
-                                                                   "end" (racket->ffmpeg end)))
-                                    'audio (mk-filter "atrim" (hash "start" (racket->ffmpeg start)
-                                                                    "end" (racket->ffmpeg end))))
-                              #:props (dict-set* (node-props scaled-node)
-                                                 "start" start
-                                                 "end" end)
-                              #:counts (node-counts scaled-node)))
-            (add-vertex! (current-render-graph) node)
-            (add-directed-edge! (current-render-graph) scaled-node node 1)
-            node]
-           [else scaled-node]))
-       trimmed-prop]
+       (let* ([user-prop (properties-prop video-source)]
+              ;; Demuxing (TODO)
+              [node
+               (cond [(dict-ref user-prop "video-index" #f)
+                      video-node] ;; TODO
+                     [(dict-ref user-prop "audio-index" #f)
+                      video-node] ;; TODO
+                     [else video-node])]
+              ;; Dimmensions
+              [width (or (dict-ref target-prop "width" #f)
+                         (dict-ref user-prop "width" #f))]
+              [height (or (dict-ref target-prop "height" #f)
+                          (dict-ref user-prop "height" #f))]
+              [prev-props (or (node-props node) (hash))]
+              [prev-width (dict-ref prev-props "width" #f)]
+              [prev-height (dict-ref prev-props "height" #f)]
+              [node
+               (cond [(and width height
+                           (not (and prev-width (= prev-width width)))
+                           (not (and prev-height (= prev-height height))))
+                      (define s-node
+                        (mk-filter-node (hash 'video (mk-filter "scale"
+                                                            (hash "width" width
+                                                                  "height" height)))
+                                        #:props (dict-set* prev-props
+                                                           "width" width
+                                                           "height" height)
+                                        #:counts (node-counts node)))
+                      (add-vertex! (current-render-graph) s-node)
+                      (add-directed-edge! (current-render-graph) node s-node 1)
+                      s-node]
+                     [else node])]
+              ;; Time trimming
+              [calc-start (λ (prop)
+                            (or (dict-ref prop "start" #f)
+                                (and (dict-ref prop "length" #f) 0)
+                                (and (dict-ref prop "end" #f) 0)))]
+              [start (or (calc-start target-prop)
+                         (calc-start user-prop))]
+              [calc-end (λ (prop)
+                         (or (dict-ref prop "end" #f)
+                             (let ([l (dict-ref prop "length" #f)])
+                               (and l (+ start l)))))]
+              [end (or (calc-end target-prop)
+                       (calc-end user-prop))]
+              [prev-start (dict-ref prev-props "start" #f)]
+              [prev-end (dict-ref prev-props "end" #f)]
+              [node
+               (cond
+                 [(and start end
+                       (not (equal? end +inf.0))
+                       (not (and prev-start (= prev-start start)))
+                       (not (and prev-end (= prev-end end))))
+                  (define n
+                    (mk-filter-node (hash 'video (mk-filter "trim"
+                                                            (hash "start" (racket->ffmpeg start)
+                                                                  "end" (racket->ffmpeg end)))
+                                          'audio (mk-filter "atrim"
+                                                            (hash "start" (racket->ffmpeg start)
+                                                                  "end" (racket->ffmpeg end))))
+                                    #:props (dict-set* (node-props node)
+                                                       "start" start
+                                                       "end" end)
+                                    #:counts (node-counts node)))
+                  (add-vertex! (current-render-graph) n)
+                  (add-directed-edge! (current-render-graph) node n 1)
+                  n]
+                 [else node])])
+         node)]
       [else video-node]))
   ;; Attach filters
   (define attached
     (if (service? video-source)
         (for/fold ([ret vprop])
                   ([f (in-list (service-filters video-source))])
-          (define f* (convert-filter f ret))
-          (add-directed-edge! (current-render-graph) ret f* 1)
+          (define f* (convert-filter f target-prop video-source ret))
           f*)
         vprop))
   ;; Extend properties table (TODO)
   (define extended
     (cond [(properties? attached) attached]
           [else attached]))
-  extended)
+  ;; Apply any remaining conversions needed to transform user-prop to target-prop
+  ;; (height/width + start/end, handled earlier)
+  (let* ([node extended]
+         [prev-prop (or (node-props node) (hash))]
+         ;; FPS
+         [target-fps (dict-ref target-prop "fps" #f)]
+         [prev-fps (dict-ref prev-prop "fps" #f)]
+         [node
+          (cond [(and target-fps
+                      (not (and prev-fps (= target-fps prev-fps))))
+                 (define n
+                   (mk-filter-node
+                    (hash 'video (mk-filter "fps"
+                                            (hash "fps" (or target-fps 25))))
+                    #:props (dict-set* prev-prop
+                                       "fps" target-fps)
+                    #:counts (node-counts node)))
+                 (add-vertex! (current-render-graph) n)
+                 (add-directed-edge! (current-render-graph) node n 1)]
+                [else node])]
+         ;; Pix Fmt/Sample Fmt/Chan layout
+         [target-pix-fmt (dict-ref target-prop "pix-fmt" #f)]
+         [prev-pix-fmt (dict-ref prev-prop "pix-fmt" #f)]
+         [target-sample-fmt (dict-ref target-prop "sample-fmt" #f)]
+         [prev-sample-fmt (dict-ref prev-prop "sample-fmt" #f)]
+         [target-sample-rate (dict-ref target-prop "sample-rate" #f)]
+         [prev-sample-rate (dict-ref prev-prop "sample-rate" #f)]
+         [target-channel-layout (dict-ref target-prop "channel-layout" #f)]
+         [prev-channel-layout (dict-ref prev-prop "channel-layout" #f)]
+         [node
+          (cond [(or (and target-pix-fmt
+                          (not (eq? target-pix-fmt prev-pix-fmt)))
+                     (and target-sample-fmt
+                          (not (eq? target-sample-fmt prev-sample-fmt)))
+                     (and target-sample-rate
+                          (not (and prev-sample-rate (= target-sample-rate prev-sample-rate))))
+                     (and target-channel-layout
+                          (not (eq? target-channel-layout prev-channel-layout))))
+                 (define pix-fmt-node
+                   (mk-filter-node
+                    (hash 'video (mk-filter "format" (hash "pix_fmts" target-pix-fmt))
+                          'audio (mk-filter "aformat" (hash "sample_fmts" target-sample-fmt
+                                                            "sample_rates" target-sample-rate
+                                                            "channel_layouts" target-channel-layout)))
+                    #:props (dict-set* (node-props node)
+                                       "pix-fmt" target-pix-fmt
+                                       "sample-fmt" target-sample-fmt
+                                       "sample-rate" target-sample-rate
+                                       "channel-layout" target-channel-layout)
+                    #:counts (node-counts node)))
+                 (add-vertex! (current-render-graph) pix-fmt-node)
+                 (add-directed-edge! (current-render-graph) node pix-fmt-node 1)
+                 pix-fmt-node]
+                [else node])]
+         ;; Speed
+         [target-speed (dict-ref target-prop "speed" #f)]
+         [prev-speed (dict-ref prev-prop "speed" #f)]
+         [target-video-codec (dict-ref target-prop "video-codec" #f)]
+         [node
+          (cond [(and target-speed
+                      (not (and prev-speed (= prev-speed target-speed)))
+                      (not (= target-speed 0)))
+                 (define speed-node
+                   (mk-filter-node
+                    (hash 'video (mk-filter
+                                  "setpts"
+                                  (hash "expr" (base:format
+                                                "(PTS-STARTPTS)*~a"
+                                                (exact->inexact (/ 1 (abs target-speed))))))
+                          'audio (mk-filter
+                                  "asetrate"
+                                  (hash "r" (exact->inexact
+                                             (abs (* target-sample-rate target-speed))))))
+                    #:props (dict-set* (node-props node)
+                                       "speed" target-speed)
+                    #:counts (node-counts node)))
+                 (add-vertex! (current-render-graph) speed-node)
+                 (add-directed-edge! (current-render-graph) node speed-node 1)
+                 (define drop-node
+                   (match target-video-codec
+                     ['mpeg1video
+                      (define drop-node
+                        (mk-filter-node
+                         (hash 'video (mk-filter "select"
+                                                 (hash "expr" (format "'not(mod(n\\,~a)'"
+                                                                      (exact-ceiling target-speed))))
+                               #:props (node-props speed-node)
+                               #:counts (node-counts speed-node))))
+                      (add-vertex! (current-render-graph) drop-node)
+                      (add-directed-edge! (current-render-graph) speed-node drop-node 1)
+                      drop-node]
+                     [_ speed-node]))
+                 (define rev-node
+                   (cond
+                     [(< target-speed 0)
+                      (define rev-node
+                        (mk-filter-node
+                         (hash 'video (mk-filter "reverse")
+                               'audio (mk-filter "areverse"))
+                         #:props (node-props drop-node)
+                         #:counts (node-counts drop-node)))
+                      (add-vertex! (current-render-graph) rev-node)
+                      (add-directed-edge! (current-render-graph) drop-node rev-node 1)
+                      rev-node]
+                     [else drop-node]))
+                 rev-node]
+                [else node])])
+    node))
 
-;; Because the file/convertible interface is too specialized, provide one
-;;   that is specific to videos. This is re-exported (with contracts) in video/convert
-(define-values (prop:video-convertible ~video-convertible? video-convertible-ref)
-  (make-struct-type-property 'video-convertible))
-
-;; Used to see if a particular _instance_ of a struct is convertible, even if
-;;   the struct is convertible in general. If not provided it defaults to true.
-(define-values (prop:video-convertible? ~video-convertible?? video-convertible?-ref)
-  (make-struct-type-property 'video-convertible?))
-
-;; Determines if a video is convertible
-(define (video-convertible? v)
-  (and (~video-convertible? v)
-       (if (~video-convertible?? v)
-           ((video-convertible?-ref v) v)
-           #t)))
-
-;; Convert to a video. (Assumes given a video-convertible?)
-(define (video-convert v)
-  ((video-convertible-ref v) v))
+;; Having `convertible?` be generic allows any struct _instance_
+;;   to specify that its not convertible, even if the struct _type_
+;;   usually is.
+(define-generics video-convertible
+  #:fallbacks [(define (video-instance-convertible? v) #t)]
+  (video-instance-convertible? video-convertible)
+  (video-convert video-convertible [target-prop]))
 
 ;; An interface for composing properties when rendering
 ;;   a multitrack or playlist
@@ -190,6 +311,7 @@
         ([convert-args:id convert-defaults] ...) body ...)
      #:with constructor (format-id stx "make-~a" #'name)
      #:with this (format-id stx "this")
+     #:with the-target-prop (format-id stx "target-prop")
      #:with new-supers (format-id stx "subclass-~a" #'name)
      #:with super (format-id stx "subclass-~a" (if (identifier? #'super*)
                                                    #'super*
@@ -228,21 +350,22 @@
                     #`(if (dict-has-key? to-copy '#,j)
                           (dict-ref to-copy '#,j)
                           (#,(format-id stx "~a-~a" i j) v)))))]
+           #:methods gen:video-convertible
+           [(define (convert-video v [target-prop (hash)])
+              (convert-name v target-prop))]
            #:property prop:convertible
-           (let ([memo-table (make-hasheq)])
-             (λ (v request def)
-               (match request
-                 ['video
-                  (if #t ;(current-skip-memoize?)
-                      (convert-name v)
-                      (hash-ref! memo-table v convert-name))]
-                 [_ def]))))
+           (λ (v request def)
+             (match request
+               ['video
+                (convert-name v (hash))]
+               [_ def])))
          #,(quasisyntax/loc stx
-             (define (convert-name v [convert-args convert-defaults] ...)
+             (define (convert-name v [p (hash)] [convert-args convert-defaults] ...)
                (define ret
                  (call-with-values
                   (λ ()
-                    (let ([this v])
+                    (let ([this v]
+                          [the-target-prop p])
                       (let #,(for/list ([i (in-list all-structs)]
                                         [j (in-list all-ids)])
                                #`[#,(datum->syntax stx j)
@@ -252,7 +375,7 @@
                (define finished
                  (for/list ([i (in-list ret)])
                    (and i
-                        (finish-video-object-init i v))))
+                        (finish-video-object-init i v p))))
                (apply values finished)))
          #,(quasisyntax/loc stx
              (define (constructor #,@(append*
@@ -324,20 +447,22 @@
 (define-constructor service properties ([filters '()]) ())
 
 (define-constructor filter service ([subgraph #f])
-  ([prev #f])
-  (unless prev
-    (error 'filter "Prev node ~a not found" prev))
+  ([prev-source #f] ; <- Source for video
+   [prev-node #f]) ; <- Compiled form of prev
+  (unless prev-node
+    (error 'filter "Prev node ~a not found" prev-node))
   (cond
     [(dict? subgraph)
      (define node (mk-filter-node subgraph
-                                  #:counts (if prev (node-counts prev) (hash))
-                                  #:props (if prev (node-props prev) (hash))))
+                                  #:counts (node-counts prev-node)
+                                  #:props (node-props prev-node)))
      (add-vertex! (current-render-graph) node)
+     (add-directed-edge! (current-render-graph) prev-node node 1)
      node]
     [(procedure? subgraph)
-     (define rg (subgraph (weighted-graph/directed '()) prev))
+     (define rg (subgraph (weighted-graph/directed '()) prev-node target-prop)) ; use prev-source??
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
-     (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg) 1)
+     (add-directed-edge! (current-render-graph) prev-node (video-subgraph-sources rg) 1)
      (video-subgraph-sinks rg)]))
 
 (define-constructor nullsink service ([source #f])
@@ -358,19 +483,39 @@
    [prev2 #f])
   (unless (and prev1 prev2)
     (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
-  (define prev1-copy (mk-split-node #:fan-out 2
-                                    #:counts (node-counts prev1)
-                                    #:props (node-props prev1)))
-  (define prev2-copy (mk-split-node #:fan-out 2
-                                    #:counts (node-counts prev2)
-                                    #:props (node-props prev2)))
-  (add-vertex! (current-render-graph) prev1-copy)
-  (add-vertex! (current-render-graph) prev2-copy)
-  (add-directed-edge! (current-render-graph) prev1 prev1-copy 1)
-  (add-directed-edge! (current-render-graph) prev2 prev2-copy 1)
-  (define track1-sub (track1-subgraph (weighted-graph/directed '()) prev1))
-  (define track2-sub (track2-subgraph (weighted-graph/directed '()) prev2))
-  (define combined-sub (combined-subgraph (weighted-graph/directed '()) prev1 prev2))
+  ;; Grab subgraphs to see if copy is needed
+  (define-values (track1-sub sep-t1-target-prop)
+    (track1-subgraph (weighted-graph/directed '()) prev1 target-prop))
+  (define-values (track2-sub sep-t2-target-prop)
+    (track2-subgraph (weighted-graph/directed '()) prev2 target-prop))
+  (define-values (combined-sub combined-t1-target-prop combined-t2-target-prop)
+    (combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop))
+  ;; With compiled sub-graphs, see its requested target props and compile prev nodes accordingly
+  (define track1-target-prop (hash-union sep-t1-target-prop combined-t1-target-prop))
+  (define track2-target-prop (hash-union sep-t2-target-prop combined-t2-target-prop))
+  (define prev1-node (convert prev1 track1-target-prop))
+  (define prev2-node (convert prev2 track2-target-prop))
+  ;; Only copy if needed both by combined and either track1 or track2
+  (define prev1-copy
+    (cond [(and track1-sub combined-sub)
+           (define prev1-copy
+             (mk-split-node #:fan-out 2
+                            #:counts (node-counts prev1-node)
+                            #:props (node-props prev1-node)))
+           (add-vertex! (current-render-graph) prev1-copy)
+           (add-directed-edge! (current-render-graph) prev1-node prev1-copy 1)
+           prev1-copy]
+          [else prev1-node]))
+  (define prev2-copy
+    (cond [(and track2-sub combined-sub)
+           (define prev2-copy
+             (mk-split-node #:fan-out 2
+                            #:counts (node-counts prev2-node)
+                            #:props (node-props prev2-node)))
+           (add-vertex! (current-render-graph) prev2-copy)
+           (add-directed-edge! (current-render-graph) prev2-node prev2-copy 1)
+           prev2-copy]
+          [else prev2-node]))
   (define r1
     (cond [track1-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
@@ -379,22 +524,14 @@
                                (video-subgraph-sources track1-sub)
                                2)
            (video-subgraph-sinks track1-sub)]
-          [else
-           (define sink-node (mk-empty-sink-node #:counts (node-counts prev1-copy)))
-           (add-vertex! (current-render-graph) sink-node)
-           (add-directed-edge! (current-render-graph) prev1-copy sink-node 2)
-           #f]))
+          [else #f]))
   (define r2
     (cond [track2-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track2-sub))
            (add-directed-edge! (current-render-graph)
                                prev2-copy (video-subgraph-sources track2-sub) 1)
            (video-subgraph-sinks track2-sub)]
-          [else
-           (define sink-node (mk-empty-sink-node #:counts (node-counts prev2-copy)))
-           (add-vertex! (current-render-graph) sink-node)
-           (add-directed-edge! (current-render-graph) prev2-copy sink-node 1)
-           #f]))
+          [else #f]))
   (define rc
     (cond [combined-sub
            (graph-union! (current-render-graph) (video-subgraph-graph combined-sub))
@@ -403,14 +540,7 @@
            (add-directed-edge! (current-render-graph)
                                prev2-copy (cdr (video-subgraph-sources combined-sub)) 2)
            (video-subgraph-sinks combined-sub)]
-          [else
-           (define sink-node1 (mk-empty-sink-node #:counts (node-counts prev1-copy)))
-           (define sink-node2 (mk-empty-sink-node #:counts (node-counts prev2-copy)))
-           (add-vertex! (current-render-graph) sink-node1)
-           (add-vertex! (current-render-graph) sink-node2)
-           (add-directed-edge! (current-render-graph) prev1-copy sink-node1 1)
-           (add-directed-edge! (current-render-graph) prev2-copy sink-node2 2)
-           #f]))
+          [else #f]))
   (values r1 r2 rc))
 
 (define-constructor producer service ([subgraph (hash)])
@@ -420,7 +550,7 @@
      (define node (mk-filter-node subgraph
                                   #:counts (for/hash ([(k v) (in-dict subgraph)])
                                              (values k 1))
-                                  #:props prop))
+                                  #:props target-prop))
      (add-vertex! (current-render-graph) node)
      (when prev
        (add-directed-edge! (current-render-graph) prev node 1))
@@ -428,7 +558,12 @@
     [(procedure? subgraph)
      (unless prev
        (error 'producer "Undefined prev node ~a" prev))
-     (define rg (subgraph prev))
+     (define rg
+       (cond [(procedure-arity-includes? 2) (subgraph prev target-prop)]
+             [(procedure-arity-includes? 1) (subgraph prev)]
+             [(procedure-arity-includes? 0) (subgraph)]
+             [else
+              (error 'producer "Invalid producer subgraph")]))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
      (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg))
      (video-subgraph-sinks rg)]))
@@ -544,14 +679,22 @@
   node)
 
 (define-constructor blank producer () ()
-  (define start (dict-ref prop "start" #f))
-  (define end (dict-ref prop "end" #f))
-  (mk-filter-node (hash 'video (mk-empty-video-filter #:width (dict-ref prop "width" #f)
-                                                      #:height (dict-ref prop "height" #f)
+  (define start (or (dict-ref target-prop "start" #f)
+                    (dict-ref prop "start" #f)))
+  (define end (or (dict-ref target-prop "end" #f)
+                  (dict-ref prop "end" #f)))
+  (define width (dict-ref target-prop "width" #f))
+  (define height (dict-ref target-prop "height" #f))
+  (mk-filter-node (hash 'video (mk-empty-video-filter #:width width
+                                                      #:height height
                                                       #:duration (and end start (- end start)))
                         'audio (mk-empty-audio-filter))
                   #:counts (hash 'video 1 'audio 1)
-                  #:props prop))
+                  #:props (dict-set* prop
+                                     "start" start
+                                     "end" end
+                                     "width" width
+                                     "height" height)))
 
 (define-constructor playlist producer ([elements '()])
   ()
@@ -581,19 +724,16 @@
   ;; Otherwise just add the compiled filter to the list.
   ;; Invariant assumed: Transitions are never the first or last filters in a list.
   ;; Invariant assumed: No two transitions happen side by side.
-  (define-values (transition-videos transition-nodes start end fps width height counts chapters)
+  (define-values (transition-videos transition-nodes start end counts chapters)
     (for/fold ([prev-vids '()]
                [prev-nodes '()]
                [start 0]
                [end 0]
-               [fps 0]
-               [width 0]
-               [height 0]
                [counts (hash)]
                [chapters '()]
                 #:result (values (reverse prev-vids)
                                  (reverse prev-nodes)
-                                 start end fps width height counts
+                                 start end counts
                                  (reverse chapters)))
               ([i (in-list elements*)]
                [index (in-naturals)])
@@ -618,9 +758,6 @@
                         (list* track1-copy sink (cdr prev-nodes))
                         start
                         (+ end clip-offset)
-                        fps
-                        width
-                        height
                         (hash-union counts (node-counts (car prev-nodes) #:combine max))
                         (update-chapters-list chapters clip-offset))]
                [else
@@ -637,9 +774,6 @@
                         (cons track1-copy (cdr prev-nodes))
                         start
                         (+ end clip-offset)
-                        fps
-                        width
-                        height
                         counts
                         (update-chapters-list chapters clip-offset))])]
         [_
@@ -726,9 +860,6 @@
                          (cdr prev-nodes))
                         start
                         (+ end clip-offset)
-                        fps
-                        width
-                        height
                         (hash-union counts
                                     (if (dict-ref node 'track2)
                                         (node-counts (dict-ref node 'track2))
@@ -746,43 +877,15 @@
                         (cons node prev-nodes)
                         start
                         (+ end clip-offset)
-                        (max fps (dict-ref props "fps" 0))
-                        (max width (dict-ref props "width" 0))
-                        (max height (dict-ref props "height" 0))
                         (hash-union counts (node-counts pre-node) #:combine max)
                         (append (get-property pre-node "chapters" '())
                                 (update-chapters-list chapters clip-offset)))])])))
-  ;; Remove now unneded transitions
-  ;; Go through again and fix frame rates and aspect ratios
-  (define cleaned-nodes
-    (for/list ([node (in-list transition-nodes)])
-      (define (coerce-clip vid-filter connect-node)
-        (define node
-          (mk-filter-node
-           (hash 'video vid-filter)
-           #:props (dict-copy (node-props connect-node))
-           #:counts counts))
-        (add-vertex! (current-render-graph) node)
-        (add-directed-edge! (current-render-graph) connect-node node 1)
-        node)
-      (let* ([ret (if (and (> width 0)
-                           (> height 0))
-                      (coerce-clip (mk-filter "scale" (hash "width" width
-                                                            "height" height))
-                                   node)
-                      node)]
-             [ret (if (> fps 0)
-                      (coerce-clip (mk-filter "fps" (hash "fps" fps))
-                                   ret)
-                      ret)]
-             [ret (coerce-clip (mk-filter "format" (hash "pix_fmts" "yuv420p"))
-                               ret)])
-        ret)))
   ;; Offset each clip accordingly
-  (define-values (prev-nodes time-again)
+  (define-values (nodes time-again)
     (for/fold ([prev-nodes '()]
-               [time 0])
-              ([n (in-list cleaned-nodes)])
+               [time 0]
+               #:result (reverse prev-nodes))
+              ([n (in-list transition-nodes)])
       (define props (node-props n))
       (define start (dict-ref props "start"))
       (define end (dict-ref props "end"))
@@ -801,7 +904,6 @@
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
       (values (cons node prev-nodes) (+ time (- end start)))))
-  (define nodes (reverse prev-nodes))
   ;; Build backing structure and transition everything to it.
   (define the-playlist
     (mk-filter-node (hash 'video (mk-filter "concat"
@@ -812,11 +914,7 @@
                                             (hash "n" (length nodes)
                                                   "v" 0
                                                   "a" 1)))
-                    #:props (hash "start" start
-                                  "end" end
-                                  "fps" fps
-                                  "width" width
-                                  "height" height)
+                    #:props target-prop
                     #:counts counts))
   (add-vertex! (current-render-graph) the-playlist)
   (for ([i (in-list nodes)]
@@ -829,12 +927,9 @@
     (add-directed-edge! (current-render-graph) pre-buffer the-playlist index))
   (define the-buffer
     (mk-filter-node (hash 'video (mk-filter "fifo") 'audio (mk-filter "afifo"))
-                    #:props (hash "start" start
-                                  "end" end
-                                  "fps" fps
-                                  "width" width
-                                  "height" height
-                                  "chapters" chapters)
+                    #:props (dict-set* target-prop
+                                       "start" start
+                                       "end" end)
                     #:counts counts))
   (add-vertex! (current-render-graph) the-buffer)
   (add-directed-edge! (current-render-graph) the-playlist the-buffer 1)

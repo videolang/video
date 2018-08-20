@@ -320,11 +320,11 @@
                  (dict-set* (or prop (hash))
                             "pre-length" fade-length
                             "post-length" fade-length))
-  #:track1-subgraph (λ (ctx node-a)
+  #:track1-subgraph (λ (ctx node-a target-prop)
                       #f)
-  #:track2-subgraph (λ (ctx node-b)
+  #:track2-subgraph (λ (ctx node-b target-prop)
                       #f)
-  #:combined-subgraph (λ (ctx node-a node-b)
+  #:combined-subgraph (λ (ctx node-a node-b target-prop)
                         (define new-counts
                            (hash-union (hash)
                                        (node-counts node-a)
@@ -432,9 +432,9 @@
                                              #:prop (hash "length" t-length))))
 
 (define-merge (overlay-merge x y [w #f] [h #f])
-  #:track1-subgraph (λ (ctx t1) #f)
-  #:track2-subgraph (λ (ctx t2) #f)
-  #:combined-subgraph (λ (ctx t1 t2)
+  #:track1-subgraph (λ (ctx t1 target-prop) #f)
+  #:track2-subgraph (λ (ctx t2 target-prop) #f)
+  #:combined-subgraph (λ (ctx t1 t2 target-prop)
                         (define zero-node1 (mk-reset-timestamp-node
                                             #:props (node-props t1)
                                             #:counts (node-counts t1)))
@@ -499,9 +499,9 @@
 
 
 (define-merge (composite-merge x1 y1 x2 y2)
-  #:track1-subgraph (λ (ctx t1) #f)
-  #:track2-subgraph (λ (ctx t2) #f)
-  #:combined-subgraph (λ (ctx t1 t2)
+  #:track1-subgraph (λ (ctx t1 target-prop) #f)
+  #:track2-subgraph (λ (ctx t2 target-prop) #f)
+  #:combined-subgraph (λ (ctx t1 t2 target-prop)
                         (define zero-node1 (mk-reset-timestamp-node
                                             #:props (node-props t1)
                                             #:counts (node-counts t1)))

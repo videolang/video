@@ -368,11 +368,6 @@
       (call-with-semaphore
        current-render-settings-lock
        (λ ()
-         (set! video-graph (video:mk-render-graph))
-         (set! video-sink (parameterize ([video:current-render-graph video-graph]
-                                         [video:current-convert-database convert-database])
-                            (video:convert source)))
-         (set! current-render-settings settings)
          (match settings
            [(struct* render-settings ([destination dest]
                                       [width width]
@@ -434,6 +429,7 @@
             (set! render-graph (graph-copy video-graph))
             (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
             (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
+            ;; Set properties and start rendering
             (define props
               (hash-set* (node-props video-sink)
                          "width" width
@@ -448,105 +444,17 @@
                          "audio-codec" audio-codec
                          "sample-rate" sample-rate
                          "channel-layout" channel-layout))
+            (set! video-graph (video:mk-render-graph))
+            (set! video-sink (parameterize ([video:current-render-graph video-graph]
+                                            [video:current-convert-database convert-database])
+                               (video:convert source props)))
+            (set! current-render-settings settings)
             (define start-node
               (mk-fifo-node
                #:props props
                #:counts (hash 'video video-streams 'audio audio-streams)))
             (add-vertex! render-graph start-node)
             (add-directed-edge! render-graph video-sink start-node 1)
-            (define trim-node
-              (mk-filter-node
-               (hash 'video (mk-filter
-                             "trim" (let* ([r (hash)]
-                                           [r (if start
-                                                  (hash-set r "start" (racket->ffmpeg start))
-                                                  r)]
-                                           [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
-                                      r))
-                     'audio (mk-filter
-                             "atrim" (let* ([r (hash)]
-                                            [r (if start
-                                                   (hash-set r "start" (racket->ffmpeg start))
-                                                   r)]
-                                            [r (if end (hash-set r "end" (racket->ffmpeg end)) r)])
-                                       r)))
-               #:props props
-               #:counts (node-counts start-node)))
-            (add-vertex! render-graph trim-node)
-            (add-directed-edge! render-graph start-node trim-node 1)
-            (define pad-node
-              (mk-filter-node
-               (hash 'video (mk-filter "scale"
-                                       (hash "width" width
-                                             "height" height))
-                     'audio (mk-filter "anull"))
-               #:props props
-               #:counts (node-counts trim-node)))
-            (add-vertex! render-graph pad-node)
-            (add-directed-edge! render-graph trim-node pad-node 1)
-            (define fps-node
-              (mk-filter-node
-               (hash 'video (mk-filter "fps"
-                                       (hash "fps" (or fps 25))))
-               #:props props
-               #:counts (node-counts trim-node)))
-            (add-vertex! render-graph fps-node)
-            (add-directed-edge! render-graph pad-node fps-node 1)
-            (define pix-fmt-node
-              (mk-filter-node
-               (hash 'video (mk-filter "format" (hash "pix_fmts" pix-fmt))
-                     'audio (mk-filter "aformat" (hash "sample_fmts" sample-fmt
-                                                       "sample_rates" sample-rate
-                                                       "channel_layouts" channel-layout)))
-               #:props props
-               #:counts (node-counts trim-node)))
-            (add-vertex! render-graph pix-fmt-node)
-            (add-directed-edge! render-graph fps-node pix-fmt-node 1)
-            (define speed-node
-              (cond
-                [(= speed 0)
-                 pix-fmt-node]
-                [else
-                 (define speed-node
-                   (mk-filter-node
-                    (hash 'video (mk-filter
-                                  "setpts"
-                                  (hash "expr" (base:format "(PTS-STARTPTS)*~a"
-                                                            (exact->inexact (/ 1 (abs speed))))))
-                          'audio (mk-filter "asetrate"
-                                            (hash "r" (exact->inexact (abs (* sample-rate speed))))))
-                    #:props props
-                    #:counts (node-counts trim-node)))
-                 (add-vertex! render-graph speed-node)
-                 (add-directed-edge! render-graph pix-fmt-node speed-node 1)
-                 speed-node]))
-            (define drop-node
-              (match video-codec
-                ['mpeg1video
-                 (define drop-node
-                   (mk-filter-node
-                    (hash 'video (mk-filter "select"
-                                            (hash "expr" (format "'not(mod(n\\,~a)'"
-                                                                 (exact-ceiling speed))))
-                    #:props props
-                    #:counts (node-counts trim-node))))
-                 (add-vertex! render-graph drop-node)
-                 (add-directed-edge! render-graph speed-node drop-node 1)
-                 drop-node]
-                [_ speed-node]))
-            (define rev-node
-              (cond
-                [(< speed 0)
-                 (define rev-node
-                   (mk-filter-node
-                    (hash 'video (mk-filter "reverse")
-                          'audio (mk-filter "areverse"))
-                    #:props props
-                    #:counts (node-counts trim-node)))
-                 (add-vertex! render-graph rev-node)
-                 (add-directed-edge! render-graph drop-node rev-node 1)
-                 rev-node]
-                [else drop-node]))
             (define out-bundles
               (for/list ([spec (in-list bundle-specs)]
                          [format-name (in-list format-names)]
@@ -558,16 +466,15 @@
                         ([out-bundle (in-list out-bundles)]
                          [consume-table (in-list consume-tables)])
                 (mk-sink-node out-bundle
-                              #:counts (node-counts trim-node)
+                              #:counts (node-counts start-node)
                               #:next next
                               #:props props
                               #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph rev-node sink-node 1)
-            (set! output-node pad-node)
+            (add-directed-edge! render-graph start-node sink-node 1)
+            (set! output-node sink-node)
             (set! video-start (video:get-property video-sink "start"))
             (set! video-end (video:get-property video-sink "end"))
-            ;(displayln (graphviz render-graph))
             (let-values ([(g i o) (init-filter-graph render-graph)])
               (set! graph-obj g)
               (set! input-bundles i)
