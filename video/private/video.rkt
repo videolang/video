@@ -80,6 +80,17 @@
   (av-dump-format avformat 0 path 0))
 
 (define (finish-video-object-init video-node video-source target-prop target-counts)
+  ;; Sync target counts
+  (define counts-node
+    (cond [(not (equal? target-counts (node-counts video-node)))
+           (define n (mk-filter-node (hash 'video (mk-filter "fifo")
+                                           'audio (mk-filter "afifo"))
+                                     #:props (node-props video-node)
+                                     #:counts target-counts))
+           (add-vertex! (current-render-graph) n)
+           (add-directed-edge! (current-render-graph) video-node n 1)
+           n]
+          [else video-node]))
   ;; Set user properties
   (define vprop
     (cond
@@ -88,10 +99,10 @@
               ;; Demuxing (TODO)
               [node
                (cond [(dict-ref user-prop "video-index" #f)
-                      video-node] ;; TODO
+                      counts-node] ;; TODO
                      [(dict-ref user-prop "audio-index" #f)
-                      video-node] ;; TODO
-                     [else video-node])]
+                      counts-node] ;; TODO
+                     [else counts-node])]
               ;; Dimmensions
               [width (or (dict-ref target-prop "width" #f)
                          (dict-ref user-prop "width" #f))]
@@ -176,7 +187,7 @@
                   pts-n]
                  [else node])])
          node)]
-      [else video-node]))
+      [else counts-node]))
   ;; Attach filters
   (define attached
     (if (service? video-source)
@@ -194,17 +205,6 @@
   ;; (height/width + start/end, handled earlier)
   (let* ([node extended]
          [prev-prop (or (node-props node) (hash))]
-         ;; Sync target counts
-         [node
-          (cond [(not (equal? target-counts (node-counts node)))
-                 (define n (mk-filter-node (hash 'video (mk-filter "fifo")
-                                                 'audio (mk-filter "afifo"))
-                                           #:props (node-props node)
-                                           #:counts target-counts))
-                 (add-vertex! (current-render-graph) n)
-                 (add-directed-edge! (current-render-graph) node n 1)
-                 n]
-                [else node])]
          ;; FPS
          [target-fps (dict-ref target-prop "fps" #f)]
          [prev-fps (dict-ref prev-prop "fps" #f)]
