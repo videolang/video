@@ -51,7 +51,7 @@
 
 ;; A helper function to convert videos to video nodes
 ;; Video (U Graph #f) -> _node
-(define (convert source* [target-prop (hash)]
+(define (convert source* [target-prop (hash)] [target-counts (hash)]
                  #:renderer [renderer* #f])
   (struct default ())
   (define source
@@ -69,7 +69,7 @@
              ret)]
           [else (error 'convert "Object ~a cannot be converted to a video" source*)]))
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
-    (define ret (video-convert source target-prop))
+    (define ret (video-convert source target-prop target-counts))
     ret))
 
 ;; DEBUG FUNCTION ONLY
@@ -79,7 +79,7 @@
 (define (debug/save-prop avformat path)
   (av-dump-format avformat 0 path 0))
 
-(define (finish-video-object-init video-node video-source target-prop)
+(define (finish-video-object-init video-node video-source target-prop target-counts)
   ;; Set user properties
   (define vprop
     (cond
@@ -97,13 +97,17 @@
                          (dict-ref user-prop "width" #f))]
               [height (or (dict-ref target-prop "height" #f)
                           (dict-ref user-prop "height" #f))]
+              [dar (or (dict-ref target-prop "display-aspect-ratio" #f)
+                       (dict-ref user-prop "display-aspect-ratio" #f))]
               [prev-props (or (node-props node) (hash))]
               [prev-width (dict-ref prev-props "width" #f)]
               [prev-height (dict-ref prev-props "height" #f)]
+              [prev-dar (dict-ref prev-props "dar" #f)]
               [node
-               (cond [(and width height
-                           (not (and prev-width (= prev-width width)))
-                           (not (and prev-height (= prev-height height))))
+               (cond [(or (and width height
+                               (not (and prev-width (= prev-width width)))
+                               (not (and prev-height (= prev-height height))))
+                          (and dar (not (and prev-dar (= prev-dar dar)))))
                       (define s-node
                         (mk-filter-node (hash 'video (mk-filter "scale"
                                                             (hash "width" width
@@ -114,7 +118,15 @@
                                         #:counts (node-counts node)))
                       (add-vertex! (current-render-graph) s-node)
                       (add-directed-edge! (current-render-graph) node s-node 1)
-                      s-node]
+                      (define dar-node
+                        (mk-filter-node (hash 'video (mk-filter "setdar"
+                                                                (hash "r" (racket->ffmpeg dar))))
+                                        #:props (dict-set* (node-props s-node)
+                                                           "display-aspect-ratio" dar)
+                                        #:counts (node-counts s-node)))
+                      (add-vertex! (current-render-graph) dar-node)
+                      (add-directed-edge! (current-render-graph) s-node dar-node 1)
+                      dar-node]
                      [else node])]
               ;; Time trimming
               [calc-start (λ (prop)
@@ -127,16 +139,20 @@
                          (or (dict-ref prop "end" #f)
                              (let ([l (dict-ref prop "length" #f)])
                                (and l (+ start l)))))]
-              [end (or (calc-end target-prop)
-                       (calc-end user-prop))]
+              [end (let ([t-end (calc-end target-prop)]
+                         [u-end (calc-end user-prop)])
+                     (cond
+                       [(not t-end)      u-end]
+                       [(= t-end +inf.0) (or u-end t-end)]
+                       [else             t-end]))]
               [prev-start (dict-ref prev-props "start" #f)]
               [prev-end (dict-ref prev-props "end" #f)]
               [node
                (cond
                  [(and start end
-                       (not (equal? end +inf.0))
-                       (not (and prev-start (= prev-start start)))
-                       (not (and prev-end (= prev-end end))))
+                       (not (= end +inf.0))
+                       (not (and prev-start (= prev-start start)
+                                 prev-end (= prev-end end))))
                   (define n
                     (mk-filter-node (hash 'video (mk-filter "trim"
                                                             (hash "start" (racket->ffmpeg start)
@@ -150,7 +166,14 @@
                                     #:counts (node-counts node)))
                   (add-vertex! (current-render-graph) n)
                   (add-directed-edge! (current-render-graph) node n 1)
-                  n]
+                  (define pts-n
+                    (mk-filter-node (hash 'video (mk-filter "setpts" (hash "expr" "PTS-STARTPTS"))
+                                          'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                                    #:props (node-props n)
+                                    #:counts (node-counts n)))
+                  (add-vertex! (current-render-graph) pts-n)
+                  (add-directed-edge! (current-render-graph) n pts-n 1)
+                  pts-n]
                  [else node])])
          node)]
       [else video-node]))
@@ -167,9 +190,21 @@
     (cond [(properties? attached) attached]
           [else attached]))
   ;; Apply any remaining conversions needed to transform user-prop to target-prop
+  ;;   and user counts to target counts
   ;; (height/width + start/end, handled earlier)
   (let* ([node extended]
          [prev-prop (or (node-props node) (hash))]
+         ;; Sync target counts
+         [node
+          (cond [(not (equal? target-counts (node-counts node)))
+                 (define n (mk-filter-node (hash 'video (mk-filter "fifo")
+                                                 'audio (mk-filter "afifo"))
+                                           #:props (node-props node)
+                                           #:counts target-counts))
+                 (add-vertex! (current-render-graph) n)
+                 (add-directed-edge! (current-render-graph) node n 1)
+                 n]
+                [else node])]
          ;; FPS
          [target-fps (dict-ref target-prop "fps" #f)]
          [prev-fps (dict-ref prev-prop "fps" #f)]
@@ -282,7 +317,7 @@
 (define-generics video-convertible
   #:fallbacks [(define (video-instance-convertible? v) #t)]
   (video-instance-convertible? video-convertible)
-  (video-convert video-convertible [target-prop]))
+  (video-convert video-convertible [target-prop] [target-counts]))
 
 ;; An interface for composing properties when rendering
 ;;   a multitrack or playlist
@@ -313,6 +348,7 @@
      #:with constructor (format-id stx "make-~a" #'name)
      #:with this (format-id stx "this")
      #:with the-target-prop (format-id stx "target-prop")
+     #:with the-target-counts (format-id stx "target-counts")
      #:with new-supers (format-id stx "subclass-~a" #'name)
      #:with super (format-id stx "subclass-~a" (if (identifier? #'super*)
                                                    #'super*
@@ -352,21 +388,24 @@
                           (dict-ref to-copy '#,j)
                           (#,(format-id stx "~a-~a" i j) v)))))]
            #:methods gen:video-convertible
-           [(define (video-convert v [target-prop (hash)])
-              (convert-name v target-prop))]
+           [(define (video-convert v
+                                   [target-prop (hash)]
+                                   [target-counts (hash)])
+              (convert-name v target-prop target-counts))]
            #:property prop:convertible
            (λ (v request def)
              (match request
                ['video
-                (convert-name v (hash))]
+                (convert-name v (hash) (hash))]
                [_ def])))
          #,(quasisyntax/loc stx
-             (define (convert-name v [p (hash)] [convert-args convert-defaults] ...)
+             (define (convert-name v [p (hash)] [tc (hash)] [convert-args convert-defaults] ...)
                (define ret
                  (call-with-values
                   (λ ()
                     (let ([this v]
-                          [the-target-prop p])
+                          [the-target-prop p]
+                          [the-target-counts tc])
                       (let #,(for/list ([i (in-list all-structs)]
                                         [j (in-list all-ids)])
                                #`[#,(datum->syntax stx j)
@@ -376,7 +415,7 @@
                (define finished
                  (for/list ([i (in-list ret)])
                    (and i
-                        (finish-video-object-init i v p))))
+                        (finish-video-object-init i v p tc))))
                (apply values finished)))
          #,(quasisyntax/loc stx
              (define (constructor #,@(append*
@@ -642,7 +681,25 @@
                                #:counts count-tab
                                #:props props))
   (add-vertex! (current-render-graph) node)
-  node)
+  (cond
+    [(and fstart fduration ftime-base) ; A moving image
+     node]
+    [else                              ; A still image
+     ;; This is terrible, but see:
+     ;; video.stackexchange.com/questions/12105/add-an-image-overlay-in-front-of-video-using-ffmpeg
+     (define b-node (video-convert (make-blank)
+                                   (hash "width" fwidth
+                                         "height" fheight)
+                                   count-tab))
+     (define c-node
+       (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
+                                                               "y" 0)))
+                       #:props props
+                       #:counts count-tab))
+     (add-vertex! (current-render-graph) c-node)
+     (add-directed-edge! (current-render-graph) b-node c-node 1)
+     (add-directed-edge! (current-render-graph) node c-node 2)
+     c-node]))
 
 (define-constructor input-device producer ([video #f]
                                            [audio #f]
@@ -678,7 +735,7 @@
                                                       #:height height
                                                       #:duration (and end start (- end start)))
                         'audio (mk-empty-audio-filter))
-                  #:counts (hash 'video 1 'audio 1)
+                  #:counts target-counts
                   #:props (dict-set* prop
                                      "start" start
                                      "end" end
@@ -711,28 +768,25 @@
   ;; Otherwise just add the compiled filter to the list.
   ;; Invariant assumed: Transitions are never the first or last filters in a list.
   ;; Invariant assumed: No two transitions happen side by side.
-  (define-values (transition-nodes len counts)
+  (define-values (nodes len)
     (let loop ([nodes '()]
                [len 0]
-               [counts (hash)]
                ; [chapters '()] <- TODO!!!
                [elements elements*])
       (cond
         [(empty? elements) (values (reverse nodes)
-                                   len
-                                   counts)]
+                                   len)]
         [else
          (define track1 (first elements))
          (cond
-           [(or (empty? (rest elements))              ;; Last element
+           [(or (empty? (rest elements))               ;; Last element
                 (not (transition? (second elements)))) ;; Default transition
-            (define node (video-convert track1 timeless-target-prop))
+            (define node (video-convert track1 timeless-target-prop target-counts))
             (add-vertex! (current-render-graph) node)
             (loop (cons node nodes)
                   (+ len (dict-ref (node-props node) "end" 0))
-                  (hash-union counts (node-counts node) #:combine max)
                   (cdr elements))]
-           [else                                      ;; User specified transition
+           [else                                       ;; User specified transition
             (define trans (second elements))
             (define track2 (third elements))
             (define-values (r1 r2 rc) (video-convert trans timeless-target-prop track1 track2))
@@ -747,33 +801,7 @@
                      (if r1 (dict-ref (node-props r1) "end" 0) 0)
                      (if r2 (dict-ref (node-props r2) "end" 0) 0)
                      (if rc (dict-ref (node-props rc) "end" 0) 0))
-                  (hash-union counts
-                              (if r1 (node-counts r1) (hash))
-                              (if r2 (node-counts r2) (hash))
-                              (if rc (node-counts rc) (hash))
-                              #:combine max)
                   (list-tail elements 3))])])))
-  ;; Offset each clip accordingly
-  (define nodes
-    (for/fold ([prev-nodes '()]
-               [time 0]
-               #:result (reverse prev-nodes))
-              ([n (in-list transition-nodes)])
-      (define props (node-props n))
-      (define start (dict-ref props "start" 0))
-      (define end (dict-ref props "end" 0))
-      (define offset (mk-filter "setpts" (hash "expr" "PTS-STARTPTS")))
-      (define aoffset (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
-      (define node
-        (mk-filter-node (hash 'video offset
-                              'audio aoffset)
-                        #:props (dict-set* props
-                                           "start" (+ start time)
-                                           "end" (+ end time))
-                        #:counts counts))
-      (add-vertex! (current-render-graph) node)
-      (add-directed-edge! (current-render-graph) n node 1)
-      (values (cons node prev-nodes) (+ time (- end start)))))
   ;; Build backing structure and transition everything to it.
   (define the-playlist
     (mk-filter-node (hash 'video (mk-filter "concat"
@@ -787,13 +815,13 @@
                     #:props (dict-set* target-prop
                                        "start" 0
                                        "end" len)
-                    #:counts counts))
+                    #:counts target-counts))
   (add-vertex! (current-render-graph) the-playlist)
   (for ([i (in-list nodes)]
         [index (in-naturals)])
     (define pre-buffer (mk-filter-node (hash 'video (mk-filter "fifo")
                                              'audio (mk-filter "afifo"))
-                                       #:counts counts))
+                                       #:counts target-counts))
     (add-vertex! (current-render-graph) pre-buffer)
     (add-directed-edge! (current-render-graph) i pre-buffer 1)
     (add-directed-edge! (current-render-graph) pre-buffer the-playlist index))

@@ -53,6 +53,7 @@
 (define DEFAULT-SAMPLE-FMT 'fltp)
 (define DEFAULT-CHANNELS 2)
 (define DEFAULT-CHANNEL-LAYOUT 'stereo)
+(define DEFAULT-DAR 16/9)
 
 ;; This is the location of the ffmpeg path ONLY IF it
 ;;  is installed on the computer. This must only be used
@@ -1554,8 +1555,10 @@
   (define g* (transpose g))
   (define-edge-property g* OFFSET 
     #:for-each (OFFSET-set! $from $to
-                            (max 0 (- (dict-ref (node-props $from) "start" 0)
-                                      (dict-ref (node-props $to) "start" 0)))))
+                            (let ([from-weight (dict-ref (node-props $from) "start" #f)]
+                                  [to-weight (dict-ref (node-props $to) "start" #f)])
+                              (max 0 (- (or from-weight 0)
+                                        (or to-weight 0))))))
   (define sink-node
     (for/fold ([sink #f])
               ([n (in-vertices g)])

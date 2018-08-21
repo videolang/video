@@ -28,6 +28,7 @@
 (struct render-settings (destination
                          width
                          height
+                         display-aspect-ratio
                          start
                          end
                          fps
@@ -50,6 +51,7 @@
 (define (make-render-settings #:destination [d #f]
                               #:width [w 1920]
                               #:height [h 1080]
+                              #:display-aspect-ratio [dar 16/9]
                               #:start [s #f]
                               #:end [e #f]
                               #:fps [fr #f]
@@ -69,4 +71,4 @@
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
                               #:seek? [s? #t])
-  (render-settings d w h s e fr tb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))
+  (render-settings d w h dar s e fr tb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))

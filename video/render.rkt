@@ -432,6 +432,7 @@
               (hash-set* (hash)
                          "width" width
                          "height" height
+                         "display-aspect-ratio" (/ width height)
                          "start" start*
                          "end" end*
                          "fps" fps
@@ -445,7 +446,8 @@
             (set! video-graph (video:mk-render-graph))
             (set! video-sink (parameterize ([video:current-render-graph video-graph]
                                             [video:current-convert-database convert-database])
-                               (video:convert source target-props)))
+                               (video:convert source target-props (hash 'video video-streams
+                                                                        'audio audio-streams))))
             (set! render-graph (graph-copy video-graph))
             (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
             (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
@@ -470,7 +472,7 @@
                               #:counts (node-counts video-sink)
                               #:next next
                               #:props (hash-union target-props (node-props video-sink)
-                                                  #:combine (λ (target user) target))
+                                                  #:combine (λ (target user) user))
                               #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
             (add-directed-edge! render-graph video-sink sink-node 1)
