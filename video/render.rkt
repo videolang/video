@@ -23,6 +23,7 @@
          racket/class
          racket/file
          racket/port
+         racket/hash
          graph
          (except-in ffi/unsafe ->)
          (prefix-in base: racket/base)
@@ -426,16 +427,13 @@
             (define out-paths
               (for/list ([extension (in-list extensions)])
                 (path->complete-path (or dest (base:format "out.~a" extension)))))
-            (set! render-graph (graph-copy video-graph))
-            (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
-            (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
             ;; Set properties and start rendering
-            (define props
-              (hash-set* (node-props video-sink)
+            (define target-props
+              (hash-set* (hash)
                          "width" width
                          "height" height
-                         "start" start
-                         "end" end
+                         "start" start*
+                         "end" end*
                          "fps" fps
                          "format" format
                          "pix-fmt" pix-fmt
@@ -447,14 +445,17 @@
             (set! video-graph (video:mk-render-graph))
             (set! video-sink (parameterize ([video:current-render-graph video-graph]
                                             [video:current-convert-database convert-database])
-                               (video:convert source props)))
+                               (video:convert source target-props)))
+            (set! render-graph (graph-copy video-graph))
+            (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
+            (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
             (set! current-render-settings settings)
-            (define start-node
-              (mk-fifo-node
-               #:props props
-               #:counts (hash 'video video-streams 'audio audio-streams)))
-            (add-vertex! render-graph start-node)
-            (add-directed-edge! render-graph video-sink start-node 1)
+            ;(define start-node ; Not needed?
+            ;  (mk-fifo-node
+            ;   #:props props
+            ;   #:counts (hash 'video video-streams 'audio audio-streams)))
+            ;(add-vertex! render-graph start-node)
+            ;(add-directed-edge! render-graph video-sink start-node 1)
             (define out-bundles
               (for/list ([spec (in-list bundle-specs)]
                          [format-name (in-list format-names)]
@@ -466,12 +467,13 @@
                         ([out-bundle (in-list out-bundles)]
                          [consume-table (in-list consume-tables)])
                 (mk-sink-node out-bundle
-                              #:counts (node-counts start-node)
+                              #:counts (node-counts video-sink)
                               #:next next
-                              #:props props
+                              #:props (hash-union target-props (node-props video-sink)
+                                                  #:combine (λ (target user) target))
                               #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph start-node sink-node 1)
+            (add-directed-edge! render-graph video-sink sink-node 1)
             (set! output-node sink-node)
             (set! video-start (video:get-property video-sink "start"))
             (set! video-end (video:get-property video-sink "end"))

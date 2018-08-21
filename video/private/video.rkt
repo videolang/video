@@ -184,7 +184,8 @@
                                        "fps" target-fps)
                     #:counts (node-counts node)))
                  (add-vertex! (current-render-graph) n)
-                 (add-directed-edge! (current-render-graph) node n 1)]
+                 (add-directed-edge! (current-render-graph) node n 1)
+                 n]
                 [else node])]
          ;; Pix Fmt/Sample Fmt/Chan layout
          [target-pix-fmt (dict-ref target-prop "pix-fmt" #f)]
@@ -351,7 +352,7 @@
                           (dict-ref to-copy '#,j)
                           (#,(format-id stx "~a-~a" i j) v)))))]
            #:methods gen:video-convertible
-           [(define (convert-video v [target-prop (hash)])
+           [(define (video-convert v [target-prop (hash)])
               (convert-name v target-prop))]
            #:property prop:convertible
            (λ (v request def)
@@ -571,6 +572,7 @@
 (define-constructor file producer ([path #f]) ()
   (when (not path)
     (error 'file "No path given"))
+  ;; First get properties of file
   (define bundle (file->stream-bundle path))
   (define fstart #f)
   (define fduration #f)
@@ -640,20 +642,7 @@
                                #:counts count-tab
                                #:props props))
   (add-vertex! (current-render-graph) node)
-  (cond [(and fstart fduration ftime-base)
-         node]
-        [else (define b-node (convert (make-blank #:prop (hash "width" fwidth
-                                                               "height" fheight))))
-              (define c-node
-                (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
-                                                                        "y" 0)))
-                                #:props props
-                                #:counts count-tab))
-              (add-vertex! (current-render-graph) c-node)
-              (add-directed-edge! (current-render-graph) b-node c-node 1)
-              (add-directed-edge! (current-render-graph) node c-node 2)
-              c-node]))
-
+  node)
 
 (define-constructor input-device producer ([video #f]
                                            [audio #f]
@@ -715,191 +704,72 @@
       [else (list)]))
   (define elements*
     (append pre-list elements post-list))
+  (define timeless-target-prop
+    (dict-remove (dict-remove target-prop "start") "end"))
   ;; Generate nodes and handle transitions
-  ;; When a transition is encountered, split previous node, pass through
-  ;;    track1 filter.
-  ;; Then store new filter as well as the creators for track2 and
-  ;;    combined subgraph.
-  ;; On the next video, split and pass to track2 and combined subgraph.
+  ;; resulting nodes can be concatinated directly
   ;; Otherwise just add the compiled filter to the list.
   ;; Invariant assumed: Transitions are never the first or last filters in a list.
   ;; Invariant assumed: No two transitions happen side by side.
-  (define-values (transition-videos transition-nodes start end counts chapters)
-    (for/fold ([prev-vids '()]
-               [prev-nodes '()]
-               [start 0]
-               [end 0]
+  (define-values (transition-nodes len counts)
+    (let loop ([nodes '()]
+               [len 0]
                [counts (hash)]
-               [chapters '()]
-                #:result (values (reverse prev-vids)
-                                 (reverse prev-nodes)
-                                 start end counts
-                                 (reverse chapters)))
-              ([i (in-list elements*)]
-               [index (in-naturals)])
-      (match i
-        [(struct* transition ([track1-subgraph track1-subgraph-proc]
-                              [track2-subgraph track2-subgraph-proc]
-                              [combined-subgraph combined-subgraph-proc]))
-         (define track1-copy (mk-filter-node (hash 'video (mk-filter "split")
-                                                   'audio (mk-filter "asplit"))
-                                             #:props (node-props (car prev-nodes))
-                                             #:counts (node-counts (car prev-nodes))))
-         (add-directed-edge! (current-render-graph) (car prev-nodes) track1-copy 1)
-         (define track1-subgraph (track1-subgraph-proc (mk-render-graph) (car prev-nodes)))
-         (cond [(video-subgraph? track1-subgraph)
-                (define length-track1 (get-property track1-subgraph "length" 0))
-                (define source (video-subgraph-sources track1-subgraph))
-                (define sink (video-subgraph-sinks track1-subgraph))
-                (graph-union! (current-render-graph) (video-subgraph-graph track1-subgraph))
-                (add-directed-edge! (current-render-graph) track1-copy source 2)
-                (define clip-offset (- length-track1))
-                (values (cons i prev-vids)
-                        (list* track1-copy sink (cdr prev-nodes))
-                        start
-                        (+ end clip-offset)
-                        (hash-union counts (node-counts (car prev-nodes) #:combine max))
-                        (update-chapters-list chapters clip-offset))]
-               [else
-                (define sink
-                  (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                        'audio (mk-empty-sink-audio-filter))
-                                  #:counts (node-counts (car prev-nodes))))
-                (add-vertex! (current-render-graph) sink)
-                (add-directed-edge! (current-render-graph) track1-copy sink 2)
-                (define clip-offset ;; Double `-` for clarity
-                  (- (- (get-property (car prev-nodes) "end")
-                        (get-property (car prev-nodes) "start"))))
-                (values (cons i prev-vids)
-                        (cons track1-copy (cdr prev-nodes))
-                        start
-                        (+ end clip-offset)
-                        counts
-                        (update-chapters-list chapters clip-offset))])]
-        [_
-         (define pre-node (convert i))
-         (define node
-           (cond [(and (not (null? prev-vids))
-                       (transition? (car prev-vids)))
-                  (define track2-copy (mk-filter-node (hash 'video (mk-filter "split")
-                                                            'audio (mk-filter "asplit"))
-                                                      #:props (node-props pre-node)
-                                                      #:counts (node-counts pre-node)))
-                  (add-vertex! (current-render-graph) track2-copy)
-                  (add-directed-edge! (current-render-graph) pre-node track2-copy 1)
-                  (define track1-copy (car prev-nodes))
-                  (define track2-subgraph-proc (transition-track2-subgraph (car prev-vids)))
-                  (define combined-subgraph-proc (transition-combined-subgraph (car prev-vids)))
-                  (define track2-subgraph (track2-subgraph-proc (mk-render-graph) pre-node))
-                  (define combined-subgraph
-                    (combined-subgraph-proc (mk-render-graph) track1-copy track2-copy))
-                  (cond [(video-subgraph? track2-subgraph)
-                         (graph-union! (current-render-graph) (video-subgraph-graph track2-subgraph))
-                         (add-directed-edge! (current-render-graph)
-                                             track2-copy
-                                             (video-subgraph-sources track2-subgraph)
-                                             1)]
-                        [else
-                         (define sink
-                           (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-audio-filter))
-                                           #:counts (node-counts pre-node)))
-                         (add-vertex! (current-render-graph) sink)
-                         (add-directed-edge! (current-render-graph) track2-copy sink 1)])
-                  (cond [(video-subgraph? combined-subgraph)
-                         (graph-union! (current-render-graph)
-                                       (video-subgraph-graph combined-subgraph))
-                         (add-directed-edge! (current-render-graph)
-                                             track2-copy
-                                             (cdr (video-subgraph-sources combined-subgraph))
-                                             2)
-                         (add-directed-edge! (current-render-graph)
-                                             track1-copy
-                                             (car (video-subgraph-sources combined-subgraph))
-                                             1)]
-                        [else
-                         (define sink-a
-                           (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-audio-filter))
-                                           #:counts (node-counts pre-node)))
-                         (add-vertex! (current-render-graph) sink-a)
-                         (add-directed-edge! (current-render-graph)
-                                             track1-copy
-                                             sink-a
-                                             1)
-                         (define sink-b
-                           (mk-filter-node (hash 'video (mk-empty-sink-video-filter)
-                                                 'audio (mk-empty-sink-audio-filter))))
-                         (add-vertex! (current-render-graph) sink-b)
-                         (add-directed-edge! (current-render-graph)
-                                             track2-copy
-                                             sink-b
-                                             2)])
-                  (hash 'combined (and combined-subgraph (video-subgraph-sinks combined-subgraph))
-                        'combined-subgraph combined-subgraph
-                        'track2 (and track2-subgraph (video-subgraph-sinks track2-subgraph))
-                        'track2-subgraph track2-subgraph)]
-                 [else pre-node]))
-         (cond [(dict? node)
-                (define clip-offset
-                  (- (if (dict-ref node 'combined-subgraph)
-                      (get-property (dict-ref node 'combined-subgraph) "length")
-                      0)
-                     (if (dict-ref node 'track2-subgraph)
-                         (get-property (dict-ref node 'track2-subgraph) "length")
-                         0)))
-                (values (cons i prev-vids)
-                        (append
-                         (append
-                          (if (dict-ref node 'track2)
-                                            (list (dict-ref node 'track2))
-                                            '())
-                          (if (dict-ref node 'combined)
-                              (list (dict-ref node 'combined))
-                              '()))
-                         (cdr prev-nodes))
-                        start
-                        (+ end clip-offset)
-                        (hash-union counts
-                                    (if (dict-ref node 'track2)
-                                        (node-counts (dict-ref node 'track2))
-                                        (hash))
-                                    (if (dict-ref node 'combined)
-                                        (node-counts (dict-ref node 'combined))
-                                        (hash))
-                                    #:combine max)
-                        (append (get-property pre-node "chapters" '())
-                                (update-chapters-list chapters clip-offset)))]
-               [else
-                (define props (node-props node))
-                (define clip-offset (- (dict-ref props "end") (dict-ref props "start")))
-                (values (cons i prev-vids)
-                        (cons node prev-nodes)
-                        start
-                        (+ end clip-offset)
-                        (hash-union counts (node-counts pre-node) #:combine max)
-                        (append (get-property pre-node "chapters" '())
-                                (update-chapters-list chapters clip-offset)))])])))
+               ; [chapters '()] <- TODO!!!
+               [elements elements*])
+      (cond
+        [(empty? elements) (values (reverse nodes)
+                                   len
+                                   counts)]
+        [else
+         (define track1 (first elements))
+         (cond
+           [(or (empty? (rest elements))              ;; Last element
+                (not (transition? (second elements)))) ;; Default transition
+            (define node (video-convert track1 timeless-target-prop))
+            (add-vertex! (current-render-graph) node)
+            (loop (cons node nodes)
+                  (+ len (dict-ref (node-props node) "end" 0))
+                  (hash-union counts (node-counts node) #:combine max)
+                  (cdr elements))]
+           [else                                      ;; User specified transition
+            (define trans (second elements))
+            (define track2 (third elements))
+            (define-values (r1 r2 rc) (video-convert trans timeless-target-prop track1 track2))
+            (define r (append (if r2 (list r1) (list))  ;; <- Backwards
+                              (if rc (list rc) (list))
+                              (if r1 (list r2) (list))))
+            (when r1 (add-vertex! (current-render-graph r1)))
+            (when r2 (add-vertex! (current-render-graph r2)))
+            (when rc (add-vertex! (current-render-graph rc)))
+            (loop (append r nodes)
+                  (+ len
+                     (if r1 (dict-ref (node-props r1) "end" 0) 0)
+                     (if r2 (dict-ref (node-props r2) "end" 0) 0)
+                     (if rc (dict-ref (node-props rc) "end" 0) 0))
+                  (hash-union counts
+                              (if r1 (node-counts r1) (hash))
+                              (if r2 (node-counts r2) (hash))
+                              (if rc (node-counts rc) (hash))
+                              #:combine max)
+                  (list-tail elements 3))])])))
   ;; Offset each clip accordingly
-  (define-values (nodes time-again)
+  (define nodes
     (for/fold ([prev-nodes '()]
                [time 0]
                #:result (reverse prev-nodes))
               ([n (in-list transition-nodes)])
       (define props (node-props n))
-      (define start (dict-ref props "start"))
-      (define end (dict-ref props "end"))
+      (define start (dict-ref props "start" 0))
+      (define end (dict-ref props "end" 0))
       (define offset (mk-filter "setpts" (hash "expr" "PTS-STARTPTS")))
       (define aoffset (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
-      (define props* (dict-copy props))
-      (dict-set*! props*
-                  "start" 0
-                  "end" (+ end time))
-
       (define node
         (mk-filter-node (hash 'video offset
                               'audio aoffset)
-                        #:props props*
+                        #:props (dict-set* props
+                                           "start" (+ start time)
+                                           "end" (+ end time))
                         #:counts counts))
       (add-vertex! (current-render-graph) node)
       (add-directed-edge! (current-render-graph) n node 1)
@@ -914,7 +784,9 @@
                                             (hash "n" (length nodes)
                                                   "v" 0
                                                   "a" 1)))
-                    #:props target-prop
+                    #:props (dict-set* target-prop
+                                       "start" 0
+                                       "end" len)
                     #:counts counts))
   (add-vertex! (current-render-graph) the-playlist)
   (for ([i (in-list nodes)]
@@ -925,15 +797,19 @@
     (add-vertex! (current-render-graph) pre-buffer)
     (add-directed-edge! (current-render-graph) i pre-buffer 1)
     (add-directed-edge! (current-render-graph) pre-buffer the-playlist index))
+  #|
+  ;; buffer the results (not needed?)
   (define the-buffer
     (mk-filter-node (hash 'video (mk-filter "fifo") 'audio (mk-filter "afifo"))
                     #:props (dict-set* target-prop
-                                       "start" start
-                                       "end" end)
+                                       "start" 0
+                                       "end" len)
                     #:counts counts))
   (add-vertex! (current-render-graph) the-buffer)
   (add-directed-edge! (current-render-graph) the-playlist the-buffer 1)
-  the-buffer)
+  the-buffer
+|#
+  the-playlist)
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()

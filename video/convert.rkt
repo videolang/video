@@ -23,12 +23,11 @@
          (prefix-in pict: pict)
          "private/video.rkt")
 (provide convert-database%
+         gen:video-convertible
          (contract-out
           [make-base-database (-> (is-a?/c convert-database%))]
           [video-convert (-> video-convertible? video?)]
-          [video-convertible? (-> any/c boolean?)]
-          [prop:video-convertible (struct-type-property/c (-> video-convertible? video?))]
-          [prop:video-convertible? (struct-type-property/c predicate/c)]))
+          [video-convertible? (-> any/c boolean?)]))
 
 ;; The conversion database is used by the renderer to
 ;;   add conversions that objects themselves don't know
