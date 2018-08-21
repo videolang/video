@@ -88,13 +88,16 @@
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc
-                                     #'(λ (g x t) (values (make-video-subgraph) (hash)))]))
+                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
                         #:defaults ([track2-subgraph-proc
-                                     #'(λ (g x t) (values (make-video-subgraph) (hash)))]))
+                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
                         #:defaults ([combined-subgraph-proc
-                                     #'(λ (g x y t) (values (make-video-subgraph) (hash) (hash)))]))
+                                     #'(λ (g x y t c)
+                                         (values (make-video-subgraph)
+                                                 (hash) (hash)
+                                                 (hash) (hash)))]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
@@ -148,13 +151,16 @@
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc
-                                     #'(λ (g x t) (values (make-video-subgraph) (hash)))]))
+                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
                         #:defaults ([track2-subgraph-proc
-                                     #'(λ (g x t) (values (make-video-subgraph) (hash)))]))
+                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
                         #:defaults ([combined-subgraph-proc
-                                     #'(λ (g x y t) (values (make-video-subgraph) (hash) (hash)))]))
+                                     #'(λ (g x y t c)
+                                         (values (make-video-subgraph)
+                                                 (hash) (hash)
+                                                 (hash) (hash)))]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...

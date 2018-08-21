@@ -65,7 +65,7 @@
           [(file:convertible? source*)
            (let ([ret (file:convert source* 'video (default))])
              (when (default? ret)
-               (error 'convert "Object ~a cannot be converted to a video" source*))
+               (error 'convert "Object ~a cannot be converted to a video with file api" source*))
              ret)]
           [else (error 'convert "Object ~a cannot be converted to a video" source*)]))
   (parameterize ([current-render-graph (or renderer* (current-render-graph))])
@@ -462,8 +462,12 @@
          maybe-val)]
     [else (dict-ref the-dict key default)]))
 (define (set-property obj key val)
-  (define new-props (hash-set (properties-prop obj) key val))
-  (copy-video obj #:prop new-props))
+  (cond
+    [(properties? obj)        ;; Already a video
+     (define new-props (hash-set (properties-prop obj) key val))
+     (copy-video obj #:prop new-props)]
+    [(video-convertible? obj) ;; Easily convertible to a video
+     (convert obj (hash key val) (hash))]))
 (define (remove-property obj key)
   (define new-props (hash-remove (properties-prop obj) key))
   (copy-video obj #:prop new-props))
@@ -524,17 +528,33 @@
   (unless (and prev1 prev2)
     (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
   ;; Grab subgraphs to see if copy is needed
-  (define-values (track1-sub sep-t1-target-prop)
-    (track1-subgraph (weighted-graph/directed '()) prev1 target-prop))
-  (define-values (track2-sub sep-t2-target-prop)
-    (track2-subgraph (weighted-graph/directed '()) prev2 target-prop))
-  (define-values (combined-sub combined-t1-target-prop combined-t2-target-prop)
-    (combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop))
+  (define-values (track1-sub sep-t1-target-prop sep-t1-target-counts)
+    (track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
+  (define-values (track2-sub sep-t2-target-prop sep-t2-target-counts)
+    (track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
+  (define-values (combined-sub
+                  combined-t1-target-prop combined-t1-target-counts
+                  combined-t2-target-prop combined-t2-target-counts)
+    (combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop target-counts))
+  (define (combine-equal? key sep comb)
+    (if (equal? sep comb)
+        sep
+        (raise-arguments-error 'transition
+                               (format "Conflicting values for key ~a"
+                                       key)
+                               "Separate Value" sep
+                               "Combined Value" comb)))
   ;; With compiled sub-graphs, see its requested target props and compile prev nodes accordingly
-  (define track1-target-prop (hash-union sep-t1-target-prop combined-t1-target-prop))
-  (define track2-target-prop (hash-union sep-t2-target-prop combined-t2-target-prop))
-  (define prev1-node (convert prev1 track1-target-prop))
-  (define prev2-node (convert prev2 track2-target-prop))
+  (define track1-target-prop (hash-union sep-t1-target-prop combined-t1-target-prop
+                                         #:combine/key combine-equal?))
+  (define track2-target-prop (hash-union sep-t2-target-prop combined-t2-target-prop
+                                         #:combine/key combine-equal?))
+  (define track1-target-counts (hash-union sep-t1-target-counts combined-t1-target-counts
+                                           #:combine/key combine-equal?))
+  (define track2-target-counts (hash-union sep-t2-target-counts combined-t2-target-counts
+                                           #:combine/key combine-equal?))
+  (define prev1-node (video-convert prev1 track1-target-prop track1-target-counts))
+  (define prev2-node (video-convert prev2 track2-target-prop track2-target-counts))
   ;; Only copy if needed both by combined and either track1 or track2
   (define prev1-copy
     (cond [(and track1-sub combined-sub)
@@ -596,10 +616,9 @@
        (add-directed-edge! (current-render-graph) prev node 1))
      node]
     [(procedure? subgraph)
-     (unless prev
-       (error 'producer "Undefined prev node ~a" prev))
      (define rg
-       (cond [(procedure-arity-includes? 2) (subgraph prev target-prop)]
+       (cond [(procedure-arity-includes? 3) (subgraph prev target-prop target-counts)]
+             [(procedure-arity-includes? 2) (subgraph prev target-prop)]
              [(procedure-arity-includes? 1) (subgraph prev)]
              [(procedure-arity-includes? 0) (subgraph)]
              [else
@@ -784,12 +803,14 @@
             (define node (video-convert track1 timeless-target-prop target-counts))
             (add-vertex! (current-render-graph) node)
             (loop (cons node nodes)
-                  (+ len (dict-ref (node-props node) "end" 0))
+                  (+ len (- (dict-ref (node-props node) "end" 0)
+                            (dict-ref (node-props node) "start" 0)))
                   (cdr elements))]
            [else                                       ;; User specified transition
             (define trans (second elements))
             (define track2 (third elements))
-            (define-values (r1 r2 rc) (video-convert trans timeless-target-prop track1 track2))
+            (define-values (r1 r2 rc)
+              (convert-transition trans timeless-target-prop target-counts track1 track2))
             (define r (append (if r2 (list r1) (list))  ;; <- Backwards
                               (if rc (list rc) (list))
                               (if r1 (list r2) (list))))
@@ -798,9 +819,18 @@
             (when rc (add-vertex! (current-render-graph rc)))
             (loop (append r nodes)
                   (+ len
-                     (if r1 (dict-ref (node-props r1) "end" 0) 0)
-                     (if r2 (dict-ref (node-props r2) "end" 0) 0)
-                     (if rc (dict-ref (node-props rc) "end" 0) 0))
+                     (if r1
+                         (- (dict-ref (node-props r1) "end" 0)
+                            (dict-ref (node-props r1) "start" 0))
+                            0)
+                     (if r2
+                         (- (dict-ref (node-props r2) "end" 0)
+                            (dict-ref (node-props r2) "start" 0))
+                         0)
+                     (if rc
+                         (- (dict-ref (node-props rc) "end" 0)
+                            (dict-ref (node-props rc) "start" 0))
+                         0))
                   (list-tail elements 3))])])))
   ;; Build backing structure and transition everything to it.
   (define the-playlist
@@ -821,6 +851,7 @@
         [index (in-naturals)])
     (define pre-buffer (mk-filter-node (hash 'video (mk-filter "fifo")
                                              'audio (mk-filter "afifo"))
+                                       #:props (node-props i)
                                        #:counts target-counts))
     (add-vertex! (current-render-graph) pre-buffer)
     (add-directed-edge! (current-render-graph) i pre-buffer 1)
