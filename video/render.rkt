@@ -376,6 +376,8 @@
                                       [start start*]
                                       [end end*]
                                       [fps fps]
+                                      [video-time-base video-time-base]
+                                      [audio-time-base audio-time-base]
                                       [format format]
                                       [video-codec video-codec]
                                       [audio-codec audio-codec]
@@ -436,6 +438,7 @@
                          "start" start*
                          "end" end*
                          "fps" fps
+                         "video-time-base" (or video-time-base (/ 1 fps))
                          "format" format
                          "pix-fmt" pix-fmt
                          "sample-fmt" sample-fmt

@@ -205,7 +205,7 @@
   ;; (height/width + start/end, handled earlier)
   (let* ([node extended]
          [prev-prop (or (node-props node) (hash))]
-         ;; FPS
+         ;; FPS and timebase
          [target-fps (dict-ref target-prop "fps" #f)]
          [prev-fps (dict-ref prev-prop "fps" #f)]
          [node
@@ -214,13 +214,42 @@
                  (define n
                    (mk-filter-node
                     (hash 'video (mk-filter "fps"
-                                            (hash "fps" (or target-fps 25))))
+                                            (hash "fps" target-fps )))
                     #:props (dict-set* prev-prop
                                        "fps" target-fps)
                     #:counts (node-counts node)))
                  (add-vertex! (current-render-graph) n)
                  (add-directed-edge! (current-render-graph) node n 1)
                  n]
+                [else node])]
+         ;; Time base
+         [video-target-time-base (dict-ref target-prop "video-time-base" #f)]
+         [video-prev-time-base (dict-ref prev-prop "video-time-base" #f)]
+         [audio-target-time-base (dict-ref target-prop "audio-time-base" #f)]
+         [audio-prev-time-base (dict-ref prev-prop "audio-time-base" #f)]
+         [node
+          (cond [(or (and video-target-time-base
+                          (not (and video-prev-time-base
+                                    (= video-target-time-base video-prev-time-base))))
+                     (and audio-target-time-base
+                          (not (and audio-prev-time-base
+                                    (= audio-target-time-base audio-prev-time-base)))))
+                 (define tb
+                   (mk-filter-node
+                    (hash-union
+                    (if video-target-time-base
+                        (hash 'video (mk-filter "settb" (hash "expr" video-target-time-base)))
+                        (hash))
+                    (if audio-target-time-base
+                        (hash 'audio (mk-filter "asettb" (hash "expr" audio-target-time-base)))
+                        (hash)))
+                    #:props (dict-set* (node-props node)
+                                       "video-time-base" video-target-time-base
+                                       "audio-time-base" audio-target-time-base)
+                   #:counts (node-counts node)))
+                 (add-vertex! (current-render-graph) tb)
+                 (add-directed-edge! (current-render-graph) node tb 1)
+                 tb]
                 [else node])]
          ;; Pix Fmt/Sample Fmt/Chan layout
          [target-pix-fmt (dict-ref target-prop "pix-fmt" #f)]
@@ -528,13 +557,9 @@
   (unless (and prev1 prev2)
     (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
   ;; Grab subgraphs to see if copy is needed
-  (define-values (track1-sub sep-t1-target-prop sep-t1-target-counts)
-    (track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
-  (define-values (track2-sub sep-t2-target-prop sep-t2-target-counts)
-    (track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
-  (define-values (combined-sub
-                  combined-t1-target-prop combined-t1-target-counts
-                  combined-t2-target-prop combined-t2-target-counts)
+  (define track1-sub (track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
+  (define track2-sub (track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
+  (define combined-sub
     (combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop target-counts))
   (define (combine-equal? key sep comb)
     (if (equal? sep comb)
@@ -545,6 +570,14 @@
                                "Separate Value" sep
                                "Combined Value" comb)))
   ;; With compiled sub-graphs, see its requested target props and compile prev nodes accordingly
+  (define sep-t1-target-prop 'TODO)
+  (define sep-t2-target-prop 'TODO)
+  (define combined-t1-target-prop 'TODO)
+  (define combined-t2-target-prop 'TODO)
+  (define sep-t1-target-counts 'TODO)
+  (define sep-t2-target-counts 'TODO)
+  (define combined-t1-target-counts 'TODO)
+  (define combined-t2-target-counts 'TODO)
   (define track1-target-prop (hash-union sep-t1-target-prop combined-t1-target-prop
                                          #:combine/key combine-equal?))
   (define track2-target-prop (hash-union sep-t2-target-prop combined-t2-target-prop
@@ -581,7 +614,7 @@
            (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
            (add-directed-edge! (current-render-graph)
                                prev1-copy
-                               (video-subgraph-sources track1-sub)
+                               (first (video-subgraph-sources track1-sub))
                                2)
            (video-subgraph-sinks track1-sub)]
           [else #f]))
@@ -589,16 +622,18 @@
     (cond [track2-sub
            (graph-union! (current-render-graph) (video-subgraph-graph track2-sub))
            (add-directed-edge! (current-render-graph)
-                               prev2-copy (video-subgraph-sources track2-sub) 1)
+                               prev2-copy
+                               (first (video-subgraph-sources track2-sub))
+                               1)
            (video-subgraph-sinks track2-sub)]
           [else #f]))
   (define rc
     (cond [combined-sub
            (graph-union! (current-render-graph) (video-subgraph-graph combined-sub))
            (add-directed-edge! (current-render-graph)
-                               prev1-copy (car (video-subgraph-sources combined-sub)) 1)
+                               prev1-copy (first (car (video-subgraph-sources combined-sub))) 1)
            (add-directed-edge! (current-render-graph)
-                               prev2-copy (cdr (video-subgraph-sources combined-sub)) 2)
+                               prev2-copy (first (cdr (video-subgraph-sources combined-sub))) 2)
            (video-subgraph-sinks combined-sub)]
           [else #f]))
   (values r1 r2 rc))

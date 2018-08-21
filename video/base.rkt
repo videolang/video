@@ -426,14 +426,11 @@
                         (add-directed-edge! ctx buff-b1 ovr-b 1)
                         (add-directed-edge! ctx pts-b buff-b2 2)
                         (add-directed-edge! ctx buff-b2 ovr-b 2)
-                        (values (make-video-subgraph #:graph ctx
-                                                     #:sources (cons pad-a pad-b)
-                                                     #:sinks ovr-b
-                                                     #:prop (hash "length" t-length))
-                                target-prop
-                                target-counts
-                                target-prop
-                                target-counts)))
+                        (make-video-subgraph #:graph ctx
+                                             #:sources (cons (list pad-a target-prop target-counts)
+                                                             (list pad-b target-prop target-counts))
+                                             #:sinks ovr-b
+                                             #:prop (hash "length" t-length))))
 
 (define-merge (overlay-merge x y [w #f] [h #f])
   #:track1-subgraph (λ (ctx t1 target-prop) #f)

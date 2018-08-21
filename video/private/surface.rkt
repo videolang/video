@@ -87,17 +87,11 @@
         (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
-                        #:defaults ([track1-subgraph-proc
-                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
+                        #:defaults ([track1-subgraph-proc #'(λ (g x t c) #f)]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
-                        #:defaults ([track2-subgraph-proc
-                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
+                        #:defaults ([track2-subgraph-proc #'(λ (g x t c) #f)]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
-                        #:defaults ([combined-subgraph-proc
-                                     #'(λ (g x y t c)
-                                         (values (make-video-subgraph)
-                                                 (hash) (hash)
-                                                 (hash) (hash)))]))
+                        #:defaults ([combined-subgraph-proc #'(λ (g x y t c) #f)]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
@@ -150,17 +144,11 @@
         (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
-                        #:defaults ([track1-subgraph-proc
-                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
+                        #:defaults ([track1-subgraph-proc #'(λ (g x t c) #f)]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
-                        #:defaults ([track2-subgraph-proc
-                                     #'(λ (g x t c) (values (make-video-subgraph) (hash) (hash)))]))
+                        #:defaults ([track2-subgraph-proc #'(λ (g x t c) #f)]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
-                        #:defaults ([combined-subgraph-proc
-                                     #'(λ (g x y t c)
-                                         (values (make-video-subgraph)
-                                                 (hash) (hash)
-                                                 (hash) (hash)))]))
+                        #:defaults ([combined-subgraph-proc #'(λ (g x y t c) #f)]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
