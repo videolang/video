@@ -71,7 +71,9 @@
   
   ;; Creates a producer that plays a clip from a file
   [clip (->producer [path-string?]
-                    [])]
+                    [#:start number?
+                     #:end number?
+                     #:length number?])]
 
   ;; Creates a producer that is a solid color
   ;; TODO: Must be more precise
@@ -200,11 +202,16 @@
   (color "black"))
 
 (define (clip path
+              #:start [s #f]
+              #:end [e #f]
+              #:length [len #f]
               #:filters [filters #f]
               #:properties [properties #f])
   (define clip-path (relative-path->string path))
   (make-file #:path clip-path
-             #:prop (or properties (hash))
+             #:prop (hash-union (or properties (hash))
+                                (hash "start" s "end" e "length" len)
+                                #:combine (λ (prop arg) prop))
              #:filters (or filters '())))
 
 (define-producer (color c [c2 #f] [c3 #f])
