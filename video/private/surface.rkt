@@ -86,12 +86,15 @@
     [(_ f:function-header
         (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
+             (~optional (~seq #:source-porps source-props-proc)
+                        #:defaults ([source-props-proc
+                                     #'(λ () (values #f #f #f #f))]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
-                        #:defaults ([track1-subgraph-proc #'(λ (g x t c) #f)]))
+                        #:defaults ([track1-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
-                        #:defaults ([track2-subgraph-proc #'(λ (g x t c) #f)]))
+                        #:defaults ([track2-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
-                        #:defaults ([combined-subgraph-proc #'(λ (g x y t c) #f)]))
+                        #:defaults ([combined-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
@@ -102,6 +105,7 @@
          body ...
          (define trans
            (make-transition
+            #:source-props source-props-proc
             #:track1-subgraph track1-subgraph-proc
             #:track2-subgraph track2-subgraph-proc
             #:combined-subgraph combined-subgraph-proc
@@ -143,12 +147,15 @@
     [(_ f:function-header
         (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
+             (~optional (~seq #:source-props source-prop-proc)
+                        #:defaults ([source-prop-proc
+                                     #'(λ () (values #f #f #f #f))]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
-                        #:defaults ([track1-subgraph-proc #'(λ (g x t c) #f)]))
+                        #:defaults ([track1-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:track2-subgraph track2-subgraph-proc)
-                        #:defaults ([track2-subgraph-proc #'(λ (g x t c) #f)]))
+                        #:defaults ([track2-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:combined-subgraph combined-subgraph-proc)
-                        #:defaults ([combined-subgraph-proc #'(λ (g x y t c) #f)]))
+                        #:defaults ([combined-subgraph-proc #'(λ () #f)]))
              (~optional (~seq #:prod-1 p1) #:defaults ([p1 #'p1]))
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...

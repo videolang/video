@@ -44,7 +44,8 @@
                      racket/list
                      racket/syntax
                      racket/function
-                     syntax/parse))
+                     syntax/parse
+                     syntax/parse/lib/function-header))
 
 (define current-render-graph (make-parameter (mk-render-graph)))
 (define current-video-directory (make-parameter (current-directory)))
@@ -550,7 +551,32 @@
     (add-directed-edge! s-node node 1))
   node)
 
-(define-constructor transition service ([calc-prop #f]
+;; We want to supply keywords for only the ones
+;;  the plugin expected.
+(define optional-apply
+  (make-keyword-procedure
+   (λ (kws args . rest)
+     (unless (= 1 (length rest))
+       (raise-arguments-error 'optional-apply "Invalid argument list ~a" rest))
+     (define proc (car rest))
+     (match-define-values (_ accepted-kws) (procedure-keywords proc))
+     (define-values (kws-to-apply args-to-apply)
+       (cond
+         [accepted-kws
+          (for/fold ([res-k '()]
+                     [res-a '()]
+                     #:result (values (reverse res-k)
+                                      (reverse res-a)))
+                    ([k (in-list kws)]
+                     [a (in-list args)]
+                     #:when #t
+                     [ak (in-list accepted-kws)]
+                     #:when (equal? k ak))
+            (values (cons k res-k) (cons a res-a)))]
+         [else (values kws args)]))
+     (keyword-apply proc kws-to-apply args-to-apply '()))))
+
+(define-constructor transition service ([source-props #f]
                                         [track1-subgraph #f]
                                         [track2-subgraph #f]
                                         [combined-subgraph #f])
@@ -558,42 +584,46 @@
    [prev2 #f])
   (unless (and prev1 prev2)
     (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
-  ;; Grab subgraphs to see if copy is needed
-  ;(define track1-sub (~dynamic-app track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
-  ;(define track2-sub (~dynamic-app track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
-  ;(define combined-sub
-  ;  (~dynamic-app combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop target-counts))
-  (define track1-sub (track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
-  (define track2-sub (track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
-  (define combined-sub
-    (combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop target-counts))
-  (define (combine-equal? key sep comb)
-    (if (equal? sep comb)
-        sep
-        (raise-arguments-error 'transition
-                               (format "Conflicting values for key ~a"
-                                       key)
-                               "Separate Value" sep
-                               "Combined Value" comb)))
-  ;; With compiled sub-graphs, see its requested target props and compile prev nodes accordingly
+  ;; First give filter a chance to set required prev-props based
+  ;;    on requested target prop
+  (define-values (track1-props track1-counts track2-props track2-counts)
+    (optional-apply source-props
+                    #:target-props target-prop
+                    #:target-counts target-counts))
+  ;; Next, compile source nodese given the new target props
+  ;; If no new props given, use previous target props
   (define prev1-node (video-convert prev1
-                                    (hash-union (hash)
-                                                (if track1-sub (second track1-sub) (hash))
-                                                (if combined-sub (second (car combined-sub)) (hash))
-                                                #:combine/key combine-equal?)
-                                    (hash-union (hash)
-                                                (if track1-sub (third track1-sub) (hash))
-                                                (if combined-sub (third (car combined-sub)) (hash))
-                                                #:combine/key combine-equal?)))
+                                    (hash-union (or track1-props (hash))
+                                                target-prop
+                                                #:combine (λ (user targ) user))
+                                    (hash-union (or track1-counts (hash))
+                                                target-counts
+                                                #:combine (λ (user targ) user))))
   (define prev2-node (video-convert prev2
-                                    (hash-union (hash)
-                                                (if track2-sub (second track2-sub) (hash))
-                                                (if combined-sub (second (cdr combined-sub)) (hash))
-                                                #:combine/key combine-equal?)
-                                    (hash-union (hash)
-                                                (if track2-sub (third track2-sub) (hash))
-                                                (if combined-sub (third (cdr combined-sub)) (hash))
-                                                #:combine/key combine-equal?)))
+                                    (hash-union (or track2-props (hash))
+                                                target-prop
+                                                #:combine (λ (user targ) user))
+                                    (hash-union (or track2-counts (hash))
+                                                target-counts
+                                                #:combine (λ (user targ) user))))
+  ;; Next, build subgraphs with the newly constructed properties
+  (define track1-sub (optional-apply track1-subgraph
+                                     #:empty-graph (weighted-graph/directed '())
+                                     #:track1-props (node-props prev1-node)
+                                     #:target-props target-prop
+                                     #:target-counts target-counts))
+  (define track2-sub (optional-apply track2-subgraph
+                                     #:empty-graph (weighted-graph/directed '())
+                                     #:track2-props (node-props prev2-node)
+                                     #:target-props target-prop
+                                     #:target-counts target-counts))
+  (define combined-sub
+    (optional-apply combined-subgraph
+                    #:empty-graph (weighted-graph/directed '())
+                    #:track1-props (node-props prev1-node)
+                    #:track2-props (node-props prev2-node)
+                    #:target-props target-prop
+                    #:target-counts target-counts))
   ;; Only copy if needed both by combined and either track1 or track2
   (define prev1-copy
     (cond [(and track1-sub combined-sub)
@@ -855,9 +885,9 @@
             (define r (append (if r2 (list r1) (list))  ;; <- Backwards
                               (if rc (list rc) (list))
                               (if r1 (list r2) (list))))
-            (when r1 (add-vertex! (current-render-graph r1)))
-            (when r2 (add-vertex! (current-render-graph r2)))
-            (when rc (add-vertex! (current-render-graph rc)))
+            (when r1 (add-vertex! (current-render-graph) r1))
+            (when r2 (add-vertex! (current-render-graph) r2))
+            (when rc (add-vertex! (current-render-graph) rc))
             (loop (append r nodes)
                   (+ len
                      (if r1

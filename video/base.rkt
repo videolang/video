@@ -329,22 +329,17 @@
                  (dict-set* (or prop (hash))
                             "pre-length" fade-length
                             "post-length" fade-length))
-  #:combined-subgraph (λ (ctx node-a node-b target-prop target-counts)
+  #:combined-subgraph (λ (#:empty-graph ctx
+                          #:track1-props node-a
+                          #:track2-props node-b
+                          #:target-props target-prop
+                          #:target-counts target-counts)
                         (define width (dict-ref target-prop "width"))
                         (define height (dict-ref target-prop "height"))
-                        (writeln node-a)
-                        (writeln node-b)
-                        (writeln (properties-prop node-a))
-                        (writeln (properties-prop node-b))
-                        (writeln (get-property node-a "end"))
-                        (writeln (get-property node-a "start"))
-                        (writeln (get-property node-b "end"))
-                        (writeln (get-property node-b "start"))
-                        (newline)
-                        (define len-a (- (get-property node-a "end")
-                                         (get-property node-a "start")))
-                        (define len-b (- (get-property node-b "end")
-                                         (get-property node-b "start")))
+                        (define len-a (- (dict-ref node-a "end")
+                                         (dict-ref node-a "start")))
+                        (define len-b (- (dict-ref node-b "end")
+                                         (dict-ref node-b "start")))
                         (define t-length (- (+ len-a len-b) fade-length))
                         (define bg-node
                           (mk-filter-node
