@@ -345,24 +345,26 @@
             [codec : _avcodec-pointer]
             [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
             -> [ret : _int]
-            -> (cond [(= ret 0) dict]
-                     [(= (- ret) EINVAL)
-                      (raise-ffmpeg-error
-                       'avcodec-open2 "Invalid Argument"
-                       'codec-context-id (avcodec-context-codec-id codec-ctx)
-                       'codec-context-pixel-format (avcodec-context-pix-fmt codec-ctx)
-                       'codec-context-sample-format (avcodec-context-sample-fmt codec-ctx)
-                       'codec-name (avcodec-name codec)
-                       'codec-type (avcodec-type codec)
-                       'codec-id (avcodec-id codec)
-                       'pixel-format (let ([x (avcodec-pix-fmts codec)])
-                                       (and x (ptr-ref x _avpixel-format)))
-                       'sample-format (let ([x (avcodec-sample-fmts codec)])
-                                        (and x (ptr-ref x _avsample-format)))
-                       'channel-layout (let ([x (avcodec-channel-layouts codec)])
-                                         (and x (ptr-ref x _av-channel-layout)))
-                       'Options dict)]
-                     [else (error 'avcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
+            -> (match (- ret)
+                 [0 dict]
+                 [(or (== EINVAL) (== EPERM))
+                  (raise-ffmpeg-error
+                   'avcodec-open2 "Invalid Argument"
+                   'codec-context-id (avcodec-context-codec-id codec-ctx)
+                   'codec-context-pixel-format (avcodec-context-pix-fmt codec-ctx)
+                   'codec-context-sample-format (avcodec-context-sample-fmt codec-ctx)
+                   'codec-context-time-base (avcodec-context-time-base codec-ctx)
+                   'codec-name (avcodec-name codec)
+                   'codec-type (avcodec-type codec)
+                   'codec-id (avcodec-id codec)
+                   'pixel-format (let ([x (avcodec-pix-fmts codec)])
+                                   (and x (ptr-ref x _avpixel-format)))
+                   'sample-format (let ([x (avcodec-sample-fmts codec)])
+                                    (and x (ptr-ref x _avsample-format)))
+                   'channel-layout (let ([x (avcodec-channel-layouts codec)])
+                                     (and x (ptr-ref x _av-channel-layout)))
+                   'Options dict)]
+                 [_ (error 'avcodec-open2 (format "~a, ~a" ret (convert-err ret)))])))
     (avcodec-open2 ctx codec dict))
   (define-avcodec avcodec-close (_fun _avcodec-context-pointer/null -> _int))
   (define-avcodec avcodec-send-packet
@@ -822,7 +824,7 @@
     (define-avfilter av-buffersink-get-format (_fun _avfilter-context-pointer -> _int)
       #:make-fail make-not-available)
     (define ret (av-buffersink-get-format ptr))
-    (define type* (or type (av-buffersink-get-type)))
+    (define type* (or type (av-buffersink-get-type ptr)))
     (match type*
       ['video (cast ret _int _avpixel-format)]
       ['audio (cast ret _int _avsample-format)]

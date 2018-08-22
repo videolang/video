@@ -330,10 +330,17 @@
                             "pre-length" fade-length
                             "post-length" fade-length))
   #:combined-subgraph (λ (ctx node-a node-b target-prop target-counts)
-                        (define width (max (get-property node-a "width" 0)
-                                           (get-property node-b "width" 0)))
-                        (define height (max (get-property node-a "height" 0)
-                                            (get-property node-b "height" 0)))
+                        (define width (dict-ref target-prop "width"))
+                        (define height (dict-ref target-prop "height"))
+                        (writeln node-a)
+                        (writeln node-b)
+                        (writeln (properties-prop node-a))
+                        (writeln (properties-prop node-b))
+                        (writeln (get-property node-a "end"))
+                        (writeln (get-property node-a "start"))
+                        (writeln (get-property node-b "end"))
+                        (writeln (get-property node-b "start"))
+                        (newline)
                         (define len-a (- (get-property node-a "end")
                                          (get-property node-a "start")))
                         (define len-b (- (get-property node-b "end")
@@ -352,33 +359,7 @@
                                                      r))
                                  'audio (mk-empty-audio-filter #:duration len-a))
                            #:counts target-counts))
-                        (define pad-a
-                          (mk-filter-node (hash 'video (mk-filter "scale" (hash "width" width
-                                                                              "height" height)))
-                                          #:counts target-counts))
-                        (add-vertex! ctx pad-a)
                         (define pad-b
-                          (mk-filter-node (hash 'video (mk-filter "scale" (hash "width" width
-                                                                              "height" height)))
-                                          #:counts target-counts))
-                        (add-vertex! ctx pad-b)
-                        (define pts-a
-                          (mk-filter-node (hash 'video (mk-filter "setpts"
-                                                                  (hash "expr" "PTS-STARTPTS"))
-                                                'audio (mk-filter "asetpts"
-                                                                  (hash "expr" "PTS-STARTPTS")))
-                                          #:counts target-counts))
-                        (add-vertex! ctx pts-a)
-                        (add-directed-edge! ctx pad-a pts-a 1)
-                        (define pre-pts-b
-                          (mk-filter-node (hash 'video (mk-filter "setpts"
-                                                                  (hash "expr" "PTS-STARTPTS"))
-                                                'audio (mk-filter "asetpts"
-                                                                  (hash "expr" "PTS-STARTPTS")))
-                                          #:counts target-counts))
-                        (add-vertex! ctx pre-pts-b)
-                        (add-directed-edge! ctx pad-b pre-pts-b 1)
-                        (define fade-b
                           (mk-filter-node
                            (hash 'video (mk-filter "fade"
                                                    (hash "t" "in"
@@ -386,8 +367,7 @@
                                                          "d" fade-length
                                                          "alpha" 1)))
                            #:counts target-counts))
-                        (add-vertex! ctx fade-b)
-                        (add-directed-edge! ctx pre-pts-b fade-b 1)
+                        (add-vertex! ctx pad-b)
                         (define pts-b
                           (mk-filter-node
                            (hash 'video (mk-filter "setpts"
@@ -395,9 +375,9 @@
                                                                         (- len-a fade-length)))))
                            #:counts target-counts))
                         (add-vertex! ctx pts-b)
-                        (add-directed-edge! ctx fade-b pts-b 1)
+                        (add-directed-edge! ctx pad-b pts-b 1)
                         (define buff-a1 (mk-fifo-node #:counts target-counts))
-                        (define buff-a2 (mk-fifo-node #:counts target-counts))
+                        (define pad-a (mk-fifo-node #:counts target-counts))
                         (define ovr-a
                           (mk-filter-node (hash 'video (mk-filter "overlay")
                                                 'audio (mk-filter "amix"
@@ -407,8 +387,7 @@
                         (add-vertex! ctx ovr-a)
                         (add-directed-edge! ctx bg-node buff-a1 1)
                         (add-directed-edge! ctx buff-a1 ovr-a 1)
-                        (add-directed-edge! ctx pts-a buff-a2 2)
-                        (add-directed-edge! ctx buff-a2 ovr-a 2)
+                        (add-directed-edge! ctx pad-a ovr-a 2)
                         (define buff-b1 (mk-fifo-node #:counts target-counts))
                         (define buff-b2 (mk-fifo-node #:counts target-counts))
                         (define ovr-b

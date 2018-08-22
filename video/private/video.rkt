@@ -29,6 +29,7 @@
          racket/splicing
          racket/math
          file/convertible
+         syntax/parse/define
          (prefix-in file: file/convertible)
          (prefix-in base: racket/base)
          graph
@@ -205,7 +206,7 @@
   ;; (height/width + start/end, handled earlier)
   (let* ([node extended]
          [prev-prop (or (node-props node) (hash))]
-         ;; FPS and timebase
+         ;; FPS
          [target-fps (dict-ref target-prop "fps" #f)]
          [prev-fps (dict-ref prev-prop "fps" #f)]
          [node
@@ -549,7 +550,8 @@
     (add-directed-edge! s-node node 1))
   node)
 
-(define-constructor transition service ([track1-subgraph #f]
+(define-constructor transition service ([calc-prop #f]
+                                        [track1-subgraph #f]
                                         [track2-subgraph #f]
                                         [combined-subgraph #f])
   ([prev1 #f]
@@ -557,6 +559,10 @@
   (unless (and prev1 prev2)
     (error 'transition "Expected prev nodes, found ~a and ~a" prev1 prev2))
   ;; Grab subgraphs to see if copy is needed
+  ;(define track1-sub (~dynamic-app track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
+  ;(define track2-sub (~dynamic-app track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
+  ;(define combined-sub
+  ;  (~dynamic-app combined-subgraph (weighted-graph/directed '()) prev1 prev2 target-prop target-counts))
   (define track1-sub (track1-subgraph (weighted-graph/directed '()) prev1 target-prop target-counts))
   (define track2-sub (track2-subgraph (weighted-graph/directed '()) prev2 target-prop target-counts))
   (define combined-sub
@@ -570,24 +576,24 @@
                                "Separate Value" sep
                                "Combined Value" comb)))
   ;; With compiled sub-graphs, see its requested target props and compile prev nodes accordingly
-  (define sep-t1-target-prop 'TODO)
-  (define sep-t2-target-prop 'TODO)
-  (define combined-t1-target-prop 'TODO)
-  (define combined-t2-target-prop 'TODO)
-  (define sep-t1-target-counts 'TODO)
-  (define sep-t2-target-counts 'TODO)
-  (define combined-t1-target-counts 'TODO)
-  (define combined-t2-target-counts 'TODO)
-  (define track1-target-prop (hash-union sep-t1-target-prop combined-t1-target-prop
-                                         #:combine/key combine-equal?))
-  (define track2-target-prop (hash-union sep-t2-target-prop combined-t2-target-prop
-                                         #:combine/key combine-equal?))
-  (define track1-target-counts (hash-union sep-t1-target-counts combined-t1-target-counts
-                                           #:combine/key combine-equal?))
-  (define track2-target-counts (hash-union sep-t2-target-counts combined-t2-target-counts
-                                           #:combine/key combine-equal?))
-  (define prev1-node (video-convert prev1 track1-target-prop track1-target-counts))
-  (define prev2-node (video-convert prev2 track2-target-prop track2-target-counts))
+  (define prev1-node (video-convert prev1
+                                    (hash-union (hash)
+                                                (if track1-sub (second track1-sub) (hash))
+                                                (if combined-sub (second (car combined-sub)) (hash))
+                                                #:combine/key combine-equal?)
+                                    (hash-union (hash)
+                                                (if track1-sub (third track1-sub) (hash))
+                                                (if combined-sub (third (car combined-sub)) (hash))
+                                                #:combine/key combine-equal?)))
+  (define prev2-node (video-convert prev2
+                                    (hash-union (hash)
+                                                (if track2-sub (second track2-sub) (hash))
+                                                (if combined-sub (second (cdr combined-sub)) (hash))
+                                                #:combine/key combine-equal?)
+                                    (hash-union (hash)
+                                                (if track2-sub (third track2-sub) (hash))
+                                                (if combined-sub (third (cdr combined-sub)) (hash))
+                                                #:combine/key combine-equal?)))
   ;; Only copy if needed both by combined and either track1 or track2
   (define prev1-copy
     (cond [(and track1-sub combined-sub)
@@ -878,6 +884,8 @@
                                                   "v" 0
                                                   "a" 1)))
                     #:props (dict-set* target-prop
+                                       "video-time-base" AV-TIME-BASE-Q
+                                       "audio-time-base" AV-TIME-BASE-Q
                                        "start" 0
                                        "end" len)
                     #:counts target-counts))

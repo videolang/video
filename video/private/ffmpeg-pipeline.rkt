@@ -473,7 +473,7 @@
     (set-avstream-time-base! stream 1/44100))
   (define rest
     (mk-extra-codec-parameters ;#:time-base 1/44100
-                               #:sample-fmt 'fltp))
+     #:sample-fmt 'fltp))
   (values parameters rest))
 
 (define (stream-bundle->file file bundle/spec
@@ -649,7 +649,8 @@
                                "Codec Type" (hash-ref env 'codec-type)
                                "Codec" (hash-ref env 'codec-context-id)
                                "Pixel Format" (hash-ref env 'codec-context-pixel-format)
-                               "Sample Format" (hash-ref env 'codec-context-sample-format)))])
+                               "Sample Format" (hash-ref env 'codec-context-sample-format)
+                               "Time Base" (hash-ref env 'codec-context-time-base)))])
              (avcodec-open2 ctx codec str-opt))
            (av-dict-free str-opt)
            ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
@@ -1291,7 +1292,7 @@
     (for/fold ([outs '()])
               ([out-bundle (in-list out-bundles)])
       (for/fold ([outs outs])
-              ([str (stream-bundle-streams out-bundle)])
+                ([str (stream-bundle-streams out-bundle)])
         (match str
           [(struct* codec-obj ([type type]
                                [callback-data name]))
@@ -1315,6 +1316,10 @@
                       "Video Graph" (graphviz g)
                       "Filter Graph" g-str))])
     (avfilter-graph-config graph #f))
+  ;(for ([s (stream-bundle-streams (car out-bundles))])
+  ;  (writeln (avcodec-context-time-base (codec-obj-codec-context s))))
+  ;(for ([s (stream-bundle-streams (car out-bundles))])
+  ;  (writeln (av-buffersink-get-time-base (codec-obj-buffer-context s))))
   ;; Set various properties of the output node.
   ;; If the ffmpeg version is new enough (v3.3), we can check the graph directly.
   ;;   otherwise we will need to make a best effort attempt to predict it.
@@ -1325,10 +1330,20 @@
         [(struct* codec-obj ([codec-context ctx]
                              [buffer-context buff-ctx]
                              [type type]))
+         (define tb-key
+           (case type
+             [(video) "video-time-base"]
+             [(audio) "audio-time-base"]))
+         ;(define maybe-tb (get-sink-node-property g tb-key #f))
+         ;(set-avcodec-context-time-base!
+         ; ctx
+         ; (cond [maybe-tb maybe-tb]
+         ;       [(ffmpeg-recommended-version?) (av-buffersink-get-time-base buff-ctx)]
+         ;       [else DEFAULT-TIME-BASE]))
          (set-avcodec-context-time-base!
           ctx (if (ffmpeg-recommended-version?)
                   (av-buffersink-get-time-base buff-ctx)
-                  (get-sink-node-property g "time-base" DEFAULT-TIME-BASE)))
+                  (get-sink-node-property g tb-key DEFAULT-TIME-BASE)))
          ;(set-avcodec-context-frame-rate! ctx (av-buffersink-get-frame-rate buff-ctx))
          (match type
            ['video (set-avcodec-context-pix-fmt!

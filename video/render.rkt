@@ -439,6 +439,7 @@
                          "end" end*
                          "fps" fps
                          "video-time-base" (or video-time-base (/ 1 fps))
+                         "audio-time-base" audio-time-base
                          "format" format
                          "pix-fmt" pix-fmt
                          "sample-fmt" sample-fmt

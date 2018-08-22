@@ -149,6 +149,7 @@
 
 (define EAGAIN (lookup-errno 'EAGAIN))
 (define EINVAL (lookup-errno 'EINVAL))
+(define EPERM (lookup-errno 'EPERM))
 (define ENOMEM (lookup-errno 'ENOMEM))
 (define EDOM (lookup-errno 'EDOM))
 (define ERANGE (lookup-errno 'ERANGE))
@@ -1241,7 +1242,8 @@
            fltp
            dblp
            s64
-           s64p)))
+           s64p)
+         #:unknown (λ (x) (string->symbol (format "other:~a" x)))))
 (define-cpointer-type _avsample-format-pointer)
 
 (define _avduration-estimation-method
