@@ -489,9 +489,9 @@
                                                                                   "y" y))
                                                 'audio (mk-filter "amix"))
                                           #:props (dict-set* t1
-                                                             "length" #f
-                                                             "start" #f
-                                                             "end" #f)
+                                                             "pix-fmt" #f
+                                                             "sample-fmt" #f
+                                                             "times-unset?" #t)
                                           #:counts c1))
                         (add-vertex! ctx overlay)
                         (add-directed-edge! ctx trim-node1 overlay 1)

@@ -160,12 +160,14 @@
                        [else             t-end]))]
               [prev-start (dict-ref prev-props "start" #f)]
               [prev-end (dict-ref prev-props "end" #f)]
+              [times-unset? (dict-ref prev-props "times-unset?" #f)]
               [node
                (cond
-                 [(and start end
-                       (not (= end +inf.0))
-                       (not (and prev-start (= prev-start start)
-                                 prev-end (= prev-end end))))
+                 [(or times-unset?
+                      (and start end
+                           (not (= end +inf.0))
+                           (not (and prev-start (= prev-start start)
+                                     prev-end (= prev-end end)))))
                   (define n
                     (mk-filter-node (hash 'video (mk-filter "trim"
                                                             (hash "start" (racket->ffmpeg start)
@@ -898,7 +900,7 @@
             (define start (dict-ref (node-props node) "start" #f))
             (loop (cons node nodes)
                   (+ len (if (and start end)
-                             (- start end)
+                             (- end start)
                              0))
                   (cdr elements))]
            [else                                       ;; User specified transition
@@ -910,21 +912,24 @@
                               (if rc (list rc) (list))
                               (if r1 (list r2) (list))))
             (when r1 (add-vertex! (current-render-graph) r1))
+            (define r1end   (and r1 (dict-ref (node-props r1) "end" #f)))
+            (define r1start (and r1 (dict-ref (node-props r1) "start" #f)))
             (when r2 (add-vertex! (current-render-graph) r2))
+            (define r2end   (and r2 (dict-ref (node-props r2) "end" #f)))
+            (define r2start (and r2 (dict-ref (node-props r2) "start" #f)))
             (when rc (add-vertex! (current-render-graph) rc))
+            (define rcend   (and rc (dict-ref (node-props rc) "end" #f)))
+            (define rcstart (and rc (dict-ref (node-props rc) "start" #f)))
             (loop (append r nodes)
                   (+ len
-                     (if r1
-                         (- (dict-ref (node-props r1) "end" 0)
-                            (dict-ref (node-props r1) "start" 0))
-                            0)
-                     (if r2
-                         (- (dict-ref (node-props r2) "end" 0)
-                            (dict-ref (node-props r2) "start" 0))
+                     (if (and r1end r1start)
+                         (- r1end r1start)
                          0)
-                     (if rc
-                         (- (dict-ref (node-props rc) "end" 0)
-                            (dict-ref (node-props rc) "start" 0))
+                     (if (and r2end r2start)
+                         (- r2end r2start)
+                         0)
+                     (if (and rcend rcstart)
+                         (- rcend rcstart)
                          0))
                   (list-tail elements 3))])])))
   ;; Build backing structure and transition everything to it.
