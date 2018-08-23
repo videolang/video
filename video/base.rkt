@@ -29,7 +29,7 @@
          syntax/location
          (except-in pict frame blank)
          graph
-         (except-in "private/video.rkt" producer? transition?)
+         (except-in "private/video.rkt" producer? filter? transition?)
          "surface.rkt"
          (prefix-in core: "private/video.rkt")
          "units.rkt"
@@ -198,8 +198,9 @@
   for/playlist
   for/multitrack)
 
-(define (blank [length #f])
-  (color "black"))
+(define (blank [len #f])
+  (color "black"
+         #:properties (hash "length" len)))
 
 (define (clip path
               #:start [s #f]
@@ -227,7 +228,6 @@
                    r))
   #:subgraph (hash 'video
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c c2 c3))]
-                                             #;
                                              [ret (if (and length (not (equal? length +inf.0)))
                                                       (hash-set ret "d" length)
                                                       ret)]
@@ -261,6 +261,7 @@
                     #:properties [prop #f]
                     #:filters [maybe-filters #f]
                     . tracks)
+  #|
   (for ([t (in-list transitions)])
     (define start (field-element-track t))
     (define end (field-element-track-2 t))
@@ -288,10 +289,15 @@
                               (not (transition? (list-ref tracks (sub1 i)))))
                           track
                           prev))])))
-  (make-multitrack #:tracks (reverse tracks*)
-                   #:field transitions*
-                   #:prop (or prop (hash))
-                   #:filters (or maybe-filters '())))
+|#
+  (make-multitrack
+   #:tracks (let ()
+              (unless (null? transitions)
+                (error 'playlist "Merges field disabled for Video 0.2, use inline merges"))
+              tracks)
+   #:field '() ;transitions*
+   #:prop (or prop (hash))
+   #:filters (or maybe-filters '())))
 
 (define (playlist #:transitions [transitions '()]
                   #:properties [prop #f]
@@ -299,6 +305,11 @@
                   . clips)
   (make-playlist
    #:elements
+   (let ()
+     (unless (null? transitions)
+       (error 'playlist "Transitions field disabled for Video 0.2, use inline transitions"))
+     clips)
+   #|
    (for/fold ([acc clips])
              ([t (in-list transitions)])
      (define start (field-element-track t))
@@ -317,6 +328,7 @@
           [(and (not start) (equal? end clip))
            (list (field-element-element t) clip)]
           [else (list clip)]))))
+|#
    #:prop (or prop (hash))
    #:filters (or maybe-filters '())))
 

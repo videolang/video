@@ -20,11 +20,15 @@
 ;; the API are liekly to change
 
 (require "private/surface.rkt"
-         "private/ffmpeg-pipeline.rkt")
+         (except-in "private/ffmpeg-pipeline.rkt" filter?))
 (provide define-producer
          ->producer
          defproducer
          producer?
+         define-filter
+         ->filter
+         deffilter
+         filter?
 
          ;; Transitions define three procs:
          ;; track1-subgraph : Graph Node -> (U (vertex-subgraph #:source Graph

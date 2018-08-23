@@ -77,7 +77,55 @@
          content ...)]))
 
 (define (producer? x)
-  (internal:producer? x)) 
+  (internal:producer? x))
+
+;; Filters ===========================================================================================
+
+(define-syntax (define-filter stx)
+  (syntax-parse stx
+    [(_ f:function-header
+        (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
+             (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
+             (~optional (~seq #:source-props source-props-proc)
+                        #:defaults ([source-props-proc
+                                     #'(λ () (values #f #f))]))
+             (~optional (~seq #:subgraph subgraph)
+                        #:defaults ([subgraph #'(λ () #f)])))
+        ...
+        body ...)
+     #`(define (f.name
+                #:properties [user-prop (hash)]
+                #:filters [filters '()]
+                . f.args)
+         body ...
+         (make-filter #:source-props-proc source-props-proc
+                      #:subgraph subgraph
+                      #:filters filters
+                      #:prop (properties-proc user-prop)))]))
+
+(define-syntax (->filter stx)
+  (syntax-parse stx
+    [(_ [required ...]
+        [optional ...]
+        (~optional ret? #:defaults ([ret? #'any/c])))
+     #`(->* [required ...]
+            [#:properties (or/c dict? #f)
+             #:filters (or/c list? #f)
+             optional ...]
+            (and/c filter? ret?))]))
+
+(define-syntax (deffilter stx)
+  (syntax-parse stx
+    [(_ (id:id args ...)
+        body ...)
+     #`(defproc (id args ...
+                    [#:filters filters (listof filter?) '()]
+                    [#:properties properties (hash/c string? any/c) (hash)])
+         filter?
+         body ...)]))
+
+(define (filter? x)
+  (internal:filter? x))
 
 ;; Transitions =======================================================================================
 
@@ -105,7 +153,7 @@
          body ...
          (define trans
            (make-transition
-            #:source-props source-props-proc
+            #:source-props-proc source-props-proc
             #:track1-subgraph track1-subgraph-proc
             #:track2-subgraph track2-subgraph-proc
             #:combined-subgraph combined-subgraph-proc
@@ -147,8 +195,8 @@
     [(_ f:function-header
         (~or (~optional (~seq #:properties properties-proc) #:defaults ([properties-proc #'values]))
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop]))
-             (~optional (~seq #:source-props source-prop-proc)
-                        #:defaults ([source-prop-proc
+             (~optional (~seq #:source-props source-props-proc)
+                        #:defaults ([source-props-proc
                                      #'(λ () (values #f #f #f #f))]))
              (~optional (~seq #:track1-subgraph track1-subgraph-proc)
                         #:defaults ([track1-subgraph-proc #'(λ () #f)]))
@@ -166,6 +214,7 @@
          body ...
          (define trans
            (make-transition
+            #:source-props-proc source-props-proc
             #:track1-subgraph track1-subgraph-proc
             #:track2-subgraph track2-subgraph-proc
             #:combined-subgraph combined-subgraph-proc

@@ -521,7 +521,8 @@
 
 (define-constructor service properties ([filters '()]) ())
 
-(define-constructor filter service ([subgraph #f])
+(define-constructor filter service ([subgraph #f]
+                                    [source-props-proc #f])
   ([prev-source #f] ; <- Source for video
    [prev-node #f]) ; <- Compiled form of prev
   (unless prev-node
@@ -535,7 +536,11 @@
      (add-directed-edge! (current-render-graph) prev-node node 1)
      node]
     [(procedure? subgraph)
-     (define rg (subgraph (weighted-graph/directed '()) prev-node target-prop)) ; use prev-source??
+     (define rg (optional-apply subgraph
+                                #:empty-graph (weighted-graph/directed '())
+                                #:source-props (node-props prev-node)
+                                #:target-props target-prop
+                                #:target-coutns target-counts))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
      (add-directed-edge! (current-render-graph) prev-node (video-subgraph-sources rg) 1)
      (video-subgraph-sinks rg)]))
@@ -576,7 +581,7 @@
          [else (values kws args)]))
      (keyword-apply proc kws-to-apply args-to-apply '()))))
 
-(define-constructor transition service ([source-props #f]
+(define-constructor transition service ([source-props-proc #f]
                                         [track1-subgraph #f]
                                         [track2-subgraph #f]
                                         [combined-subgraph #f])
@@ -587,7 +592,7 @@
   ;; First give filter a chance to set required prev-props based
   ;;    on requested target prop
   (define-values (track1-props track1-counts track2-props track2-counts)
-    (optional-apply source-props
+    (optional-apply source-props-proc
                     #:target-props target-prop
                     #:target-counts target-counts))
   ;; Next, compile source nodese given the new target props
@@ -675,27 +680,23 @@
   (values r1 r2 rc))
 
 (define-constructor producer service ([subgraph (hash)])
-  ([prev #f])
+  ()
   (cond
     [(dict? subgraph)
      (define node (mk-filter-node subgraph
                                   #:counts (for/hash ([(k v) (in-dict subgraph)])
                                              (values k 1))
-                                  #:props target-prop))
+                                  #:props prop))
      (add-vertex! (current-render-graph) node)
-     (when prev
-       (add-directed-edge! (current-render-graph) prev node 1))
      node]
     [(procedure? subgraph)
+     ;; Compile subgraph
      (define rg
-       (cond [(procedure-arity-includes? 3) (subgraph prev target-prop target-counts)]
-             [(procedure-arity-includes? 2) (subgraph prev target-prop)]
-             [(procedure-arity-includes? 1) (subgraph prev)]
-             [(procedure-arity-includes? 0) (subgraph)]
-             [else
-              (error 'producer "Invalid producer subgraph")]))
+       (optional-apply subgraph
+                       #:empty-graph (weighted-graph/directed '())
+                       #:target-props target-prop
+                       #:target-counts target-counts))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
-     (add-directed-edge! (current-render-graph) prev (video-subgraph-sources rg))
      (video-subgraph-sinks rg)]))
 
 (define-constructor file producer ([path #f]) ()
@@ -726,6 +727,15 @@
            (set! var (list val var))]
 |#
           [else (set! var val)]))
+  (let ()
+    (define start (avformat-context-start-time fctx))
+    (define duration (avformat-context-duration fctx))
+    (unless (= start AV-NOPTS-VALUE)
+      (set! ftime-base AV-TIME-BASE-Q)
+      (set! fstart start))
+    (unless (= duration AV-NOPTS-VALUE)
+      (set! ftime-base AV-TIME-BASE-Q)
+      (set! fduration duration)))
   (for ([str (stream-bundle-streams bundle)])
     (match str
       [(struct* codec-obj ([codec-context cctx]
@@ -736,12 +746,18 @@
                      0)
        (when (or (eq? type 'video)
                  (eq? type 'audio))
-         (set!/error ftime-base (avstream-time-base stream) =)
-         (define avst (avstream-start-time stream))
-         (set!/error fstart
-                     (if (= avst AV-NOPTS-VALUE) #f avst)
-                     =)
-         (set!/error fduration (avstream-duration stream) =))
+         (unless ftime-base
+           (set!/error ftime-base (avstream-time-base stream) =))
+         (unless fstart
+           (define avst (avstream-start-time stream))
+           (set!/error fstart
+                       (if (= avst AV-NOPTS-VALUE) #f avst)
+                       =))
+         (unless fduration
+           (define avd (avstream-duration stream))
+           (set!/error fduration
+                       (if (= avd AV-NOPTS-VALUE) #f avd)
+                       =)))
        (match type
          ['video
           (set!/error fwidth (avcodec-context-width cctx) =)
@@ -945,99 +961,83 @@
 
 (define-constructor multitrack producer ([tracks '()] [field '()])
   ()
-  ;; Make the tracks
-  (define-values (raw-nodes start end)
-    (for/fold ([raw-nodes (hash)]
-               [start 0]
-               [end 0])
-              ([t (in-list tracks)]
-               [index (in-naturals)])
-      (define node (convert t))
-      (define new-end (get-property node "end" +inf.0))
-      (values (dict-set raw-nodes t (cons node index))
-              (min start (get-property node "start" 0))
-              (if (= new-end +inf.0)
-                  end
-                  (max end new-end)))))
-  ;; Convert all clips to a compatible length
-  ;; Nodes : Hash[Track -> (Cons Node Integer)]
-  ;; Where the key is the source node, and the value is
-  ;;   its trimmed counterpart.
-  (define nodes
-    (hash-copy
-     (for/hash ([(k v) (in-dict raw-nodes)])
-       (define trimmed (mk-trim-node #:start start
-                                     #:end end
-                                     #:counts (node-counts (car v))
-                                     #:props (node-props (car v))))
-       (add-vertex! (current-render-graph) trimmed)
-       (add-directed-edge! (current-render-graph) (car v) trimmed 1)
-       (values k (cons trimmed (cdr v))))))
-  ;; Make a back map, this is so we can have merging semantics
-  ;;   when transition are applied
-  (define back-map
-    (hash-copy
-     (for/hash ([(k v) (in-dict nodes)])
-       (values v (set k)))))
-  ;; Start merging tracks together
-  ;; Prefer individual track if it exists, otherwise
-  ;;   merge combined one.
-  (for ([f (in-list field)])
-    (match f
-      [(struct* field-element ([element element]
-                               [track track]
-                               [track-2 track-2]))
-       ;((dynamic-require 'racket/pretty 'pretty-print) nodes)
-       ;(newline)
-       ;((dynamic-require 'racket/pretty 'pretty-print) back-map)
-       ;(newline)
-       ;(displayln "-----")
-       ;(newline)
-       (define bundle-pair (dict-ref nodes track))
-       (define bundle-pair-back (dict-ref back-map bundle-pair))
-       (for ([tr (in-set bundle-pair-back)])
-         (dict-remove! nodes tr))
-       (dict-remove! back-map bundle-pair)
-       (define bundle-pair-2 (dict-ref nodes track-2))
-       (define bundle-pair-2-back (dict-ref back-map bundle-pair-2))
-       (for ([tr (in-set bundle-pair-2-back)])
-         (dict-remove! nodes tr))
-       (dict-remove! back-map bundle-pair-2)
-       (define-values (track1-out track2-out combined-out)
-         (convert-transition element (car bundle-pair) (car bundle-pair-2)))
-       (when combined-out
-         (define idx (min (cdr bundle-pair) (cdr bundle-pair-2)))
-         (define back-set (set-union (if track1-out (set) bundle-pair-back)
-                                     (if track2-out (set) bundle-pair-2-back)))
-         (define val (cons combined-out idx))
-         (dict-set! back-map val back-set)
-         (for ([tr (in-set back-set)])
-           (dict-set! nodes tr val)))
-       (when track1-out
-         (define val (cons track1-out (cdr bundle-pair)))
-         (dict-set! back-map val bundle-pair-back)
-         (for ([tr (in-set bundle-pair-back)])
-           (dict-set! nodes tr val)))
-       (when track2-out
-         (define val (cons track2-out (cdr bundle-pair-2)))
-         (dict-set! back-map val bundle-pair-2-back)
-         (for ([tr (in-set bundle-pair-2-back)])
-           (dict-set! nodes tr)))]))
-  ;; Select top-most track from table
-  (define-values (ret trash)
-    (for/fold ([node #f]
-               [level -1])
-              ([(track n-pair) (in-dict nodes)])
-      (if (<= level (cdr n-pair))
-          (values (car n-pair) (cdr n-pair))
-          (values node level))))
+  (define (find-length r)
+    (cond
+      [r
+       (define a (dict-ref (node-props r) "end" #f))
+       (define b (dict-ref (node-props r) "start" #f))
+       (if (and a b) (- a b) +inf.0)]
+      [else +inf.0]))
+  ;; Generate nodes and handle transitions
+  ;; resulting nodes can be concatinated directly
+  ;; Otherwise just add the compiled filter to the list.
+  ;; Invariant assumed: Transitions are never the first or last filters in a list.
+  ;; Invariant assumed: No two transitions happen side by side.
+  (define-values (nodes len)
+    (let loop ([nodes '()]
+               [len +inf.0]
+               ; [chapters '()] <- TODO!!!
+               [elements tracks])
+      (cond
+        [(empty? elements) (values (reverse nodes)
+                                   (and (= len +inf.0) len))]
+        [else
+         (define track1 (first elements))
+         (cond
+           [(or (empty? (rest elements))               ;; Last element
+                (not (transition? (second elements)))) ;; Default transition
+            (define node (video-convert track1 target-prop target-counts))
+            (add-vertex! (current-render-graph) node)
+            (loop (cons node nodes)
+                  (+ len (- (dict-ref (node-props node) "end" 0)
+                            (dict-ref (node-props node) "start" 0)))
+                  (cdr elements))]
+           [else                                       ;; User specified transition
+            (define trans (second elements))
+            (define track2 (third elements))
+            (define-values (r1 r2 rc)
+              (convert-transition trans target-prop target-counts track1 track2))
+            (define r (append (if r2 (list r1) (list))  ;; <- Backwards
+                              (if rc (list rc) (list))
+                              (if r1 (list r2) (list))))
+            (when r1 (add-vertex! (current-render-graph) r1))
+            (when r2 (add-vertex! (current-render-graph) r2))
+            (when rc (add-vertex! (current-render-graph) rc))
+            (loop (append r nodes)
+                  (min len
+                       (find-length r1)
+                       (find-length r2)
+                       (find-length rc))
+                  (list-tail elements 3))])])))
+  ;; Clip all videos to the shortest length
+  (define clipped-nodes
+    (for/list ([i (in-list nodes)])
+      (cond
+        [(and (= (get-property i "start") 0)
+              (= (get-property i "end") len))
+         node]
+        [else
+         (define n
+           (mk-filter-node (hash 'video (mk-filter "trim"
+                                                   (hash "start" 0
+                                                         "end" (racket->ffmpeg len)))
+                                 'audio (mk-filter "atrim"
+                                                   (hash "start" 0
+                                                         "end" (racket->ffmpeg len))))
+                           #:props (dict-set* (node-props node)
+                                              "start" 0
+                                              "end" len)
+                           #:counts (node-counts node)))
+         (add-vertex! (current-render-graph) n)
+         (add-directed-edge! (current-render-graph) i n 1)
+         n])))
+  ;; Pick top remaining node, discard the rest.
   ;; Return top-most track, throw away rest
-  (for ([(track n-pair) (in-dict nodes)])
-    (unless (equal? (car n-pair) ret)
-      (define trash (convert (make-nullsink)))
-      (add-vertex! (current-render-graph) trash)
-      (add-directed-edge! (current-render-graph) (car n-pair) trash 1)))
-  ret)
+  (for ([i (in-list (cdr clipped-nodes))])
+    (define trash (convert (make-nullsink)))
+    (add-vertex! (current-render-graph) trash)
+    (add-directed-edge! (current-render-graph) i trash 1))
+  (car clipped-nodes))
 
 (define-constructor video-subgraph properties ([graph (mk-render-graph)]
                                                [sinks '()]
