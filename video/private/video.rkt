@@ -539,6 +539,7 @@
      (define rg (optional-apply subgraph
                                 #:empty-graph (weighted-graph/directed '())
                                 #:source-props (node-props prev-node)
+                                #:source-counts (node-counts prev-node)
                                 #:target-props target-prop
                                 #:target-coutns target-counts))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
@@ -615,18 +616,22 @@
   (define track1-sub (optional-apply track1-subgraph
                                      #:empty-graph (weighted-graph/directed '())
                                      #:track1-props (node-props prev1-node)
+                                     #:track1-counts (node-counts prev1-node)
                                      #:target-props target-prop
                                      #:target-counts target-counts))
   (define track2-sub (optional-apply track2-subgraph
                                      #:empty-graph (weighted-graph/directed '())
                                      #:track2-props (node-props prev2-node)
+                                     #:track2-counts (node-counts prev2-node)
                                      #:target-props target-prop
                                      #:target-counts target-counts))
   (define combined-sub
     (optional-apply combined-subgraph
                     #:empty-graph (weighted-graph/directed '())
                     #:track1-props (node-props prev1-node)
+                    #:track1-counts (node-counts prev1-node)
                     #:track2-props (node-props prev2-node)
+                    #:track2-counts (node-counts prev2-node)
                     #:target-props target-prop
                     #:target-counts target-counts))
   ;; Only copy if needed both by combined and either track1 or track2
@@ -655,7 +660,7 @@
            (graph-union! (current-render-graph) (video-subgraph-graph track1-sub))
            (add-directed-edge! (current-render-graph)
                                prev1-copy
-                               (first (video-subgraph-sources track1-sub))
+                               (video-subgraph-sources track1-sub)
                                2)
            (video-subgraph-sinks track1-sub)]
           [else #f]))
@@ -664,7 +669,7 @@
            (graph-union! (current-render-graph) (video-subgraph-graph track2-sub))
            (add-directed-edge! (current-render-graph)
                                prev2-copy
-                               (first (video-subgraph-sources track2-sub))
+                               (video-subgraph-sources track2-sub)
                                1)
            (video-subgraph-sinks track2-sub)]
           [else #f]))
@@ -672,9 +677,9 @@
     (cond [combined-sub
            (graph-union! (current-render-graph) (video-subgraph-graph combined-sub))
            (add-directed-edge! (current-render-graph)
-                               prev1-copy (first (car (video-subgraph-sources combined-sub))) 1)
+                               prev1-copy (car (video-subgraph-sources combined-sub)) 1)
            (add-directed-edge! (current-render-graph)
-                               prev2-copy (first (cdr (video-subgraph-sources combined-sub))) 2)
+                               prev2-copy (cdr (video-subgraph-sources combined-sub)) 2)
            (video-subgraph-sinks combined-sub)]
           [else #f]))
   (values r1 r2 rc))
@@ -889,9 +894,12 @@
                 (not (transition? (second elements)))) ;; Default transition
             (define node (video-convert track1 timeless-target-prop target-counts))
             (add-vertex! (current-render-graph) node)
+            (define end (dict-ref (node-props node) "end" #f))
+            (define start (dict-ref (node-props node) "start" #f))
             (loop (cons node nodes)
-                  (+ len (- (dict-ref (node-props node) "end" 0)
-                            (dict-ref (node-props node) "start" 0)))
+                  (+ len (if (and start end)
+                             (- start end)
+                             0))
                   (cdr elements))]
            [else                                       ;; User specified transition
             (define trans (second elements))
@@ -1009,35 +1017,13 @@
                        (find-length r2)
                        (find-length rc))
                   (list-tail elements 3))])])))
-  ;; Clip all videos to the shortest length
-  (define clipped-nodes
-    (for/list ([i (in-list nodes)])
-      (cond
-        [(and (= (get-property i "start") 0)
-              (= (get-property i "end") len))
-         node]
-        [else
-         (define n
-           (mk-filter-node (hash 'video (mk-filter "trim"
-                                                   (hash "start" 0
-                                                         "end" (racket->ffmpeg len)))
-                                 'audio (mk-filter "atrim"
-                                                   (hash "start" 0
-                                                         "end" (racket->ffmpeg len))))
-                           #:props (dict-set* (node-props node)
-                                              "start" 0
-                                              "end" len)
-                           #:counts (node-counts node)))
-         (add-vertex! (current-render-graph) n)
-         (add-directed-edge! (current-render-graph) i n 1)
-         n])))
   ;; Pick top remaining node, discard the rest.
   ;; Return top-most track, throw away rest
-  (for ([i (in-list (cdr clipped-nodes))])
+  (for ([i (in-list (cdr nodes))])
     (define trash (convert (make-nullsink)))
     (add-vertex! (current-render-graph) trash)
     (add-directed-edge! (current-render-graph) i trash 1))
-  (car clipped-nodes))
+  (car nodes))
 
 (define-constructor video-subgraph properties ([graph (mk-render-graph)]
                                                [sinks '()]

@@ -413,60 +413,73 @@
                         (add-directed-edge! ctx pts-b buff-b2 2)
                         (add-directed-edge! ctx buff-b2 ovr-b 2)
                         (make-video-subgraph #:graph ctx
-                                             #:sources (cons (list pad-a target-prop target-counts)
-                                                             (list pad-b target-prop target-counts))
+                                             #:sources (cons pad-a pad-b)
                                              #:sinks ovr-b
                                              #:prop (hash "length" t-length))))
 
 (define-merge (overlay-merge x y [w #f] [h #f])
-  #:track1-subgraph (λ (ctx t1 target-prop) #f)
-  #:track2-subgraph (λ (ctx t2 target-prop) #f)
-  #:combined-subgraph (λ (ctx t1 t2 target-prop)
-                        (define zero-node1 (mk-reset-timestamp-node
-                                            #:props (node-props t1)
-                                            #:counts (node-counts t1)))
-                        (define zero-node2 (mk-reset-timestamp-node
-                                            #:props (node-props t2)
-                                            #:counts (node-counts t2)))
-                        (add-vertex! ctx zero-node1)
-                        (add-vertex! ctx zero-node2)
-                        (define length (min (- (get-property t1 "end" 0)
-                                               (get-property t1 "start" 0))
-                                            (- (get-property t2 "end" 0)
-                                               (get-property t2 "start" 0))))
+  #:source-props (λ (#:target-props target-props
+                     #:target-counts target-counts)
+                   (define tw (dict-ref target-props "width" #f))
+                   (define th (dict-ref target-props "height" #f))
+                   (define s (dict-ref target-props "start" #f))
+                   (define e (dict-ref target-props "end" #f))
+                   (values (dict-set* target-props
+                                      "start" 0
+                                      "end" (and s e (- e s)))
+                           target-counts
+                           (dict-set* target-props
+                                      "start" 0
+                                      "end" (and s e (- e s))
+                                      "width" (and w tw (* w tw))
+                                      "height" (and h th (* h th)))
+                           target-counts))
+  #:combined-subgraph (λ (#:empty-graph ctx
+                          #:track1-props t1
+                          #:track1-counts c1
+                          #:track2-props t2
+                          #:track2-counts c2
+                          #:target-props target-prop
+                          #:target-counts target-counts)
+                        (define len (min (- (dict-ref t1 "end" 0)
+                                            (dict-ref t1 "start" 0))
+                                         (- (dict-ref t2 "end" 0)
+                                            (dict-ref t2 "start" 0))))
+                        (define buff-node1 (mk-fifo-node #:counts target-counts))
+                        (define buff-node2 (mk-fifo-node #:counts target-counts))
                         (define needs-clipping?
-                          (or (and (get-property t1 "start" #f)
-                                   (get-property t1 "end" #f))
-                              (and (get-property t2 "start" #f)
-                                   (get-property t2 "end" #f))))
+                          (or (and (dict-ref t1 "start" #f)
+                                   (dict-ref t1 "end" #f))
+                              (and (dict-ref t2 "start" #f)
+                                   (dict-ref t2 "end" #f))))
                         (define trim-node1
                           (cond [needs-clipping?
                                  (define node (mk-trim-node #:start 0
-                                                            #:end length
-                                                            #:props (node-props t1)
-                                                            #:counts (node-counts t1)))
+                                                            #:end len
+                                                            #:props t1
+                                                            #:counts c1))
                                  (add-vertex! ctx node)
-                                 (add-directed-edge! ctx zero-node1 node 1)
+                                 (add-directed-edge! ctx buff-node1 node 1)
                                  node]
-                                [else zero-node1]))
+                                [else buff-node1]))
                         (define trim-node2
                           (cond [needs-clipping?
                                  (define node (mk-trim-node #:start 0
-                                                            #:end length
-                                                            #:props (node-props t2)
-                                                            #:counts (node-counts t2)))
+                                                            #:end len
+                                                            #:props t2
+                                                            #:counts c2))
                                  (add-vertex! ctx node)
-                                 (add-directed-edge! ctx zero-node2 node 2)
+                                 (add-directed-edge! ctx buff-node2 node 1)
                                  node]
-                                [else zero-node2]))
+                                [else buff-node2]))
                         (define scale-node2
                           (cond
                             [(and w h)
                              (define node
                                (mk-filter-node (hash 'video (mk-filter "scale" (hash "w" w
                                                                                      "h" h)))
-                                               #:props (node-props t1)
-                                               #:counts (node-counts t1)))
+                                               #:props t1
+                                               #:counts c1))
                              (add-vertex! ctx node)
                              (add-directed-edge! ctx trim-node2 node 1)
                              node]
@@ -475,13 +488,16 @@
                           (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" x
                                                                                   "y" y))
                                                 'audio (mk-filter "amix"))
-                                          #:counts (node-counts t1)
-                                          #:props (node-props t1)))
+                                          #:props (dict-set* t1
+                                                             "length" #f
+                                                             "start" #f
+                                                             "end" #f)
+                                          #:counts c1))
                         (add-vertex! ctx overlay)
                         (add-directed-edge! ctx trim-node1 overlay 1)
                         (add-directed-edge! ctx scale-node2 overlay 2)
                         (make-video-subgraph #:graph ctx
-                                             #:sources (cons zero-node1 zero-node2)
+                                             #:sources (cons buff-node1 buff-node2)
                                              #:sinks overlay)))
 
 
