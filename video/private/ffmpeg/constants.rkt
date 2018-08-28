@@ -149,6 +149,7 @@
 
 (define EAGAIN (lookup-errno 'EAGAIN))
 (define EINVAL (lookup-errno 'EINVAL))
+(define ENOENT (lookup-errno 'ENOENT))
 (define EPERM (lookup-errno 'EPERM))
 (define ENOMEM (lookup-errno 'ENOMEM))
 (define EDOM (lookup-errno 'EDOM))
@@ -336,10 +337,13 @@
               mp4a-latm = #x8000
               sort-dts
               priv-opts
-              keep-side-data ;; DEP ???
               fast-seek
               shortest
-              auto-bsf)))
+              auto-bsf
+              ;; timestamp flags
+              ts-discount = #x200
+              ts-nonstrict = #x20000
+              ts-negative = #x40000)))
 
 (define _avformat-context-flags
   (_bitmask `(noheader)

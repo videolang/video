@@ -44,7 +44,8 @@
              (~optional (~seq #:user-properties user-prop) #:defaults ([user-prop #'user-prop])))
         ...
         body ...)
-     #`(define (f.name
+     (quasisyntax/loc stx
+       (define (f.name
                 #:properties [user-prop (hash)]
                 #:filters [filters '()]
                 . f.args)
@@ -52,7 +53,7 @@
          (make-producer
           #:subgraph subgraph
           #:filters filters
-          #:prop (properties-proc user-prop)))]))
+          #:prop (properties-proc user-prop))))]))
 
 (define-syntax (->producer stx)
   (syntax-parse stx
@@ -93,7 +94,8 @@
                         #:defaults ([subgraph #'(λ () #f)])))
         ...
         body ...)
-     #`(define (f.name
+     (quasisyntax/loc stx
+       (define (f.name
                 #:properties [user-prop (hash)]
                 #:filters [filters '()]
                 . f.args)
@@ -101,7 +103,7 @@
          (make-filter #:source-props-proc source-props-proc
                       #:subgraph subgraph
                       #:filters filters
-                      #:prop (properties-proc user-prop)))]))
+                      #:prop (properties-proc user-prop))))]))
 
 (define-syntax (->filter stx)
   (syntax-parse stx
@@ -147,7 +149,8 @@
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
         body ...)
-     #`(define (f.name #:start [p2 #f] #:end [p1 #f]
+     (quasisyntax/loc stx
+       (define (f.name #:start [p2 #f] #:end [p1 #f]
                        #:properties [user-prop (hash)]
                        . f.args)
          body ...
@@ -160,7 +163,7 @@
             #:prop (properties-proc user-prop)))
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
-             trans))]))
+             trans)))]))
 
 (define-syntax (->transition stx)
   (syntax-parse stx
@@ -208,7 +211,8 @@
              (~optional (~seq #:prod-2 p2) #:defaults ([p2 #'p2])))
         ...
         body ...)
-     #`(define (f.name #:top [p2 #f] #:bottom [p1 #f]
+     (quasisyntax/loc stx
+       (define (f.name #:top [p2 #f] #:bottom [p1 #f]
                        #:properties [user-prop (hash)]
                        . f.args)
          body ...
@@ -221,7 +225,7 @@
             #:prop (properties-proc user-prop)))
          (if (and p1 p2)
              (make-field-element #:element trans #:track p1 #:track-2 p2)
-             trans))]))
+             trans)))]))
 
 (define-syntax (->merge stx)
   (syntax-parse stx

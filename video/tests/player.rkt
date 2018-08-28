@@ -82,7 +82,7 @@
 (let ()
   (define vid
     (multitrack (clip vid-mp4)
-                (overlay-merge 50 50 300 200)
+                (overlay-merge 50 50 100 100)
                 (color "green")))
   (define p (preview vid))
   (send p stop)

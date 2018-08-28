@@ -536,6 +536,9 @@
        (vector video audio)]))
   (define output-context
     (avformat-alloc-output-context2 output-format format-name file))
+  ;(set-av-output-format-flags! output-context
+  ;                              (cons 'ts-nonstrict
+  ;                                    (av-output-format-flags output-context)))
   (define format (avformat-context-oformat output-context))
   (define video-codec (av-output-format-video-codec format))
   (define audio-codec (av-output-format-audio-codec format))
@@ -718,6 +721,9 @@
                          (set-avpacket-stream-index!
                           next-packet (avstream-index (codec-obj-stream min-stream)))
                          ;(log-video-debug "Wrote packet: ~a" next-packet)
+                         ;(newline)
+                         ;(writeln (avpacket-pts next-packet))
+                         ;(newline)
                          (av-interleaved-write-frame output-context next-packet)
                          (av-packet-free next-packet)
                          1])]))]))

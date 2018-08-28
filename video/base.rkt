@@ -293,7 +293,7 @@
   (make-multitrack
    #:tracks (let ()
               (unless (null? transitions)
-                (error 'playlist "Merges field disabled for Video 0.2, use inline merges"))
+                (error 'multitrack "Merges field disabled for Video 0.2, use inline merges"))
               tracks)
    #:field '() ;transitions*
    #:prop (or prop (hash))
@@ -346,8 +346,14 @@
                           #:track2-props node-b
                           #:target-props target-prop
                           #:target-counts target-counts)
-                        (define width (dict-ref target-prop "width"))
-                        (define height (dict-ref target-prop "height"))
+                        (define width (or (dict-ref target-prop "width" #f)
+                                          (dict-ref node-a "width" #f)
+                                          (dict-ref node-b "width" #f)
+                                          1920))
+                        (define height (or (dict-ref target-prop "height" #f)
+                                           (dict-ref node-a "height" #f)
+                                           (dict-ref node-b "height" #f)
+                                           1080))
                         (define len-a (- (dict-ref node-a "end")
                                          (dict-ref node-a "start")))
                         (define len-b (- (dict-ref node-b "end")
@@ -379,7 +385,10 @@
                           (mk-filter-node
                            (hash 'video (mk-filter "setpts"
                                                    (hash "expr" (format "PTS-STARTPTS+(~a/TB)"
-                                                                        (- len-a fade-length)))))
+                                                                        (- len-a fade-length))))
+                                 );'audio (mk-filter "asetpts"
+                                 ;                  (hash "expr" (format "PTS-STARTPTS+(~a/TB)"
+                                 ;                                       (- len-a fade-length)))))
                            #:counts target-counts))
                         (add-vertex! ctx pts-b)
                         (add-directed-edge! ctx pad-b pts-b 1)
@@ -431,8 +440,8 @@
                            (dict-set* target-props
                                       "start" 0
                                       "end" (and s e (- e s))
-                                      "width" (and w tw (* w tw))
-                                      "height" (and h th (* h th)))
+                                      "width" tw
+                                      "height" th)
                            target-counts))
   #:combined-subgraph (λ (#:empty-graph ctx
                           #:track1-props t1
@@ -502,22 +511,38 @@
 
 
 (define-merge (composite-merge x1 y1 x2 y2)
-  #:track1-subgraph (λ (ctx t1 target-prop) #f)
-  #:track2-subgraph (λ (ctx t2 target-prop) #f)
-  #:combined-subgraph (λ (ctx t1 t2 target-prop)
+  #:combined-subgraph (λ (#:empty-graph ctx
+                          #:track1-props t1
+                          #:track1-counts c1
+                          #:track2-props t2
+                          #:track2-counts c2
+                          #:target-props target-prop
+                          #:target-counts target-counts)
+                        (define (exact-min a b)
+                          (if (a . < . b) a b))
+                        (define (exact-max a b)
+                          (if (a . < . b) b a))
+                        (define t1s (dict-ref t1 "start" #f))
+                        (define t1e (dict-ref t1 "end" #f))
+                        (define t2s (dict-ref t2 "start" #f))
+                        (define t2e (dict-ref t2 "end" #f))
+                        (define start (exact-max (or t1s 0)
+                                                 (or t2s 0)))
+                        (define end (exact-min (or t1e +inf.0)
+                                               (or t2e +inf.0)))
                         (define zero-node1 (mk-reset-timestamp-node
-                                            #:props (node-props t1)
-                                            #:counts (node-counts t1)))
+                                            #:props t1
+                                            #:counts c1))
                         (define zero-node2 (mk-reset-timestamp-node
-                                            #:props (node-props t2)
-                                            #:counts (node-counts t2)))
+                                            #:props t2
+                                            #:counts c2))
                         (add-vertex! ctx zero-node1)
                         (add-vertex! ctx zero-node2)
                         ;; Just pick a size
                         (log-video-warning
                          "composite-merge: no resolution on source node, making one up")
-                        (define t1w (get-property t1 "width" 1920))
-                        (define t1h (get-property t1 "height" 1080))
+                        (define t1w (dict-ref t1 "width" 1920))
+                        (define t1h (dict-ref t1 "height" 1080))
                         (define scale-node2
                           (cond
                             [(and t1w t1h)
@@ -525,8 +550,8 @@
                                (mk-filter-node (hash 'video (mk-filter "scale"
                                                                        (hash "w" (* (- x2 x1) t1w)
                                                                              "h" (* (- y2 y1) t1h))))
-                                               #:props (node-props t2)
-                                               #:counts (node-counts t2)))
+                                               #:props t2
+                                               #:counts c2))
                              (add-vertex! ctx scale-node2)
                              (add-directed-edge! ctx zero-node2 scale-node2 1)
                              scale-node2]
@@ -535,8 +560,11 @@
                           (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" (* t1w x1)
                                                                                   "y" (* t1h y1)))
                                                 'audio (mk-filter "amix"))
-                                          #:counts (node-counts t1)
-                                          #:props (node-props t1)))
+                                          #:counts c1
+                                          #:props (dict-set* t1
+                                                             "start" start
+                                                             "end" end
+                                                             "time-unset?" #t)))
                         (add-vertex! ctx overlay)
                         (add-directed-edge! ctx zero-node1 overlay 1)
                         (add-directed-edge! ctx scale-node2 overlay 2)
@@ -639,27 +667,31 @@
 
 (define (mux-filter #:type t
                     #:index index)
-  (define (mux-proc ctx prev)
+  (define (mux-proc #:empty-graph ctx
+                    #:target-props prev
+                    #:target-counts counts)
     (define type (match t
                    [(or 'v 'video) 'video]
                    [(or 'a 'audio) 'audio]))
     (define mux
-      (mk-mux-node type index (node-counts prev)
-                   #:props (node-props prev)
+      (mk-mux-node type index counts
+                   #:props prev
                    #:counts (hash type 1)))
     (add-vertex! ctx mux)
     (make-video-subgraph #:graph ctx
                          #:sources mux
                          #:sinks mux
-                         #:prop (node-props prev)))
+                         #:prop prev))
   (make-filter #:subgraph mux-proc))
 
 (define (envelope-filter #:direction direction
                          #:length length
                          #:curve [curve #f])
-  (define (envelope-proc ctx prev)
-    (define start (get-property prev "start" 0))
-    (define end (get-property prev "end" 0))
+  (define (envelope-proc #:empty-graph ctx
+                         #:target-props prev
+                         #:target-counts c)
+    (define start (dict-ref prev "start" 0))
+    (define end (dict-ref prev "end" 0))
     (define table
       (let* ([v (match direction
                   ['in (hash "t" "in"
@@ -676,13 +708,13 @@
       (mk-filter "afade" table))
     (define node
       (mk-filter-node (hash 'audio fade-filter)
-                      #:counts (node-counts prev)
-                      #:props (node-props prev)))
+                      #:counts c
+                      #:props prev))
     (add-vertex! ctx node)
     (make-video-subgraph #:graph ctx
                          #:sources node
                          #:sinks node
-                         #:prop (node-props prev)))
+                         #:prop prev))
   (make-filter #:subgraph envelope-proc))
 
 (define (chapter prod)

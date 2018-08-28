@@ -56,6 +56,7 @@
 (let ()
   (define-values (channel stop)
     (render/async (multitrack
+                   #:properties (hash "length" 5)
                    (color "green")
                    (clip vid-mp4))
                   (make-temporary-file "~a.mp4")))
@@ -66,6 +67,7 @@
 
 (parameterize ([current-output-port (open-output-nowhere)])
   (render/pretty (multitrack
+                  #:properties (hash "length" 5)
                   (color "green")
                   (clip vid-mp4))
                  (make-temporary-file "~a.mp4")))

@@ -267,7 +267,7 @@
    [audio-codec _avcodec-id]
    [video-codec _avcodec-id]
    [subtitle-codec _avcodec-id]
-   [flags _avio-format-flags]
+   [flags _avformat-flags]
    [codec-tag _pointer]
    [priv-class _pointer]))
 

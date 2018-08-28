@@ -567,17 +567,22 @@
                                                       "send-frame"
                                                       (current-continuation-marks)))])))
   
-  (define-avformat av-interleaved-write-frame (_fun _avformat-context-pointer _avpacket-pointer/null
-                                                    -> [ret : _int]
-                                                    -> (cond
-                                                         [(= ret 0) (void)]
-                                                         [(< ret 0)
-                                                          (error 'write-frame (convert-err ret))]
-                                                         [(> ret 0)
-                                                          (raise (exn:ffmpeg:flush
-                                                                  "send-frame"
-                                                                  (current-continuation-marks)))])))
-
+  (define-avformat av-interleaved-write-frame
+    (_fun _avformat-context-pointer _avpacket-pointer/null
+          -> [ret : _int]
+          -> (cond
+               [(= ret 0) (void)]
+               [(= (- ret) EINVAL)
+                (error
+                 'write-frame
+                 "Invalid Frame, you likely used an invalid merge or transition")]
+               [(< ret 0)
+                (error 'write-frame (convert-err ret))]
+               [(> ret 0)
+                (raise (exn:ffmpeg:flush
+                        "send-frame"
+                        (current-continuation-marks)))])))
+  
   (define-avformat avio-alloc-context
     (_fun _pointer _int _bool _pointer
           (_fun _pointer _pointer _int -> _int)

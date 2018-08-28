@@ -82,7 +82,7 @@
 (check-producer (clip vid-mp4 #:properties (hash "start" 100 "end" 103)) #:len 3)
 (check-producer (image circ-png #:properties (hash "start" 0 "end" 1)) #:len 1)
 (check-producer (blank 2) #:len 2)
-(check-producer (blank #f) #:len +inf.0)
+(check-producer (blank #f) #:len #f)
 (check-producer (blank 6) #:len 6)
 (check-producer circ-img #:len +inf.0)
 (check-producer vid-clip #:len 696/125)
@@ -107,7 +107,6 @@
                           (color "blue" #:properties (hash "length" 8)))
                  #:len 9)
 (check-producer (playlist (playlist g1) (playlist b8)) #:len 9)
-
 
 (check-producer
  (playlist (image circ-png #:properties (hash "start" 0 "end" 3))
@@ -135,14 +134,17 @@
   (clip vid-mp4 #:properties (hash "start" 0 "end" 8)))
  #:len 14)
 
+
 (check-producer
  (playlist)
  #:len 1)
 
+#| ;; Not a valid playlist, TODO check for correct error...
 (check-producer
  (playlist
   (fade-transition 5))
  #:len 5)
+|#
 
 ;; multitracks
 (check-producer
@@ -172,23 +174,21 @@
 ;; explicit transition list
 (check-producer
  (multitrack
-  circ-img vid-clip b g
-  #:merges
-  (list (composite-merge 0 0 1/2 1/2 #:top circ-img #:bottom vid-clip)
-        (composite-merge 1/2 0 1/2 1/2 #:top b #:bottom vid-clip)
-        (composite-merge 0 1/2 1/2 1/2 #:top g #:bottom vid-clip)))
+  g
+  (composite-merge 0 1/2 1/2 1/2)
+  b
+  (composite-merge 1/2 0 1/2 1/2)
+  circ-img
+  (composite-merge 0 0 1/2 1/2)
+  vid-clip)
  #:len 696/125)
-
 
 (check-producer (fading-playlist (image circ-png) (color "green")))
 (check-producer (fading-playlist (color "green") (clip vid-mp4)))
 (define (fading-playlist a b)
-  (playlist a b
-            #:transitions
-            (list
-             (composite-merge 0 0 1/2 1/2
-                              #:top a
-                              #:bottom b))))
+  (playlist a
+            (composite-merge 0 0 1/2 1/2)
+            b))
 
 ;; filters
 (check-producer (attach-filter (image circ-png) (scale-filter 1 3)))
@@ -214,14 +214,15 @@
 (parameterize ([current-directory video-dir])
   (external-video "green.vid"))
 
-
 ;; racketcon
 (define (make-speaker-slides-composite sp sl)
-  (multitrack sp sl logo bg
-              #:merges
-              (list (composite-merge 0 0 3/10 1 #:top sp #:bottom bg)
-                    (composite-merge 0 1/2 3/10 1 #:top logo #:bottom bg)
-                    (composite-merge 1/3 0 2/3 1 #:top sl #:bottom bg))))
+  (multitrack sp
+              (composite-merge 0 0 3/10 1)
+              sl
+              (composite-merge 0 1/2 3/10 1)
+              logo
+              (composite-merge 1/3 0 2/3 1)
+              bg))
 (define logo (image circ-png))
 (define sp (blank 100))
 (define sl (blank 100))
@@ -268,6 +269,7 @@
    (λ () '())))
  1)
 
+#| ;; Chapters removed, TODO, put back
 (check-equal?
  (length
   (get-property
@@ -285,6 +287,7 @@
     (chapter (color "red" #:properties (hash "length" 10))))
    "chapters"))
  1)
+|#
 
 ;; TODO, put defines at end?
 (define (make-talk-video main-talk)
@@ -355,6 +358,7 @@
   "length")
  8)
 
+
 (let ()
   (define r (new render% [source (multitrack
                                   (color "green")
@@ -368,8 +372,10 @@
                                   (clip vid-mp4))]))
   (send r setup (make-render-settings)))
 
+;; The transition is longer than the clip
 (render (playlist (image circ-png #:properties (hash "length" 100))
-                  (fade-transition 10)
+                  ;(fade-transition 10)
+                  (fade-transition 3)
                   (clip vid-mp4))
         (make-temporary-file "~a.mp4"))
 

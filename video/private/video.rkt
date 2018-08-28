@@ -168,16 +168,19 @@
                            (not (= end +inf.0))
                            (not (and prev-start (= prev-start start)
                                      prev-end (= prev-end end)))))
+                  (define start* (or start prev-start))
+                  (define end* (or end prev-end))
                   (define n
                     (mk-filter-node (hash 'video (mk-filter "trim"
-                                                            (hash "start" (racket->ffmpeg start)
-                                                                  "end" (racket->ffmpeg end)))
+                                                            (hash "start" (racket->ffmpeg start*)
+                                                                  "end" (racket->ffmpeg end*)))
                                           'audio (mk-filter "atrim"
-                                                            (hash "start" (racket->ffmpeg start)
-                                                                  "end" (racket->ffmpeg end))))
+                                                            (hash "start" (racket->ffmpeg start*)
+                                                                  "end" (racket->ffmpeg end*))))
                                     #:props (dict-set* (node-props node)
-                                                       "start" start
-                                                       "end" end)
+                                                       "times-unset?" #f
+                                                       "start" start*
+                                                       "end" end*)
                                     #:counts (node-counts node)))
                   (add-vertex! (current-render-graph) n)
                   (add-directed-edge! (current-render-graph) node n 1)
@@ -197,7 +200,7 @@
     (if (service? video-source)
         (for/fold ([ret vprop])
                   ([f (in-list (service-filters video-source))])
-          (define f* (convert-filter f target-prop video-source ret))
+          (define f* (convert-filter f target-prop target-counts video-source ret))
           f*)
         vprop))
   ;; Extend properties table (TODO)
@@ -244,7 +247,7 @@
                     (if video-target-time-base
                         (hash 'video (mk-filter "settb" (hash "expr" video-target-time-base)))
                         (hash))
-                    (if audio-target-time-base
+                    (if #f ;audio-target-time-base
                         (hash 'audio (mk-filter "asettb" (hash "expr" audio-target-time-base)))
                         (hash)))
                     #:props (dict-set* (node-props node)
@@ -543,7 +546,7 @@
                                 #:source-props (node-props prev-node)
                                 #:source-counts (node-counts prev-node)
                                 #:target-props target-prop
-                                #:target-coutns target-counts))
+                                #:target-counts target-counts))
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
      (add-directed-edge! (current-render-graph) prev-node (video-subgraph-sources rg) 1)
      (video-subgraph-sinks rg)]))
@@ -600,20 +603,24 @@
                     #:target-counts target-counts))
   ;; Next, compile source nodese given the new target props
   ;; If no new props given, use previous target props
-  (define prev1-node (video-convert prev1
-                                    (hash-union (or track1-props (hash))
-                                                target-prop
-                                                #:combine (λ (user targ) user))
-                                    (hash-union (or track1-counts (hash))
-                                                target-counts
-                                                #:combine (λ (user targ) user))))
-  (define prev2-node (video-convert prev2
-                                    (hash-union (or track2-props (hash))
-                                                target-prop
-                                                #:combine (λ (user targ) user))
-                                    (hash-union (or track2-counts (hash))
-                                                target-counts
-                                                #:combine (λ (user targ) user))))
+  (define prev1-node (if (node? prev1)
+                         prev1
+                         (video-convert prev1
+                                        (hash-union (or track1-props (hash))
+                                                    target-prop
+                                                    #:combine (λ (user targ) user))
+                                        (hash-union (or track1-counts (hash))
+                                                    target-counts
+                                                    #:combine (λ (user targ) user)))))
+  (define prev2-node (if (node? prev2)
+                         prev2
+                         (video-convert prev2
+                                        (hash-union (or track2-props (hash))
+                                                    target-prop
+                                                    #:combine (λ (user targ) user))
+                                        (hash-union (or track2-counts (hash))
+                                                    target-counts
+                                                    #:combine (λ (user targ) user)))))
   ;; Next, build subgraphs with the newly constructed properties
   (define track1-sub (optional-apply track1-subgraph
                                      #:empty-graph (weighted-graph/directed '())
@@ -784,7 +791,8 @@
                     +inf.0)
           "width" (or fwidth 0)
           "height" (or fheight 0)
-          "time-base" (or ftime-base 0)
+          "video-time-base" (or ftime-base 0)
+          "audio-time-base" (or ftime-base 0)
           "fps" (or ffps 0)
           "pix-fmt" fpix-fmt
           "sample-fmt" fsample-fmt
@@ -894,8 +902,11 @@
          (cond
            [(or (empty? (rest elements))               ;; Last element
                 (not (transition? (second elements)))) ;; Default transition
-            (define node (video-convert track1 timeless-target-prop target-counts))
-            (add-vertex! (current-render-graph) node)
+            (define node (if (node? track1)
+                             track1
+                             (video-convert track1 timeless-target-prop target-counts)))
+            (unless (node? track1)
+              (add-vertex! (current-render-graph) node))
             (define end (dict-ref (node-props node) "end" #f))
             (define start (dict-ref (node-props node) "start" #f))
             (loop (cons node nodes)
@@ -920,18 +931,9 @@
             (when rc (add-vertex! (current-render-graph) rc))
             (define rcend   (and rc (dict-ref (node-props rc) "end" #f)))
             (define rcstart (and rc (dict-ref (node-props rc) "start" #f)))
-            (loop (append r nodes)
-                  (+ len
-                     (if (and r1end r1start)
-                         (- r1end r1start)
-                         0)
-                     (if (and r2end r2start)
-                         (- r2end r2start)
-                         0)
-                     (if (and rcend rcstart)
-                         (- rcend rcstart)
-                         0))
-                  (list-tail elements 3))])])))
+            (loop nodes
+                  len
+                  (append r (list-tail elements 3)))])])))
   ;; Build backing structure and transition everything to it.
   (define the-playlist
     (mk-filter-node (hash 'video (mk-filter "concat"
@@ -999,8 +1001,11 @@
          (cond
            [(or (empty? (rest elements))               ;; Last element
                 (not (transition? (second elements)))) ;; Default transition
-            (define node (video-convert track1 target-prop target-counts))
-            (add-vertex! (current-render-graph) node)
+            (define node (if (node? track1)
+                             track1
+                             (video-convert track1 target-prop target-counts)))
+            (unless (node? track1)
+              (add-vertex! (current-render-graph) node))
             (loop (cons node nodes)
                   (+ len (- (dict-ref (node-props node) "end" 0)
                             (dict-ref (node-props node) "start" 0)))
@@ -1016,12 +1021,9 @@
             (when r1 (add-vertex! (current-render-graph) r1))
             (when r2 (add-vertex! (current-render-graph) r2))
             (when rc (add-vertex! (current-render-graph) rc))
-            (loop (append r nodes)
-                  (min len
-                       (find-length r1)
-                       (find-length r2)
-                       (find-length rc))
-                  (list-tail elements 3))])])))
+            (loop  nodes
+                  len
+                  (append r (list-tail elements 3)))])])))
   ;; Pick top remaining node, discard the rest.
   ;; Return top-most track, throw away rest
   (for ([i (in-list (cdr nodes))])

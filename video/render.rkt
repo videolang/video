@@ -434,12 +434,13 @@
               (hash-set* (hash)
                          "width" width
                          "height" height
-                         "display-aspect-ratio" (/ width height)
+                         "display-aspect-ratio" (and width height
+                                                     (/ width height))
                          "start" start*
                          "end" end*
-                         "fps" fps
-                         "video-time-base" (or video-time-base (/ 1 fps))
-                         "audio-time-base" audio-time-base
+                         "fps" (or fps 25)
+                         "video-time-base" (or video-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
+                         "audio-time-base" (or audio-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
                          "format" format
                          "pix-fmt" pix-fmt
                          "sample-fmt" sample-fmt
