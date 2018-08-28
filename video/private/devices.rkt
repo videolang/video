@@ -42,7 +42,8 @@
      (define vid-fmt (av-find-input-format "v4l2"))
      (define vid-ctx (avformat-alloc-context))
      (define video-found?
-       (with-handlers ([exn:fail? (λ (e) #f)])
+       (with-handlers ([exn:fail? (λ (e) #f)]
+                       [exn:ffmpeg:fail? (λ (e) #f)])
          (avformat-open-input vid-ctx "" vid-fmt #f)
          #t))
      (define aud-fmt (av-find-input-format "alsa"))
