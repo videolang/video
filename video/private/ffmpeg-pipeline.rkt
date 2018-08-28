@@ -265,7 +265,7 @@
   (with-handlers ([exn:ffmpeg:fail?
                    (λ (e)
                      (raise-arguments-error 'input-media
-                                            "Invalid Media file"
+                                            (exn:ffmpeg:fail-message e)
                                             "file" file))])
     (define avformat (avformat-open-input file #f #f))
     (avformat-context->stream-bundle avformat file)))

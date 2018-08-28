@@ -451,7 +451,12 @@
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]
-                 [(= ret AVERROR-INVALIDDATA)
+                 [(= (- ret) ENOENT)
+                  (error 'avformat (raise-ffmpeg-error 'open-input
+                                                       "Missing input file:"
+                                                       'input input
+                                                       'path path))]
+                 [(= (- ret) AVERROR-INVALIDDATA)
                   (error 'avformat (raise-ffmpeg-error 'open-input
                                                        "Invalid input media:"
                                                        'input input
