@@ -485,7 +485,14 @@
                                  #:counts (node-counts video-sink)))
                               (add-vertex! render-graph sn)
                               (add-directed-edge! render-graph node sn 1)
-                              sn]
+                              (define pts-n
+                                (mk-filter-node (hash 'video (mk-filter "setpts" (hash "expr" "PTS-STARTPTS"))
+                                                      'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                                                #:props (node-props sn)
+                                                #:counts (node-counts sn)))
+                              (add-vertex! render-graph pts-n)
+                              (add-directed-edge! render-graph sn pts-n 1)
+                              pts-n]
                              [else node])])
                 node))
             (define sink-node
@@ -561,8 +568,11 @@
 
     ;; Wait for rendering to finish, then return.
     (define/public (wait-for-rendering)
-      (and writing-thread (thread-wait writing-thread))
+      (log-video-debug "Stop rendering: Finishing reading thread")
       (and reading-thread (thread-wait reading-thread))
+      (log-video-debug "Stop rendering: Finishing writing thread")
+      (and writing-thread (thread-wait writing-thread))
+      (log-video-debug "Stop rendering: Complete")
       (void))
 
     ;; Used for early termination of `feed-buffers`.
@@ -673,12 +683,16 @@
     ;; Seek to a specific position (in seconds). Convience method
     ;;    whose functionality can be duplicated entirely from other methods.
     (define/public (seek position)
+      (log-video-debug "Seek requested, position: ~a stopping" position)
       (stop-rendering)
+      (log-video-debug "Seek requested, stopped")
       (setup (struct-copy render-settings current-render-settings
                           [seek-point position]))
-      (start-rendering))
+      (log-video-debug "Seek requested, stopped")
+      (start-rendering)
+      (log-video-debug "Seek requested, stopped"))
 
-    ;; Convience method to resize (in pixels) the video. Can be duplicated
+    ;; Convenience method to resize (in pixels) the video. Can be duplicated
     ;;   with external method calls.
     (define/public (resize w h)
       (stop-rendering)
