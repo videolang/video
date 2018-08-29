@@ -333,7 +333,8 @@
            [render-graph #f]
            [output-node #f]
            [video-start 0]
-           [video-end #f])
+           [video-end #f]
+           [video-seek-point #f])
 
     (define render-audio? #t)
     (define render-video? #t)
@@ -510,6 +511,7 @@
             (set! output-node sink-node)
             (set! video-start (video:get-property video-sink "start"))
             (set! video-end (video:get-property video-sink "end"))
+            (set! video-seek-point seek-point)
             (let-values ([(g i o) (init-filter-graph render-graph)])
               (set! graph-obj g)
               (set! input-bundles i)
@@ -745,7 +747,7 @@
     ;; Basically, treat this result as something that will occasionally be wrong
     ;;   (like for a progress bar).
     (define/public (get-current-position)
-      (+ video-start (render-status-box-position current-render-status)))
+      (+ (or video-seek-point 0) video-start (render-status-box-position current-render-status)))
 
     ;; Return the length of the internal video (not the setup length) in seconds
     (define/public (get-length)
@@ -789,6 +791,7 @@
     video-sink
     video-start
     video-end
+    seek-point
     render-graph
     output-node
     reading-thread
