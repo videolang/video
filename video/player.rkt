@@ -130,7 +130,12 @@
 ;;   a slider that acts as a progress indicator as well.
 (define video-slider%
   (class slider%
-    (super-new)
+    (init [[mv- min-value]]
+          [[mv+ max-value]])
+    (define min-value mv-)
+    (define max-value mv+)
+    (super-new [min-value mv-]
+               [max-value mv+])
     ;; Set of pressed buttons, is the powerset of:
     ;; (Setof 'left 'right 'middle)
     (define pressed (mutable-set))
@@ -145,6 +150,14 @@
             [(send e button-up? 'right) (set-remove! pressed 'right)]
             [(send e button-up? 'middle) (set-remove! pressed 'middle)]]
       (super on-subwindow-event r e))
+
+    ;; Variant that should make the value exact, and also
+    ;;   min/max out, in case of erronious negative time stamps.
+    (define/override (set-value val)
+      (define cleaned-val
+        (inexact->exact
+         (min max-value (max min-value val))))
+      (super set-value cleaned-val))
 
     ;; Return #t if the user is actively sliding the slider, #f otherwise.
     (define/public (dragging?)
@@ -251,7 +264,7 @@
            [callback
             (λ (b e)
               (define v (send b get-value))
-              (define frame (floor (* (send vps get-video-length) (/ v seek-bar-max))))
+              (define frame (* (send vps get-video-length) (/ v seek-bar-max)))
               (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
       (match (send vps get-status)

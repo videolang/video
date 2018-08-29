@@ -24,7 +24,13 @@
 ;; Defined in a submodule so that classes
 ;; extending this one can make use of it.
 
+(require racket/struct)
+
 (provide (all-defined-out))
+
+;; For nice printing of render settings AND video objects
+(define current-detailed-printing? (make-parameter #f))
+
 (struct render-settings (destination
                          width
                          height
@@ -48,7 +54,30 @@
                          video-frames
                          audio-frames
                          data-frames
-                         seek?))
+                         seek-point)
+  #:methods gen:custom-write
+  [(define (write-proc vid port mode)
+     (if (current-detailed-printing?)
+         ((make-constructor-style-printer
+           (λ (obj) "render-settings")
+           (λ (obj) (list (render-settings-destination obj)
+                          (render-settings-width obj)
+                          (render-settings-height obj)
+                          (render-settings-display-aspect-ratio obj)
+                          (render-settings-video-codec obj)
+                          (render-settings-audio-codec obj)
+                          (render-settings-pix-fmt obj)
+                          (render-settings-sample-fmt obj)
+                          (render-settings-channel-layout obj)
+                          (render-settings-start obj)
+                          (render-settings-end obj)
+                          (render-settings-seek-point obj))))
+          vid port mode)
+         ((make-constructor-style-printer
+           (λ (obj) "render-settings")
+           (λ (obj) (list)))
+          vid port mode)))])
+         
 (define (make-render-settings #:destination [d #f]
                               #:width [w 1920]
                               #:height [h 1080]
@@ -72,5 +101,5 @@
                               #:video-frames [vfr #f]
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
-                              #:seek? [s? #t])
-  (render-settings d w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr s?))
+                              #:seek-point [seekp #f])
+  (render-settings d w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp))

@@ -165,7 +165,7 @@
                              #:data-frames (or/c nonnegative-integer? #f)
                              #:render-video? boolean?
                              #:render-audio? boolean?
-                             #:seek? boolean?)
+                             #:seek-point (or/c nonnegative-integer? #f))
                             render-settings?)])
 
  ;; Interface for render%
@@ -387,7 +387,8 @@
                                       [sample-fmt sample-fmt]
                                       [sample-rate sample-rate]
                                       [channel-layout channel-layout]
-                                      [speed speed]))
+                                      [speed speed]
+                                      [seek-point seek-point]))
             (unless manual-rendering-enable?
               (set! render-video? render-video?*)
               (set! render-audio? render-audio?*))
@@ -469,6 +470,24 @@
                          [out-path (in-list out-paths)])
                 (stream-bundle->file out-path spec
                                      #:format-name format-name)))
+            (define seek-post-proc-node
+              (let* ([node video-sink]
+                     [node (cond
+                             [seek-point
+                              (define sn
+                                (mk-filter-node
+                                 (hash 'video (mk-filter "trim"
+                                                         (hash "start" (racket->ffmpeg seek-point)))
+                                       'audio (mk-filter "atrim"
+                                                         (hash "start" (racket->ffmpeg seek-point))))
+                                 #:props (dict-set* (node-props video-sink)
+                                                    "start" seek-point)
+                                 #:counts (node-counts video-sink)))
+                              (add-vertex! render-graph sn)
+                              (add-directed-edge! render-graph node sn 1)
+                              sn]
+                             [else node])])
+                node))
             (define sink-node
               (for/fold ([next #f])
                         ([out-bundle (in-list out-bundles)]
@@ -480,7 +499,7 @@
                                                   #:combine (λ (target user) user))
                               #:consume-table consume-table)))
             (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph video-sink sink-node 1)
+            (add-directed-edge! render-graph seek-post-proc-node sink-node 1)
             (set! output-node sink-node)
             (set! video-start (video:get-property video-sink "start"))
             (set! video-end (video:get-property video-sink "end"))
@@ -656,7 +675,7 @@
     (define/public (seek position)
       (stop-rendering)
       (setup (struct-copy render-settings current-render-settings
-                          [start position]))
+                          [seek-point position]))
       (start-rendering))
 
     ;; Convience method to resize (in pixels) the video. Can be duplicated

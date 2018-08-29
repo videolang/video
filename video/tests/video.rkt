@@ -19,6 +19,7 @@
 (require rackunit
          (prefix-in file: file/convertible)
          "../private/video.rkt"
+         "../private/render-settings.rkt"
          (prefix-in surf: "../base.rkt"))
 
 ;; Test syntax for the video object hiarachy.

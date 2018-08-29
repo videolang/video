@@ -375,7 +375,6 @@
                          kw-args)))))
 
 ;; Constructor for video objects
-(define current-detailed-printing? (make-parameter #f))
 (define-syntax subclass-empty '(() () ()))
 (define-syntax (define-constructor stx)
   (syntax-parse stx
