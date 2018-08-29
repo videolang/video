@@ -235,17 +235,22 @@
          [callback (λ _ (send vps rewind))])
     (define play-label (play-icon #:color run-icon-color #:height 50))
     (define pause-label (pause-icon #:color pause-icon-color #:height 50))
+    (define user-stopped? #f)
     (define play/pause-button
       (new button%
            [parent top-row]
            [label (play-icon #:color run-icon-color #:height 50)]
-           [callback (λ _ (match (send vps get-status)
-                            ['playing (send vps pause)]
-                            [_ (send vps play)]))]))
+           [callback (λ _
+                       (set! user-stopped? #f)
+                       (match (send vps get-status)
+                         ['playing (send vps pause)]
+                         [_ (send vps play)]))]))
     (new button%
        [parent top-row]
        [label (stop-icon #:color halt-icon-color #:height 50)]
-       [callback (λ _ (send vps stop))])
+       [callback (λ _
+                   (set! user-stopped? #t)
+                   (send vps stop))])
     (new button%
          [parent top-row]
          [label (fast-forward-icon #:color syntax-icon-color #:height 50)]
@@ -270,17 +275,23 @@
               (define frame (* (send vps get-video-length) (/ v seek-bar-max)))
               (send vps seek frame))]))
     (define (update-seek-bar-and-labels)
-      (match (send vps get-status)
+      (define status (send vps get-status))
+      (define len (or (send vps get-video-length) 1000000))
+      (define frame
+        (cond
+          [(equal? status 'playing) (send vps get-position)]
+          [user-stopped?            0]
+          [else                     len]))
+      (define seek-pos (floor (* seek-bar-max (/ frame len))))
+      (send len-message set-label (make-frame-string len))
+      (send seek-message set-label (make-frame-string frame))
+      (match status
         ['playing
-         (define len (or (send vps get-video-length) 1000000))
-         (define frame (send vps get-position))
-         (define seek-pos (floor (* seek-bar-max (/ frame len))))
          (unless (send seek-bar dragging?)
            (send seek-bar set-value seek-pos))
-         (send seek-message set-label (make-frame-string frame))
-         (send len-message set-label (make-frame-string len))
          (send play/pause-button set-label pause-label)]
         [_
+         (send seek-bar set-value seek-pos)
          (send play/pause-button set-label play-label)]))
     (define/private (make-frame-string frame)
       (cond [(= frame +inf.0)
