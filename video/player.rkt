@@ -227,10 +227,12 @@
            [spacing 20]))
     (new button%
          [parent top-row]
+         [enabled #f]
          [label (step-back-icon #:color run-icon-color #:height 50)]
          [callback (λ _ (send vps seek (- (send vps get-position) step-distance)))])
     (new button%
          [parent top-row]
+         [enabled #f]
          [label (rewind-icon #:color syntax-icon-color #:height 50)]
          [callback (λ _ (send vps rewind))])
     (define play-label (play-icon #:color run-icon-color #:height 50))
@@ -253,10 +255,12 @@
                    (send vps stop))])
     (new button%
          [parent top-row]
+         [enabled #f]
          [label (fast-forward-icon #:color syntax-icon-color #:height 50)]
          [callback (λ _ (send vps fast-forward))])
     (new button%
          [parent top-row]
+         [enabled #f]
          [label (step-icon #:color run-icon-color #:height 50)]
          [callback (λ _ (send vps seek (+ (send vps get-position) step-distance)))])
     ;; Measured in 100 milliseconds chunks.
@@ -336,6 +340,7 @@
          [parent render-row]
          [label "Render Video"]
          [value #t]
+         [enabled #f]
          [callback
           (λ (c e)
             (define v (send c get-value))
@@ -344,6 +349,7 @@
          [parent render-row]
          [label "Render Audio"]
          [value #t]
+         [enabled #f]
          [callback
           (λ (c e)
             (define v (send c get-value))
@@ -365,6 +371,7 @@
     (new button%
          [parent seek-row]
          [label "Jump"]
+         [enabled #f]
          [callback
           (λ (b e)
             (define frame (send seek-field get-value))
@@ -386,6 +393,7 @@
                   (send b set-field-background (make-object color% "lightsalmon"))))]))
     (new button%
           [parent speed-row]
+          [enabled #f]
           [label "Set Speed"]
           [callback
            (λ (b e)
