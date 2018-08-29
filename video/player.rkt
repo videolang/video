@@ -143,12 +143,15 @@
     ;; When a button is pressed, at it to the pressed set.
     ;; Likewise remove it when released
     (define/override (on-subwindow-event r e)
-      [cond [(send e button-down? 'left) (set-add! pressed 'left)]
-            [(send e button-down? 'right) (set-add! pressed 'right)]
-            [(send e button-down? 'middle) (set-add! pressed 'middle)]
-            [(send e button-up? 'left) (set-remove! pressed 'left)]
-            [(send e button-up? 'right) (set-remove! pressed 'right)]
-            [(send e button-up? 'middle) (set-remove! pressed 'middle)]]
+      (if (send e get-left-down)
+          (set-add! pressed 'left)
+          (set-remove! pressed 'left))
+      (if (send e get-right-down)
+          (set-add! pressed 'right)
+          (set-remove! pressed 'right))
+      (if (send e get-middle-down)
+          (set-add! pressed 'middle)
+          (set-remove! pressed 'middle))
       (super on-subwindow-event r e))
 
     ;; Variant that should make the value exact, and also
