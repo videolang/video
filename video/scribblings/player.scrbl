@@ -19,6 +19,17 @@
 @title{Player}
 @defmodule[video/player]
 
+VidLang comes with a player to quickly preview videos before
+the final render. You can access it from DrRacket with the
+@emph{Preview Video} button. It appears next to the run
+button when a VidLang file is open. Alternatively, you can use @exec{
+ raco video -p <file.vid>} from the command line.
+
+Several of the features of the video preview are disabled.
+This is because they are unstable and not yet ready for
+release. They should be available in the next version of
+Video, or in the latest unstable build.
+
 @defproc[(preview [data producer?])
          (is-a?/c video-player%)]{
                                   

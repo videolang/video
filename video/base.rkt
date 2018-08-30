@@ -215,10 +215,16 @@
                                 #:combine (λ (prop arg) prop))
              #:filters (or filters '())))
 
-(define-producer (color c [c2 #f] [c3 #f])
+(define-producer (color c [c2 #f] [c3 #f]
+                        #:length [length #f])
   #:user-properties prop
   #:properties (λ (r)
-                 (let* ([r (cond
+                 (let* ([r (if length
+                               (hash-union r
+                                           (hash "length" length)
+                                           #:combine (λ (t s) t))
+                               r)]
+                        [r (cond
                              [(dict-has-key? r "start") r]
                              [else (dict-set r "start" 0)])]
                         [r (cond

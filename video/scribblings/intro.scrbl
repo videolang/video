@@ -97,8 +97,17 @@ Like @racket[color], clips can also set their length with @tech["properties"]
 @racketmod[
  video
  (clip "spinning_square.mp4"
-       #:properties (hash "start" 2
-                          "end" 8))]
+       #:start 2
+       #:end 8)]
+
+The @racket[clip] function uses optional keywords for
+@racket[#:start] and @racket[#:end]. These are syntactic
+sugar for the properties table directly:
+
+@racketmod[
+ video
+ (clip "spinnin_square.mp4"
+       #:properties (hash "start" 2 "end" 8))]
 
 @inset-flow[
  (apply playlist-timeline
@@ -145,7 +154,7 @@ Alternatively, @tech["playlists"] can be created with the
 @racketmod[
  video
  (clip "spinning_square.mp4"
-       #:properties (hash "start" 0 "end" 4))
+       #:start 0 #:end 4)
  (clip "spinning_square.mp4"
        #:properties (hash "start" 0 "end" 4)
        #:filters (list (grayscale-filter)))]

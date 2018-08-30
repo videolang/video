@@ -41,7 +41,8 @@ deprecated with a yellow @note-text{NOTE} label.
                                  (list/c byte? byte? byte?)
                                  byte?)]
                     [c2 (or/c byte? #f) #f]
-                    [c3 (or/c byte? #f) #f])]{
+                    [c3 (or/c byte? #f) #f]
+                    [#:length length (or/c nonnegative-integer? #f) #f])]{
  Creates a producer that is a solid color.
 
  The given color can be a string from
@@ -51,14 +52,26 @@ deprecated with a yellow @note-text{NOTE} label.
  If a byte is given for @racket[color], then @racket[c2] and
  @racket[c3] must also contain a byte. Otherwise @racket[c2]
  and @racket[c3] must be @racket[#f].
+
+ If provided, @racket[length] is syntactic sugar for the
+ @racket["length"] value in the properties table. It determines
+ a length for the given color.
  
  @examples[#:eval video-evaluator
            (color "green")
            (color "yellow" #:properties (hash "length" 10))
            (color 255 255 0)]}
 
-@defproducer[(clip [file (or/c path-string? path?)])]{
- Creates a producer from a video or image file.
+@defproducer[(clip [file (or/c path-string? path?)]
+                   [#:start start (or/c nonnegative-integer? #f) #f]
+                   [#:end end (or/c nonnegative-integer? #f) #f]
+                   [#:length length (or/c nonnegative-integer? #f) #f])]{
+                                                                         
+ Creates a producer from a video or image file. The
+ @racket[start], @racket[end], @racket[length] arguments are
+ (if provided), are syntactic sugar to set the @racket["start"],
+ @racket["end"], or @racket["length"] values in the
+ properties table.
 
  @examples[#:eval video-evaluator
            (clip "groovy.mp4")

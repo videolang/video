@@ -34,6 +34,13 @@
 
 (provide (all-defined-out))
 
+;; Helpers ===========================================================================================
+
+(begin-for-syntax
+  (define-syntax-class doc-header
+    (pattern (name:id arg-spec ...))
+    (pattern (prototype:doc-header arg-spec ...))))
+
 ;; Producers =========================================================================================
 
 (define-syntax (define-producer stx)
@@ -68,12 +75,12 @@
 
 (define-syntax (defproducer stx)
   (syntax-parse stx
-    [(_ (id:id args ...)
+    [(_ prototype:doc-header
         (~optional (~seq #:return ret)) ;; TODO, don't ignore this
         content ...)
-     #'(defproc (id args ...
-                    [#:properties properties (hash/c string? any/c) (hash)]
-                    [#:filters filters (listof filter?) '()])
+     #'(defproc ((~@ prototype)
+                 [#:properties properties (hash/c string? any/c) (hash)]
+                 [#:filters filters (listof filter?) '()])
          producer?
          content ...)]))
 
@@ -118,11 +125,11 @@
 
 (define-syntax (deffilter stx)
   (syntax-parse stx
-    [(_ (id:id args ...)
+    [(_ prototype:doc-header
         body ...)
-     #`(defproc (id args ...
-                    [#:filters filters (listof filter?) '()]
-                    [#:properties properties (hash/c string? any/c) (hash)])
+     #`(defproc ((~@ prototype)
+                 [#:filters filters (listof filter?) '()]
+                 [#:properties properties (hash/c string? any/c) (hash)])
          filter?
          body ...)]))
 
@@ -179,12 +186,12 @@
 
 (define-syntax (deftransition stx)
   (syntax-parse stx
-    [(_ (id:id args ...)
+    [(_ prototype:doc-header
         body ...)
-     #`(defproc (id args ...
-                    [#:start start (or/c any/c #f) #f]
-                    [#:end end (or/c any/c #f) #f]
-                    [#:properties properties (hash/c string? any/c) (hash)])
+     #`(defproc ((~@ prototype)
+                 [#:start start (or/c any/c #f) #f]
+                 [#:end end (or/c any/c #f) #f]
+                 [#:properties properties (hash/c string? any/c) (hash)])
          (or/c transition? field-element?)
          body ...)]))
 
@@ -241,12 +248,12 @@
 
 (define-syntax (defmerge stx)
   (syntax-parse stx
-    [(_ (id:id args ...)
+    [(_ prototype:doc-header
         body ...)
-     #`(defproc (id args ...
-                    [#:top top (or/c any/c #f) #f]
-                    [#:bottom bottom (or/c any/c #f) #f]
-                    [#:properties properties (hash/c string? any/c) (hash)])
+     #`(defproc ((~@ prototype)
+                 [#:top top (or/c any/c #f) #f]
+                 [#:bottom bottom (or/c any/c #f) #f]
+                 [#:properties properties (hash/c string? any/c) (hash)])
          (or/c merge? field-element?)
          body ...)]))
 
