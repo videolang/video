@@ -140,7 +140,7 @@
 (define (finish-execution v)
   (set-racket-log-callback #f))
 (will-register callback-executor callback-proc finish-execution)
-(unless (equal? (getenv "FF_LOG") "stdout")
+(unless (or (not (ffmpeg-installed?)) (equal? (getenv "FF_LOG") "stdout"))
   (av-log-set-callback #f)
   ;; Perminently disable ffmpeg log to racket log libvid.
   ;; Its too buggy and will have to wait for the next release.
