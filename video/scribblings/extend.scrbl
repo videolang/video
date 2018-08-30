@@ -59,6 +59,10 @@ producers, transitions, merges, and filters. This API is still
 experimental and may change with little notice. Proceed with
 caution.
 
+These forms are for defining producers, filters, transitions, and merges.
+Also the forms for building their contracts and writing
+their documentation.
+
 @defform[(define-producer function-header
            maybe-subgraph
            maybe-properties
@@ -155,12 +159,63 @@ caution.
                       [source-props procedure?])]{
 }
 
-@defform*[((->transition)
-           (deftransition)
-           (define-merge)
-           (->merge)
-           (defmerge))]{
-           
- The forms for defining producers, transitions, and merges.
- Also the forms for building their contracts and writing
- their documentation.}
+@defform[(->transition [extra-args ...] [optional-args ...] maybe-ret)
+         #:grammar
+         [(maybe-ret (code:line)
+                     return)]]{
+}
+
+@defform[(deftransition prototype maybe-return content ...)
+         #:grammar
+         [(prototype (id arg-spec ...)
+                     (prototype arg-spec ...))
+          (maybe-ret (code:line)
+                     #:return ret)]]{
+}
+
+@defform[(define-merge function-header
+           maybe-track1-subgraph
+           maybe-track2-subgraph
+           maybe-combined-subgraph
+           maybe-properties
+           maybe-source-properties
+           maybe-user-properties
+           maybe-producer-1
+           maybe-producer-2
+           body ...)
+         #:grammar
+         [(maybe-track1-subgraph (code:line)
+                                 (code:line #:track1-subgraph subgraph))
+          (maybe-track2-subgraph (code:line)
+                                 (code:line #:track2-subgraph subgraph))
+          (maybe-combined-subgraph (code:line)
+                                   (code:line #:combined-subgraph subgraph))
+          (maybe-properties (code:line)
+                            (code:line #:properties properties))
+          (maybe-user-properties (code:line)
+                                 (code:line #:user-properties user-properties))
+          (maybe-source-properties (code:line)
+                                   (code:line #:source-props source-properties))
+          (maybe-prod1 (code:line)
+                       (code:line #:prod-1 prod1-id))
+          (maybe-prod2 (code:line)
+                       (code:line #:prod-2 prod2-id))]
+         #:contracts ([subgraph (or/c procedure? #f)]
+                      [properties procedure?]
+                      [source-props procedure?])]{
+}
+
+@defform[(->merge [extra-args ...] [optional-args ...] maybe-ret)
+         #:grammar
+         [(maybe-ret (code:line)
+                     return)]]{
+}
+
+@defform[(defmerge prototype maybe-return content ...)
+         #:grammar
+         [(prototype (id arg-spec ...)
+                     (prototype arg-spec ...))
+          (maybe-ret (code:line)
+                     #:return ret)]]{
+}
+

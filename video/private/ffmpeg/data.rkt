@@ -19,6 +19,7 @@
 (provide (all-defined-out))
 (require "lib.rkt"
          "constants.rkt"
+         "../log.rkt"
          ffi/unsafe
          racket/format
          racket/set
@@ -123,7 +124,11 @@
                          fields.type
                          fields.offset)
                  ...))
-         (define the-version (version-major (version-proc)))
+         (define the-version (with-handlers ([exn:fail?
+                                              (λ (e)
+                                                (log-video-error "Couldn't find ffmpeg: ~a" e)
+                                                0)])
+                               (version-major (version-proc))))
          (define current-fields
            (for/list ([i (in-list the-fields)]
                       #:when (and (<= (vector-ref i 1) the-version)
