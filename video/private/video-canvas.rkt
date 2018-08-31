@@ -537,12 +537,18 @@
           [(struct* codec-obj ([codec-context ctx]
                                [buffer-context buff-ctx]
                                [type type]))
-           (when (and video-buffer rs-box (eq? type 'video))
-             (define frame (send video-buffer get-current-position))
-             (when frame
-               (set-render-status-box-position!
-                rs-box (* frame
-                          (avcodec-context-time-base ctx)))))
+           (define (set-time! type)
+             (define buffer (match type
+                              ['video video-buffer]
+                              ['audio audio-buffer]
+                              [_      #f]))
+             (when (and buffer rs-box)
+               (define frame (or (send buffer get-current-position)))
+               (when frame
+                 (set-render-status-box-position!
+                  rs-box (* frame
+                            (avcodec-context-time-base ctx))))))
+           (set-time! type)
            (match* (type mode)
              [(_ 'init)
               (set-render-status-box-position! rs-box 0)
@@ -566,6 +572,7 @@
                      (set! stop-audio stop)])))]
              [('audio 'write)
               (let loop ()
+                (set-time! 'audio)
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
@@ -598,6 +605,7 @@
                              (loop)))))))]
              [('video 'write)
               (let loop ()
+                (set-time! 'video)
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))

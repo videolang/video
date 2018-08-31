@@ -1318,7 +1318,8 @@
   (with-handlers ([exn:ffmpeg:fail?
                    (λ (e)
                      (raise-arguments-error
-                      'render "Invalid Video Graph (Video bug, report to https://github.com/videolang/video)"
+                      'render
+                      "Invalid Video Graph (Video bug, report to https://github.com/videolang/video)"
                       "Video Graph" (graphviz g)
                       "Filter Graph" g-str))])
     (avfilter-graph-config graph #f))

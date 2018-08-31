@@ -487,8 +487,10 @@
                               (add-vertex! render-graph sn)
                               (add-directed-edge! render-graph node sn 1)
                               (define pts-n
-                                (mk-filter-node (hash 'video (mk-filter "setpts" (hash "expr" "PTS-STARTPTS"))
-                                                      'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                                (mk-filter-node (hash 'video (mk-filter "setpts"
+                                                                        (hash "expr" "PTS-STARTPTS"))
+                                                      'audio (mk-filter "asetpts"
+                                                                        (hash "expr" "PTS-STARTPTS")))
                                                 #:props (node-props sn)
                                                 #:counts (node-counts sn)))
                               (add-vertex! render-graph pts-n)

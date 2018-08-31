@@ -306,13 +306,16 @@
           [user-stopped?            0]
           [else                     len]))
       (define seek-pos (floor (* seek-bar-max (/ frame len))))
-      (send len-message set-label (make-frame-string len))
-      (send seek-message set-label (make-frame-string frame))
+      (unless (eq? status 'paused)
+        (send len-message set-label (make-frame-string len))
+        (send seek-message set-label (make-frame-string frame)))
       (match status
         ['playing
          (unless (send seek-bar dragging?)
            (send seek-bar set-value seek-pos))
          (send play/pause-button set-label pause-label)]
+        ['paused
+         (send play/pause-button set-label play-label)]
         [_
          (send seek-bar set-value seek-pos)
          (send play/pause-button set-label play-label)]))
