@@ -58,26 +58,29 @@
 
 (define video-player-server%
   (class object%
-    (init-field video
-                [convert-database #f])
+    (init-field [[iv video]]
+                [convert-database #f]
+                [(ic canvas) #f])
     (super-new)
     ;; Internal State
     (define render-settings (make-render-settings #:start 0
                                                   #:width WIDTH
                                                   #:height HEIGHT
                                                   #:fps FPS))
+    (define video #f)
     (define render #f)
     (define screen #f)
     (define current-speed 1)
     (define/public (set-canvas c)
       (set! screen c)
-      (set-video video))
+      (when video
+        (set-video video)))
     (define/public (set-video v)
       (set! video v)
       (set! render (new (video-canvas-render-mixin render%)
                         [source video]
-                        [convert-database convert-database]))
-      (send render set-canvas screen))
+                        [convert-database convert-database]
+                        [canvas screen])))
     (define/public (get-video-length)
       (when (is-stopped?)
         (play)
@@ -123,7 +126,23 @@
     (define/public (render-audio val)
       (send render render-audio val))
     (define/public (render-video val)
-      (send render render-video val))))
+      (send render render-video val))
+    
+    (set-canvas ic)
+    (set-video iv)
+
+    (will-register video-player-server%-executor this video-player-server%-final)))
+
+(define (video-player-server%-final this)
+  (send this stop))
+
+(define video-player-server%-executor (make-will-executor))
+(void
+ (thread
+  (λ ()
+    (let loop ()
+      (will-execute video-player-server%-executor)
+      (loop)))))
 
 ;; The default `slider%` object is not powerful enough to determine if
 ;;   the user is manually dragging the slider. This is problematic for

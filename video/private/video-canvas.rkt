@@ -583,34 +583,36 @@
                 (set! stop-audio #f))]
              [('video 'open)
               (unless canvas
-                (error 'player "Canvas must be set to play video"))
-              (set! video-buffer (new video-buffer% [canvas canvas]))
-              (send video-buffer set-time-base (avcodec-context-time-base ctx))
-              (set! stop-video-thread-flag #f)
-              (set! video-thread
-                    (thread
-                     (λ ()
-                       (let loop ()
-                         (unless stop-video-thread-flag
-                           (send video-buffer draw-frame #f)
-                           (sleep 0.01)
-                           (loop))))))]
+                (log-video-warning "Player: Canvas must be set to play video"))
+              (when canvas
+                (set! video-buffer (new video-buffer% [canvas canvas]))
+                (send video-buffer set-time-base (avcodec-context-time-base ctx))
+                (set! stop-video-thread-flag #f)
+                (set! video-thread
+                      (thread
+                       (λ ()
+                         (let loop ()
+                           (unless stop-video-thread-flag
+                             (send video-buffer draw-frame #f)
+                             (sleep 0.01)
+                             (loop)))))))]
              [('video 'write)
               (let loop ()
                 (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
                                 [exn:ffmpeg:eof? (λ (e) eof)])
                   (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (if play-video?
+                  (if (and play-video? video-buffer)
                       (send video-buffer add-frame out-frame)
                       (av-frame-free out-frame))
                   (if (eq? stop-rendering-flag #t)
                       eof
                       (loop))))]
              [('video 'close)
-              (set! stop-video-thread-flag #t)
-              (and video-thread (thread-wait video-thread))
-              (when play-video?
-                (send video-buffer flush-buffer))
+              (when video-buffer
+                (set! stop-video-thread-flag #t)
+                (and video-thread (thread-wait video-thread))
+                (when play-video?
+                  (send video-buffer flush-buffer)))
               (set! video-buffer #f)
               (set-render-status-box-rendering?! rs-box #f)]
              [(_ _) (void)])])))))
