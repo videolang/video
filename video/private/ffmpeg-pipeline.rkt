@@ -332,8 +332,8 @@
     (define streams (stream-bundle-streams bundle))
     (define stream-table (stream-bundle-stream-table bundle))
     
-    (define/public (dump-info [stream 0] [testfile #f])
-      (av-dump-format avformat stream testfile 'input))
+    (define/public (dump-info [stream 0])
+      (av-dump-format avformat stream (stream-bundle-file bundle) 'input))
 
     ;; Takes an optional timeout in seconds. Returns true if data is found
     ;;   or false if timed out (if timeout provided).

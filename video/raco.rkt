@@ -146,7 +146,7 @@
       (string->path video-string)))
 
   (define video
-    (if (input-media?)
+    (if (or (input-media?) (probe-media?))
         (clip video-path)
         (dynamic-require video-path 'vid)))
 
@@ -167,6 +167,7 @@
      (match (output-type)
        [_ ;(or "png" "jpg" "mp4" "xml")
         (render/pretty video (output-path)
+                       #:probe? (probe-media?)
                        #:convert-database (make-base-database)
                        #:start (output-start)
                        #:end (output-end)

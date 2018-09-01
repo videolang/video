@@ -66,7 +66,8 @@
                 #:render-video? boolean?
                 #:render-audio? boolean?
                 #:start (or/c (and/c real? (>=/c 0)) #f)
-                #:end (or/c (and/c real? (>=/c 0)) #f)]
+                #:end (or/c (and/c real? (>=/c 0)) #f)
+                #:probe? boolean?]
                void?)]
  
   ;; Similar to render, however non-blocking.
@@ -91,7 +92,8 @@
                       #:sample-fmt symbol?
                       #:render-video? boolean?
                       #:render-audio? boolean?
-                      #:mode (or/c 'verbose #f)]
+                      #:mode (or/c 'verbose #f)
+                      #:probe? boolean?]
                      (values async-channel? (-> void?)))]
 
   ;; A hybrid of render and render/async. This version blocks until the
@@ -116,7 +118,8 @@
                        #:sample-fmt symbol?
                        #:render-video? boolean?
                        #:render-audio? boolean?
-                       #:mode (or/c 'verbose 'silent #f)]
+                       #:mode (or/c 'verbose 'silent #f)
+                       #:probe? boolean?]
                       void?)]
 
  ;; The render% object is _NOT_ threadsafe. However, it is important ot use threads when calling
@@ -188,7 +191,8 @@
                 #:data-frames [df #f]
                 #:render-video? [rv? #t]
                 #:render-audio? [ra? #t]
-                #:fps [fps 25])
+                #:fps [fps 25]
+                #:probe? [probe? #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define r% ((or render-mixin values) render%))
   (define r
@@ -210,7 +214,9 @@
                               #:render-video? rv?
                               #:render-audio? ra?
                               #:fps fps))
-  (send r start-rendering #t))
+  (if probe?
+      (send r dump-info)
+      (send r start-rendering #t)))
 
 (define (render/async video
                       [dest #f]
@@ -229,7 +235,8 @@
                       #:sample-fmt [sf 'fltp]
                       #:render-video? [rv? #t]
                       #:render-audio? [ra? #t]
-                      #:mode [mode #f])
+                      #:mode [mode #f]
+                      #:probe? [probe? #f])
   (define dest* (or dest (make-temporary-file "rktvid~a" 'directory)))
   (define channel (make-async-channel))
   (define r% ((or render-mixin values) render%))
@@ -252,21 +259,26 @@
                               #:render-video? rv?
                               #:render-audio? ra?
                               #:fps fps))
-  (when (eq? mode 'verbose)
-    (async-channel-put channel (send r get-render-graph)))
-  (thread
-   (λ ()
-     (send r start-rendering)
-     (let loop ()
-       (when (send r rendering?)
-         (async-channel-put channel (send r get-current-position))
-         (sleep 0.01)
-         (loop)))
-     (async-channel-put channel eof)))
-  (values channel
+  (cond [probe?
+         (send r dump-info)
+         (async-channel-put channel eof)
+         (values channel void)]
+        [else
+         (when (eq? mode 'verbose)
+           (async-channel-put channel (send r get-render-graph)))
+         (thread
           (λ ()
-            (send r stop-rendering)
-            (void))))
+            (send r start-rendering)
+            (let loop ()
+              (when (send r rendering?)
+                (async-channel-put channel (send r get-current-position))
+                (sleep 0.01)
+                (loop)))
+            (async-channel-put channel eof)))
+         (values channel
+                 (λ ()
+                   (send r stop-rendering)
+                   (void)))]))
 
 (define (render/pretty video
                        [dest #f]
@@ -286,7 +298,8 @@
                        #:sample-fmt [sf 'fltp]
                        #:render-video? [rv? #t]
                        #:render-audio? [ra? #t]
-                       #:mode [mode #f])
+                       #:mode [mode #f]
+                       #:probe? [probe? #f])
   (define port (or (and (not (eq? mode 'silent)) port*)
                    (open-output-nowhere)))
   (define-values (channel stop)
@@ -306,7 +319,8 @@
                   #:sample-fmt sf
                   #:render-video? rv?
                   #:render-audio? ra?
-                  #:mode (if (eq? mode 'silent) #f mode)))
+                  #:mode (if (eq? mode 'silent) #f mode)
+                  #:probe? probe?))
   (when (eq? mode 'verbose)
     (displayln (graphviz (async-channel-get channel))))
   (with-handlers ([exn:break?
@@ -754,7 +768,18 @@
     ;; Return the length of the internal video (not the setup length) in seconds
     (define/public (get-length)
       (and video-end video-start
-           (- video-end video-start)))))
+           (- video-end video-start)))
+
+    (define/public (dump-info [file-string #f])
+      (for ([bundle (in-list input-bundles)])
+        (define callback (feed-buffers-callback-constructor))
+        (define demux (new demux%
+                           [bundle bundle]
+                           [by-index-callback callback]))
+        (send demux init)
+        (for ([str (in-vector (stream-bundle-streams bundle))]
+              [i (in-naturals)])
+          (send demux dump-info i))))))
 
 (define render<%>
   (class->interface render%))
@@ -775,7 +800,8 @@
            [get-render-graph (->m (or/c graph? #f))]
            [rendering? (->m boolean?)]
            [get-current-position (->m (and/c real? (>=/c 0)))]
-           [get-length (->m (and/c real? positive?))]))
+           [get-length (->m (and/c real? positive?))]
+           [dump-info (->*m () (string?) void?)]))
 
 ;; This submodule stores the member names to the fields for the render% class.
 ;; Requiring it allows classes to use those fields directly (i.e. for subclasses/mixins.)
