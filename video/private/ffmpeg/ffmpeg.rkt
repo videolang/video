@@ -248,6 +248,7 @@
   ;(_fun _pointer _int _string _pointer -> _void) -> _void))
   ;; XXX va_list is NOT a pointer size. Need to extend libffi before we can use these.
   ;(define-avutil av-log-default-callback (_fun _pointer _int _string _pointer -> _void))
+  (define-avutil av-log-default-callback _fpointer)
   (define-avutil av-log-format-line2
     (_fun _pointer _int _string _pointer [out : (_bytes o len)] [len : _int] _intptr
           -> [ret : _int]

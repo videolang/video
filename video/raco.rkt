@@ -23,7 +23,8 @@
          "base.rkt"
          "render.rkt"
          "player.rkt"
-         "convert.rkt")
+         "convert.rkt"
+         "private/ffmpeg/ffmpeg.rkt")
 
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
@@ -146,7 +147,7 @@
       (string->path video-string)))
 
   (define video
-    (if (or (input-media?) (probe-media?))
+    (if (input-media?)
         (clip video-path)
         (dynamic-require video-path 'vid)))
 
@@ -159,6 +160,9 @@
       ["png" png:render-mixin]
       ["xml" xml:render-mixin]
       [_ #f]))
+
+  (when (probe-media?)
+    (av-log-set-callback av-log-default-callback))
 
   (cond
     [(output-preview?)
