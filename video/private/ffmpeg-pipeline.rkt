@@ -1287,7 +1287,10 @@
                                (avstream-time-base stream)
                                #;(avcodec-context-sample-aspect-ratio ctx))]
                ['audio (format "channel_layout=~a:sample_fmt=~a:time_base=~a:sample_rate=~a"
-                               (cast (avcodec-context-channel-layout ctx) _av-channel-layout _uint64)
+                               (let ([layout (avcodec-context-channel-layout ctx)])
+                                 (if (empty? layout) ;; wav files don't have a channel layout
+                                     (cast '(mono) _av-channel-layout _uint64)
+                                     (cast layout _av-channel-layout _uint64)))
                                (cast (avcodec-context-sample-fmt ctx) _avsample-format _int)
                                (avcodec-context-time-base ctx)
                                (avcodec-context-sample-rate ctx))]))

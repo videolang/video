@@ -785,8 +785,8 @@
     (hash "start" (or (and fstart ftime-base
                            (* fstart ftime-base))
                       0)
-          "end" (or (and fstart fduration ftime-base
-                         (* (+ fduration fstart) ftime-base))
+          "end" (or (and fduration ftime-base
+                         (* (+ fduration (or fstart 0)) ftime-base))
                     +inf.0)
           "width" (or fwidth 0)
           "height" (or fheight 0)
@@ -802,7 +802,7 @@
                                #:props props))
   (add-vertex! (current-render-graph) node)
   (cond
-    [(and fstart fduration ftime-base) ; A moving image
+    [(and fduration ftime-base) ; A moving image
      node]
     [else                              ; A still image
      ;; This is terrible, but see:
