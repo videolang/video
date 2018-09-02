@@ -1,3 +1,21 @@
+v0.2
+Date: 2018-09-02
+Commit#: TBD
+* Complete rewrite of compiler (first two passes).
+  - New compiler creates significantly more stable video programs.
+* Can now properly decode wav files
+* Remove explicit #:transitions/#:merges keywrods from playlists/filters.
+* Fixed bug preventing video from being compiled on systems without ffmpeg.
+  - (Still requires ffmpeg to run.)
+* Improve video player stability.
+  - Seek bar and counter much more reliable.
+  - Disable some unstable features, to be enabled for the next release.
+* Minimum required version of Racket bumped to 7.0
+* Add a --prove flag to raco video to get information about media file.
+* When using the video player server, sound stops when the server is out of scope.
+* The video-player-server% object is now considerably easier to construct.
+* Add #:start/#:end/#:length as special keywords for clip function.
+
 v0.2-rc.2
 Date: 2018-08-13
 Commit#: 3ea58fd2b8d5f0b6d4df793fe5999396c570d5e0
