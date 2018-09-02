@@ -1,6 +1,6 @@
 v0.2
 Date: 2018-09-02
-Commit#: TBD
+Commit#: 8828d1c287030691cbc12f75fb803265fc3d97bb
 * Complete rewrite of compiler (first two passes).
   - New compiler creates significantly more stable video programs.
 * Can now properly decode wav files
