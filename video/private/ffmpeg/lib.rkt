@@ -69,31 +69,31 @@
    ['macosx (ffi-lib (string-append lib-prefix "openh264") "4")]
    [_ (void)]))
 (define avutil-lib
-  (ffi-lib (string-append lib-prefix "avutil") "55"
+  (ffi-lib (string-append lib-prefix "avutil") '("55" "56" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avutil avutil-lib
   #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define swresample-lib
-  (ffi-lib (string-append lib-prefix "swresample") "2"
+  (ffi-lib (string-append lib-prefix "swresample") '("2" "3" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-swresample swresample-lib
   #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define swscale-lib
-  (ffi-lib (string-append lib-prefix "swscale") "4"
+  (ffi-lib (string-append lib-prefix "swscale") '("4" "5" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-swscale swscale-lib
   #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avcodec-lib
-  (ffi-lib (string-append lib-prefix "avcodec") "57"
+  (ffi-lib (string-append lib-prefix "avcodec") '("57" "58" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avcodec avcodec-lib
   #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avformat-lib
-  (ffi-lib (string-append lib-prefix "avformat") "57"
+  (ffi-lib (string-append lib-prefix "avformat") '("57" "58" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avformat avformat-lib
   #:default-make-fail error-not-installed
@@ -101,19 +101,19 @@
 (match (system-type 'os)
   ['windows
    (define postproc-lib
-     (ffi-lib (string-append lib-prefix "postproc") "54"))
+     (ffi-lib (string-append lib-prefix "postproc") '("54" "55" #f)))
    (define-ffi-definer define-postproc postproc-lib
      #:make-c-id convention:hyphen->underscore)
    (void)]
   [_ (void)])
 (define avfilter-lib
-  (ffi-lib (string-append lib-prefix "avfilter") "6"
+  (ffi-lib (string-append lib-prefix "avfilter") '("6" "7" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avfilter avfilter-lib
   #:default-make-fail error-not-installed
   #:make-c-id convention:hyphen->underscore)
 (define avdevice-lib
-  (ffi-lib (string-append lib-prefix "avdevice") "57"
+  (ffi-lib (string-append lib-prefix "avdevice") '("57" "58" #f)
            #:fail ffmpeg-not-installed))
 (define-ffi-definer define-avdevice avdevice-lib
   #:default-make-fail error-not-installed

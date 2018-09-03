@@ -19,8 +19,124 @@
 (provide (all-defined-out))
 (require racket/set
          racket/dict
+         racket/list
          ffi/unsafe
-         "lib.rkt")
+         syntax/parse/define
+         (for-syntax racket/base
+                     syntax/parse)
+         "lib.rkt"
+         "../log.rkt")
+
+(begin-for-syntax
+  (define-syntax-class ffmpeg-name
+    #:attributes (name added removed)
+    (pattern name:id
+             #:attr removed #'+inf.0
+             #:attr added #'0)
+    (pattern (name:id (~or (~optional (~seq #:removed removed) #:defaults ([deprecated #'+inf.0]))
+                           (~optional (~seq #:added added) #:defaults ([added #'0])))
+                      ...)))
+  (define-splicing-syntax-class ffmpeg-list-item
+    #:attributes (item added removed)
+    (pattern name:ffmpeg-name
+             #:attr item #'(name.name)
+             #:attr added #'name.added
+             #:attr removed #'name.removed)
+    (pattern (~seq name:ffmpeg-name (~datum =) place)
+             #:attr item #'(name.name = place)
+             #:attr added #'name.added
+             #:attr removed #'name.removed)))
+
+(define-syntax-parser _ffmpeg-list
+  [(_ (~or (~optional (~seq #:version-proc version-proc)
+                      #:defaults ([version-proc #'(λ () (mk-version #:major 0))])))
+      items:ffmpeg-list-item ...)
+   #'(let ()
+       (define the-version (with-handlers ([exn:fail?
+                                            (λ (e)
+                                              (log-video-error "Couldn't find ffmpeg: ~a" e)
+                                              0)])
+                             (version-major (version-proc))))
+       (append*
+        (for/list ([i (in-list `(items.item ...))]
+                   [a (in-list (list items.added ...))]
+                   [r (in-list (list items.removed ...))]
+                   #:when (and (<= a the-version)
+                               (< the-version r)))
+          i)))])
+
+;; Deprecation flags =================================================================================
+
+(define api-opt-type-metadata 56)
+
+(define api-request-channels 57)
+(define api-old-decode-audio 57)
+(define api-old-encode-audio 57)
+(define api-old-encode-video 57)
+(define api-codec-id 57)
+
+(define api-debug-mv 58)
+(define api-vima-decoder 58)
+(define api-audio-convert 58)
+(define api-avcodec-resample api-audio-convert)
+(define api-missing-sample 58)
+(define api-cap-vdpau 58)
+(define api-buffs-vdpaus 58)
+(define api-voxware 58)
+(define api-set-dimensions 58)
+(define api-ac-vlc 58)
+(define api-old-msmpeg4 58)
+(define api-aspect-extended 58)
+(define api-arch-alpha 58)
+(define api-xvmc 58)
+(define api-unused-members 58)
+(define api-idct-xvidmmx 58)
+(define api-input-preserved 58)
+(define api-normalize-aqp 58)
+(define api-gmc 58)
+(define api-mv0 58)
+(define api-codec-name 58)
+(define api-afd 58)
+(define api-vismv 58)
+(define api-audioenc-delay 58)
+(define api-vaapi-context 58)
+(define api-merge-sd 58)
+(define api-mpv-opt 58)
+(define api-stream-codec 58)
+(define api-quant-bias 58)
+(define api-rc-strategy 58)
+(define api-motion-est 58)
+(define api-without-prefix 58)
+(define api-sidedata-only 58)
+
+(define api-lowres 59)
+(define api-avctxtime-base 59)
+(define api-coded-frame 59)
+(define api-sidedata-only-packet 59)
+(define api-vdpau-profile 59)
+(define api-convergence-duration 59)
+(define api-avpicture 59)
+(define api-avpacket-old-api 59)
+(define api-rtp-callback 59)
+(define api-vbv-delay 59)
+(define api-coder-type 59)
+(define api-stat-bits 59)
+(define api-private-opt 59)
+(define api-ass-timing 59)
+(define api-old-bsf 59)
+(define api-copy-context 59)
+(define api-get-context-defaults 59)
+(define api-nvenc-old-name 59)
+(define api-struct-vaapi-context 59)
+(define api-merge-sd-api 59)
+(define api-tag-string 59)
+(define api-getchroma 59)
+(define api-codec-get-set 59)
+(define api-user-visible-avhwaccel 59)
+(define api-lockmgr 59)
+(define api-next 59)
+
+;; ===================================================================================================
 
 (define errno-set
   (set 'E2BIG
@@ -458,14 +574,15 @@
               print-level)))
 
 (define _av-option-flags
-  (_bitmask `(encoding-param
-              decoding-param
-              metadata ;; DEP AVUTIL 56
-              audio-param
-              video-param
-              export
-              readonly
-              filtering-param = ,(arithmetic-shift 1 16))))
+  (_bitmask (_ffmpeg-list
+             encoding-param
+             decoding-param
+             [metadata #:removed api-opt-type-metadata]
+             audio-param = #x8
+             video-param
+             export
+             readonly
+             filtering-param = ,(arithmetic-shift 1 16))))
 
 (define _slice-flags
   (_bitmask `(coded-order
@@ -526,7 +643,7 @@
                              ;; Video
                              mpeg1video
                              mpeg2video
-                             mpeg2video-xvmc ;; DEP AVCODEC 58
+                             [mpeg2video-xvmc #:removed api-xvmc]
                              h261
                              h263
                              rv10
@@ -877,7 +994,7 @@
                              mlp
                              gsm-ms
                              atrac3
-                             voxware ;; DEP AVCODEC 57
+                             [voxware #:removed api-voxware]
                              ape
                              nellymoser
                              musepack8
@@ -1006,8 +1123,8 @@
                                  yuvj420p
                                  yuvj422p
                                  yuvj444p
-                                 xvmc-mpeg2-mc ;; DEP AVUTIL 56
-                                 xvmc-mpeg2-idct ;; DEP AVUTIL 56
+                                 [xvmc-mpeg2-mc #:removed api-xvmc]
+                                 [xvmc-mpeg2-idct #:removed api-xvmc]
                                  uyvy422
                                  uyyvyy411
                                  bgr8
@@ -1027,11 +1144,11 @@
                                  yuv440p
                                  yuvj440p
                                  yuva420p
-                                 vdpau-h264 ;; DEP AVUTIL 56
-                                 vdpau-mpeg1 ;; DEP AVUTIL 56
-                                 vdpau-mpeg2 ;; DEP AVUTIL 56
-                                 vdpau-wmv3 ;; DEP AVUTIL 56
-                                 vdpau-vc1 ;; DEP AVUTIL 56
+                                 [vdpau-h264 #:removed api-vdpau]
+                                 [vdpau-mpeg1 #:removed api-vdpau]
+                                 [vdpau-mpeg2 #:removed api-vdpau]
+                                 [vdpau-wmv3 #:removed api-vdpau]
+                                 [vdpau-vc1 #:removed api-vdpau]
                                  rgb48be
                                  rgb48le
                                  rgb565be
@@ -1042,14 +1159,14 @@
                                  bgr565le
                                  bgr555be
                                  bgr555le
-                                 vaapi-moco ;; DEP AVUTIL 56
-                                 vaapi-idct ;; DEP AVUTIL 56
-                                 vaapi ;; NOT DEP!!!
+                                 [vaapi-moco #:removed api-vaapi]
+                                 [vaapi-idct #:removed api-vaapi]
+                                 [vaapi #:added api-vaapi]
                                  yuv420p16le
                                  yuv420p16be
                                  yuv422p16le
                                  yuv422p16be
-                                 vdpau-mpeg4 ;; DEP AVUTIL 56
+                                 [vdpau-mpeg4 #:removed api-vdpau]
                                  dxva2-vld
                                  rgb444le
                                  rgb444be
@@ -1150,7 +1267,7 @@
                                  bayer-gbrg16be
                                  bayer-grbg16le
                                  bayer-grbg16be
-                                 xvmc ;; DEP AVUTIL 56
+                                 xvmc
                                  yuv440p10le
                                  yuv440p10be
                                  yuv440p12le
