@@ -33,7 +33,7 @@
     (pattern name:id
              #:attr removed #'+inf.0
              #:attr added #'0)
-    (pattern (name:id (~or (~optional (~seq #:removed removed) #:defaults ([deprecated #'+inf.0]))
+    (pattern (name:id (~or (~optional (~seq #:removed removed) #:defaults ([removed #'+inf.0]))
                            (~optional (~seq #:added added) #:defaults ([added #'0])))
                       ...)))
   (define-splicing-syntax-class ffmpeg-list-item
@@ -68,12 +68,15 @@
 ;; Deprecation flags =================================================================================
 
 (define api-opt-type-metadata 56)
+(define api-xvmc 56)
+(define api-vdpau 56)
 
 (define api-request-channels 57)
 (define api-old-decode-audio 57)
 (define api-old-encode-audio 57)
 (define api-old-encode-video 57)
 (define api-codec-id 57)
+(define api-vaapi 57)
 
 (define api-debug-mv 58)
 (define api-vima-decoder 58)
@@ -88,7 +91,6 @@
 (define api-old-msmpeg4 58)
 (define api-aspect-extended 58)
 (define api-arch-alpha 58)
-(define api-xvmc 58)
 (define api-unused-members 58)
 (define api-idct-xvidmmx 58)
 (define api-input-preserved 58)
@@ -638,7 +640,8 @@
 (define _is-output (_enum '(input = 0
                             output = 1)))
 
-(define _avcodec-id (_enum '(none
+(define _avcodec-id (_enum  (_ffmpeg-list
+                             none
                              
                              ;; Video
                              mpeg1video
@@ -1107,7 +1110,8 @@
 
 (define _avcolor-primaries _fixint)
 
-(define _avpixel-format (_enum `(unknown = -1
+(define _avpixel-format (_enum  (_ffmpeg-list
+                                 unknown = -1
                                  yuv420p
                                  yuyv422
                                  rgb24
@@ -1267,7 +1271,7 @@
                                  bayer-gbrg16be
                                  bayer-grbg16le
                                  bayer-grbg16be
-                                 xvmc
+                                 xvmc ;; Oddly not DEP. :/
                                  yuv440p10le
                                  yuv440p10be
                                  yuv440p12le
