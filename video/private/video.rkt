@@ -604,22 +604,22 @@
   ;; If no new props given, use previous target props
   (define prev1-node (if (node? prev1)
                          prev1
-                         (video-convert prev1
-                                        (hash-union (or track1-props (hash))
-                                                    target-prop
-                                                    #:combine (λ (user targ) user))
-                                        (hash-union (or track1-counts (hash))
-                                                    target-counts
-                                                    #:combine (λ (user targ) user)))))
+                         (convert prev1
+                                  (hash-union (or track1-props (hash))
+                                              target-prop
+                                              #:combine (λ (user targ) user))
+                                  (hash-union (or track1-counts (hash))
+                                              target-counts
+                                              #:combine (λ (user targ) user)))))
   (define prev2-node (if (node? prev2)
                          prev2
-                         (video-convert prev2
-                                        (hash-union (or track2-props (hash))
-                                                    target-prop
-                                                    #:combine (λ (user targ) user))
-                                        (hash-union (or track2-counts (hash))
-                                                    target-counts
-                                                    #:combine (λ (user targ) user)))))
+                         (convert prev2
+                                  (hash-union (or track2-props (hash))
+                                              target-prop
+                                              #:combine (λ (user targ) user))
+                                  (hash-union (or track2-counts (hash))
+                                              target-counts
+                                              #:combine (λ (user targ) user)))))
   ;; Next, build subgraphs with the newly constructed properties
   (define track1-sub (optional-apply track1-subgraph
                                      #:empty-graph (weighted-graph/directed '())
@@ -807,10 +807,10 @@
     [else                              ; A still image
      ;; This is terrible, but see:
      ;; video.stackexchange.com/questions/12105/add-an-image-overlay-in-front-of-video-using-ffmpeg
-     (define b-node (video-convert (make-blank)
-                                   (hash "width" fwidth
-                                         "height" fheight)
-                                   count-tab))
+     (define b-node (convert (make-blank)
+                             (hash "width" fwidth
+                                   "height" fheight)
+                             count-tab))
      (define c-node
        (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
                                                                "y" 0)))
@@ -903,7 +903,7 @@
                 (not (transition? (second elements)))) ;; Default transition
             (define node (if (node? track1)
                              track1
-                             (video-convert track1 timeless-target-prop target-counts)))
+                             (convert track1 timeless-target-prop target-counts)))
             (unless (node? track1)
               (add-vertex! (current-render-graph) node))
             (define end (dict-ref (node-props node) "end" #f))
@@ -1002,7 +1002,7 @@
                 (not (transition? (second elements)))) ;; Default transition
             (define node (if (node? track1)
                              track1
-                             (video-convert track1 target-prop target-counts)))
+                             (convert track1 target-prop target-counts)))
             (unless (node? track1)
               (add-vertex! (current-render-graph) node))
             (loop (cons node nodes)
