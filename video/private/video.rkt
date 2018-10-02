@@ -278,10 +278,27 @@
                           (not (eq? target-channel-layout prev-channel-layout))))
                  (define pix-fmt-node
                    (mk-filter-node
-                    (hash 'video (mk-filter "format" (hash "pix_fmts" target-pix-fmt))
-                          'audio (mk-filter "aformat" (hash "sample_fmts" target-sample-fmt
-                                                            "sample_rates" target-sample-rate
-                                                            "channel_layouts" target-channel-layout)))
+                    (let* ([_ (hash)]
+                           [_ (if target-pix-fmt
+                                  (hash-set _ 'video (mk-filter "format" (hash "pix_fmts" target-pix-fmt)))
+                                  _)]
+                          [_ (hash-set
+                              _
+                              'audio
+                              (mk-filter
+                               "aformat"
+                               (let* ([_ (hash)]
+                                      [_ (if target-sample-fmt
+                                             (hash-set _ "sample_fmts" target-sample-fmt)
+                                             _)]
+                                      [_ (if target-sample-rate
+                                             (hash-set _ "sample_rates" target-sample-rate)
+                                             _)]
+                                      [_ (if target-channel-layout
+                                             (hash-set _ "channel_layouts" target-channel-layout)
+                                             _)])
+                                 _)))])
+                      _)
                     #:props (dict-set* (node-props node)
                                        "pix-fmt" target-pix-fmt
                                        "sample-fmt" target-sample-fmt
@@ -812,8 +829,9 @@
                                    "height" fheight)
                              count-tab))
      (define c-node
-       (mk-filter-node (hash 'video (mk-filter "overlay" (hash "x" 0
-                                                               "y" 0)))
+       (mk-filter-node (hash 'video
+                             (mk-filter "overlay" (hash "x" 0
+                                                        "y" 0)))
                        #:props props
                        #:counts count-tab))
      (add-vertex! (current-render-graph) c-node)

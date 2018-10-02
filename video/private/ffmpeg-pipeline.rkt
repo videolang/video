@@ -849,7 +849,7 @@
 (define (mk-empty-video-filter #:width [width DEFAULT-WIDTH]
                                #:height [height DEFAULT-HEIGHT]
                                #:duration [duration 100])
-  (mk-filter "color" (let* ([ret (hash "color" "black"
+  (mk-filter "color" (let* ([ret (hash "color" "black@0.0"
                                        "size" (format "~ax~a"
                                                       (or width DEFAULT-WIDTH)
                                                       (or height DEFAULT-HEIGHT)))]

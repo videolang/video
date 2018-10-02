@@ -79,7 +79,7 @@
         pict:pict?
         (λ (p)
           (define b (pict:pict->bitmap p))
-          (define res (make-temporary-file "pict~a.jpg"))
+          (define res (make-temporary-file "pict~a.png"))
           (send b save-file res 'png 100)
           (make-file #:path res)))
   the-database)

@@ -441,13 +441,17 @@
                    (define e (dict-ref target-props "end" #f))
                    (values (dict-set* target-props
                                       "start" 0
-                                      "end" (and s e (- e s)))
+                                      "end" (and s e (- e s))
+                                      "pix-fmt" #f
+                                      "sample-fmt" #f)
                            target-counts
                            (dict-set* target-props
                                       "start" 0
                                       "end" (and s e (- e s))
                                       "width" tw
-                                      "height" th)
+                                      "height" th
+                                      "pix-fmt" #f
+                                      "sample-fmt" #f)
                            target-counts))
   #:combined-subgraph (λ (#:empty-graph ctx
                           #:track1-props t1
