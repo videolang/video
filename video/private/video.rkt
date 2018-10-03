@@ -93,6 +93,14 @@
            (add-directed-edge! (current-render-graph) video-node n 1)
            n]
           [else video-node]))
+  ;; Attach filters
+  (define attached-node
+    (if (service? video-source)
+        (for/fold ([ret counts-node])
+                  ([f (in-list (service-filters video-source))])
+          (define f* (convert-filter f target-prop target-counts video-source ret))
+          f*)
+        counts-node))
   ;; Set user properties
   (define vprop
     (cond
@@ -101,10 +109,10 @@
               ;; Demuxing (TODO)
               [node
                (cond [(dict-ref user-prop "video-index" #f)
-                      counts-node] ;; TODO
+                      attached-node] ;; TODO
                      [(dict-ref user-prop "audio-index" #f)
-                      counts-node] ;; TODO
-                     [else counts-node])]
+                      attached-node] ;; TODO
+                     [else attached-node])]
               ;; Dimmensions
               [width (or (dict-ref target-prop "width" #f)
                          (dict-ref user-prop "width" #f))]
@@ -195,18 +203,10 @@
                  [else node])])
          node)]
       [else counts-node]))
-  ;; Attach filters
-  (define attached
-    (if (service? video-source)
-        (for/fold ([ret vprop])
-                  ([f (in-list (service-filters video-source))])
-          (define f* (convert-filter f target-prop target-counts video-source ret))
-          f*)
-        vprop))
   ;; Extend properties table (TODO)
   (define extended
-    (cond [(properties? attached) attached]
-          [else attached]))
+    (cond [(properties? vprop) vprop]
+          [else vprop]))
   ;; Apply any remaining conversions needed to transform user-prop to target-prop
   ;;   and user counts to target counts
   ;; (height/width + start/end, handled earlier)
@@ -552,7 +552,9 @@
     [(dict? subgraph)
      (define node (mk-filter-node subgraph
                                   #:counts (node-counts prev-node)
-                                  #:props (node-props prev-node)))
+                                  #:props (dict-set* (node-props prev-node)
+                                                     "sample-fmt" #f
+                                                     "pix-fmt" #f)))
      (add-vertex! (current-render-graph) node)
      (add-directed-edge! (current-render-graph) prev-node node 1)
      node]

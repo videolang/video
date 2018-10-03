@@ -150,6 +150,22 @@
   [grayscale-filter (-> filter?)]
 
   [sepia-filter (-> filter?)]
+  
+  [lowpass-filter (->* []
+                       [#:frequency (or/c nonnegative-integer? #f)
+                        #:poles (or/c nonnegative-integer? #f)
+                        #:width (or/c nonnegative-integer? #f)
+                        #:width-type (or/c 'h 'q 'o 's 'k)
+                        #:channels #f]
+                       filter?)]
+  
+  [highpass-filter (->* []
+                       [#:frequency (or/c nonnegative-integer? #f)
+                        #:poles (or/c nonnegative-integer? #f)
+                        #:width (or/c nonnegative-integer? #f)
+                        #:width-type (or/c 'h 'q 'o 's 'k)
+                        #:channels #f]
+                       filter?)]
 
   [mux-filter (-> #:type (or/c 'video 'v 'audio 'a)
                   #:index nonnegative-integer?
@@ -674,6 +690,24 @@
                                     "gr" 0.349 "gg" 0.686 "gb" 0.168 "ga" 0
                                     "br" 0.272 "bg" 0.534 "bb" 0.131 "ba" 0
                                     "ar" 0     "ag" 0     "ab" 0     "aa" 0)))
+
+(define ((pass-filter-helper type)
+         #:frequency [f #f]
+         #:poles [p #f]
+         #:width [w #f]
+         #:width-type [t 'h]
+         #:channels [c #f])
+  (make-filter #:subgraph (hash 'audio
+                                (mk-filter type
+                                           (let* ([_ (hash)]
+                                                  [_ (if f (hash-set _ "f" f) _)]
+                                                  [_ (if p (hash-set _ "p" p) _)]
+                                                  [_ (if w (hash-set _ "w" w) _)]
+                                                  [_ (if w (hash-set _ "t" t) _)])
+                                             _)))))
+
+(define lowpass-filter (pass-filter-helper "lowpass"))
+(define highpass-filter (pass-filter-helper "highpass"))
 
 (define (mux-filter #:type t
                     #:index index)

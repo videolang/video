@@ -69,7 +69,7 @@
         (~optional ret? #:defaults ([ret? #'any/c])))
      #'(->* [extra-args ...]
             [#:properties (hash/c string? any/c)
-             #:filters (list/c filter?)
+             #:filters (listof filter?)
              optional-args ...]
             (and/c producer? ret?))]))
 
