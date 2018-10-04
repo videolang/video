@@ -588,6 +588,8 @@
                                                 'audio (mk-filter "amix"))
                                           #:counts c1
                                           #:props (dict-set* t1
+                                                             "pix-fmt" #f
+                                                             "sample-fmt" #f
                                                              "start" start
                                                              "end" end
                                                              "time-unset?" #t)))
