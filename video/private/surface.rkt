@@ -78,7 +78,7 @@
     [(_ prototype:doc-header
         (~optional (~seq #:return ret)) ;; TODO, don't ignore this
         content ...)
-     #'(defproc ((~@ prototype)
+     #'(defproc ((~@ . prototype)
                  [#:properties properties (hash/c string? any/c) (hash)]
                  [#:filters filters (listof filter?) '()])
          producer?
@@ -127,7 +127,7 @@
   (syntax-parse stx
     [(_ prototype:doc-header
         body ...)
-     #`(defproc ((~@ prototype)
+     #`(defproc ((~@ . prototype)
                  [#:filters filters (listof filter?) '()]
                  [#:properties properties (hash/c string? any/c) (hash)])
          filter?
@@ -188,7 +188,7 @@
   (syntax-parse stx
     [(_ prototype:doc-header
         body ...)
-     #`(defproc ((~@ prototype)
+     #`(defproc ((~@ . prototype)
                  [#:start start (or/c any/c #f) #f]
                  [#:end end (or/c any/c #f) #f]
                  [#:properties properties (hash/c string? any/c) (hash)])
@@ -250,7 +250,7 @@
   (syntax-parse stx
     [(_ prototype:doc-header
         body ...)
-     #`(defproc ((~@ prototype)
+     #`(defproc ((~@ . prototype)
                  [#:top top (or/c any/c #f) #f]
                  [#:bottom bottom (or/c any/c #f) #f]
                  [#:properties properties (hash/c string? any/c) (hash)])

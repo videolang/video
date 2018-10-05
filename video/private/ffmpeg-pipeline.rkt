@@ -153,16 +153,16 @@
                  (if (dict-empty? (filter-args filter)) "" "=")
                  (string-join
                   (for/list ([(k v) (in-dict (filter-args filter))])
-                    (let loop ([v v])
-                      (define v*
+                    (define v*
+                      (let loop ([v v])
                         (cond
-                          [(list? v) (string-join (map loop v) ";")]
+                          [(list? v) (string-join (map loop v) "|")]
                           [(interval? v) (interval->string v)]
                           [(duration? v) (duration->string v)]
-                          [else v]))
-                      (if (string? k)
-                          (format "~a=~a" k v*)
-                          (format "~a" v*))))
+                          [else (~a v)])))
+                    (if (string? k)
+                        (format "~a=~a" k v*)
+                        (format "~a" v*)))
                   ":")))
 (define (filter->avfilter f graph)
   (define filter (avfilter-get-by-name (filter-name f)))

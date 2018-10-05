@@ -30,6 +30,7 @@
          (except-in pict frame blank)
          graph
          (except-in "private/video.rkt" producer? filter? transition?)
+         (prefix-in runtime: "private/ffmpeg-pipeline.rkt")
          "surface.rkt"
          (prefix-in core: "private/video.rkt")
          "units.rkt"
@@ -165,6 +166,17 @@
                         #:width (or/c nonnegative-integer? #f)
                         #:width-type (or/c 'h 'q 'o 's 'k)
                         #:channels #f]
+                       filter?)]
+
+  [compand-filter (->* []
+                       [#:attacks (listof real?)
+                        #:decays (listof real?)
+                        #:points (listof (or/c (cons/c real? real?)
+                                               complex?))
+                        #:soft-knee (or/c real? #f)
+                        #:gain (or/c real? #f)
+                        #:volume (or/c real? #f)
+                        #:delay (or/c real? #f)]
                        filter?)]
 
   [mux-filter (-> #:type (or/c 'video 'v 'audio 'a)
@@ -710,6 +722,34 @@
 
 (define lowpass-filter (pass-filter-helper "lowpass"))
 (define highpass-filter (pass-filter-helper "highpass"))
+
+(define (compand-filter #:attacks [attacks '()]
+                        #:decays [decays '()]
+                        #:points [points '()]
+                        #:soft-knee [soft-knee #f]
+                        #:gain [gain #f]
+                        #:volume [volume #f]
+                        #:delay [delay #f])
+  (define points*
+    (for/list ([p (in-list points)])
+      (if (pair?  p)
+          (format "~a/~a"
+                  (runtime:racket->ffmpeg (car p))
+                  (runtime:racket->ffmpeg (cdr p)))
+          (format "~a/~a"
+                  (runtime:racket->ffmpeg (real-part p))
+                  (runtime:racket->ffmpeg (imag-part p))))))
+  (make-filter #:subgraph (hash 'audio
+                                (mk-filter "compand"
+                                           (let* ([_ (hash "attacks" attacks
+                                                           "decays" decays
+                                                           "points" points*)]
+                                                  [_ (if soft-knee (hash-set _ "soft-knee" soft-knee) _)]
+                                                  [_ (if gain (hash-set _ "gain" gain) _)]
+                                                  [_ (if volume (hash-set _ "volume" volume) _)]
+                                                  [_ (if delay (hash-set _ "delay" delay) _)])
+                                             _)))))
+                         
 
 (define (mux-filter #:type t
                     #:index index)

@@ -149,6 +149,7 @@ deprecated with a yellow @note-text{NOTE} label.
              (attach-filter auto
                             (sepia-filter)))]}
 
+
 @defproc[(cut-producer [producer producer?]
                        [#:start start (or/c nonnegative-integer? #f) #f]
                        [#:end end (or/c nonnegative-integer? #f) #f])
@@ -217,6 +218,47 @@ deprecated with a yellow @note-text{NOTE} label.
  pixels or a ratio.}
 
 @section{Bundled Filters}
+
+@defproc[(lowpass-filter
+          [#:frequency frequency (or/c nonnegative-integer? #f) #f]
+          [#:poles poles (or/c nonnegative-integer? #f) #f]
+          [#:width width (or/c nonnegative-integer? #f) #f]
+          [#:width-type width-type (or/c 'h 'q 'o 's 'k) h]
+          [#:channels channels #f #f])
+         filter?]{
+ Creates a lowpass filter at @racket[frequency] with
+ @racket[poles] and @racket[width].
+
+ The width type can be specified in Hz (@racket['h],
+ Q-factor (@racket['Q]), octave (@racket['o]), slope
+ (@racket['s]), or KHz (@racket['k]).}
+
+@defproc[(highpass-filter
+          [#:frequency frequency (or/c nonnegative-integer? #f) #f]
+          [#:poles poles (or/c nonnegative-integer? #f) #f]
+          [#:width width (or/c nonnegative-integer? #f) #f]
+          [#:width-type width-type (or/c 'h 'q 'o 's 'k) h]
+          [#:channels channels #f #f])
+         filter?]{
+ Creates a highpass filter at @racket[frequency] with
+ @racket[poles] and @racket[width].
+
+ The width type can be specified in Hz (@racket['h],
+ Q-factor (@racket['Q]), octave (@racket['o]), slope
+ (@racket['s]), or KHz (@racket['k]).}
+
+@defproc[(compand-filter
+          [#:attacks attacks (listof real?) '()]
+          [#:decays decays (listof real?) '()]
+          [#:points points
+           (listof (or/c (cons/c real? real?)
+                                         complex?))
+           '()]
+          [#:soft-knee soft-knee (or/c real? #f) #f]
+          [#:gain gain (or/c real? #f) #f]
+          [#:volume volume (or/c real? #f) #f]
+          [#:delay delay (or/c real? #f) #f])
+         filter?]{}
 
 @defproc[(grayscale-filter) filter?]{
                                      
