@@ -40,10 +40,11 @@
   #:make-c-id convention:hyphen->underscore)
 
 (define racket-log-callback-box (box #f))
+;#:keep malloc-immobile-cell ???
 (define-libvid set-racket-log-callback
   (_fun (_fun #:async-apply (λ (x) (x))
-              #:keep malloc-immobile-cell
-              _av-log-constant _av-bprint-pointer _av-bprint-pointer
+              #:keep racket-log-callback-box
+              _av-log-constant _string _string
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)
 

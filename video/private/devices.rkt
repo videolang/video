@@ -30,7 +30,8 @@
 
 (struct input-devices (video
                        screen-capture
-                       audio))
+                       audio)
+  #:transparent)
 (define (mk-input-devices #:video [v '()]
                           #:screen-capture [sc '()]
                           #:audio [a '()])

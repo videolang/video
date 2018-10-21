@@ -1294,6 +1294,7 @@
                                  p016be
                                  ;;MORE!!!
                                  )
+                                _fixint
                                #:unknown (λ (x) (string->symbol (format "other:~a" x)))))
 (define-cpointer-type _avpixel-format-pointer)
 
@@ -1368,6 +1369,7 @@
            dblp
            s64
            s64p)
+         _fixint
          #:unknown (λ (x) (string->symbol (format "other:~a" x)))))
 (define-cpointer-type _avsample-format-pointer)
 
@@ -1471,6 +1473,7 @@
            debug = 48
            trace = 56
            max-offset = ,(- 56 -8))
+         _fixint
          #:unknown (λ (x) x)))
 
 (define _av-app->dev-message-type

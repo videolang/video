@@ -44,8 +44,7 @@
                     msg))
 
 (define (callback-proc level name msg)
-  (define name* (or name #"???"))
-  (set! ffmpeg-log-list (cons (ffmpeg-msg name* level msg) ffmpeg-log-list)))
+  (set! ffmpeg-log-list (cons (ffmpeg-msg name level msg) ffmpeg-log-list)))
 
 ;; Flush the current log buffer into a list which is returned.
 ;; The function runs in automic mode to cooperate with the
@@ -69,10 +68,11 @@
              [found-eof? #f])
             ([msg (in-list buff)])
     (match msg
-      [(struct* ffmpeg-msg ([name name]
+      [(struct* ffmpeg-msg ([name name*]
                             [level level]
                             [msg msg*]))
-       (define msg (bytes->string/locale msg* #\?))
+       (define name (or name* "???"))
+       (define msg (or msg* "???"))
        (define log-level
          (match level
            ['debug 'debug]
@@ -85,7 +85,7 @@
        (when (log-level? ffmpeg-logger log-level)
          (log-message ffmpeg-logger log-level
                       ;'ffmpeg
-                      (string->symbol (format "~a" name))
+                      (string->symbol name)
                       (substring msg 0 (sub1 (string-length msg)))
                       (current-continuation-marks)
                       #f))
@@ -106,7 +106,7 @@
     (thread
      (λ ()
        (define min-sleep-time 0.1)
-       (define max-sleep-time 30)
+       (define max-sleep-time 5)
        (define delta-sleep-time 0.1)
        (let loop ([sleep-time min-sleep-time])
          (define-values (msg-count found-eof?) (flush-ffmpeg-log!/tracking))
@@ -144,7 +144,8 @@
   (av-log-set-callback #f)
   ;; Perminently disable ffmpeg log to racket log libvid.
   ;; Its too buggy and will have to wait for the next release.
-  (when (and #f (ffmpeg-installed?) (libvid-installed?))
+  (define should-log (equal? (getenv "FF_LOG") "racket"))
+  (when (and should-log (ffmpeg-installed?) (libvid-installed?))
     (set-racket-log-callback callback-proc)
     (av-log-set-callback ffmpeg-log-callback)
     (thread

@@ -6,6 +6,8 @@ Commit#: TBD
 * Add highpass/lowpass filters
 * Fix color filters when written out to mp4 files
 * Fix bug in composite-merge where rgb was separated into different videos.
+* Update `live-capture` (internal) data structure to use device indexes as well as strings.
+* Enable ffmpeg logging at the racket layer IF the FF_LOG environment variable is set to racket.
 
 
 v0.2

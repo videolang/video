@@ -849,7 +849,7 @@
   (define (make-devstr devlist-op name)
     (and name
          (match (system-type 'os)
-           ['macosx (index-of (devlist-op devices) name)]
+           ['macosx (if (exact-nonnegative-integer? name) name (index-of (devlist-op devices) name))]
            ['unix name]
            ['windows name]
            [_ (error 'input-device "Not yet implemented for this platform")])))
