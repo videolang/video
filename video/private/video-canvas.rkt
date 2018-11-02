@@ -497,8 +497,10 @@
   (mixin (render<%>) ()
     (super-new)
     (inherit-field stop-rendering-flag)
-    (init [(ic canvas) #f])
+    (init [(ic canvas) #f]
+          [(ir record?) #f])
     (define canvas #f)
+    (define record-primary #f)
     (define play-video? #t)
     (define play-audio? #t)
     (define audio-buffer #f)
@@ -516,7 +518,10 @@
       (set! height (if c
                        (send c get-video-height)
                        50)))
+    (define/public (set-record r)
+      (set! record-primary r))
     (set-canvas ic)
+    (set-record ir)
     (define/override (setup rs)
       (unless (and width height)
         (error 'video-canvas-render-mixin
@@ -530,97 +535,104 @@
                                 [sample-rate os-sample-rate]
                                 [channel-layout 'stereo]
                                 [format 'raw])))
-    (define/override (write-output-callback-constructor #:render-status rs-box)
-      (define (pc) (eq? stop-rendering-flag 'pause))
-      (λ (mode obj)
-        (match obj
-          [(struct* codec-obj ([codec-context ctx]
-                               [buffer-context buff-ctx]
-                               [type type]))
-           (define (set-time! type)
-             (define buffer (match type
-                              ['video video-buffer]
-                              ['audio audio-buffer]
-                              [_      #f]))
-             (when (and buffer rs-box)
-               (define frame (or (send buffer get-current-position)))
-               (when frame
-                 (set-render-status-box-position!
-                  rs-box (* frame
-                            (avcodec-context-time-base ctx))))))
-           (set-time! type)
-           (match* (type mode)
-             [(_ 'init)
-              (set-render-status-box-position! rs-box 0)
-              (set-render-status-box-rendering?! rs-box #t)]
-             [('audio 'open)
-              (set! audio-buffer (new audio-buffer%))
-              ;; Since an error is thrown if no audio devices exist,
-              ;; simply turn off audio playing.
-              ;; TODO, should test this _before_ starting to play
-              (when play-audio?
-                (send audio-buffer set-time-base (avcodec-context-time-base ctx))
-                (with-handlers ([exn:fail? (λ (e)
-                                             (log-video-error "Caught error: ~a" e)
-                                             (set! play-audio? #f))])
-                  (match (stream-play/unsafe (λ (buff count)
-                                               (when audio-buffer
-                                                 (send audio-buffer feed-samples! buff count #f pc)))
-                                             0.1
-                                             os-sample-rate)
-                    [(list stream-time stats stop)
-                     (set! stop-audio stop)])))]
-             [('audio 'write)
-              (let loop ()
-                (set-time! 'audio)
-                (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
-                                [exn:ffmpeg:eof? (λ (e) eof)])
-                  (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (if play-audio?
-                      (send audio-buffer add-frame out-frame)
-                      (av-frame-free out-frame))
-                  (if (eq? stop-rendering-flag #t)
-                      eof
-                      (loop))))]
-             [('audio 'close)
-              (send audio-buffer flush-buffer)
-              (set! audio-buffer #f)
-              (when (and play-audio? stop-audio)
-                (stop-audio)
-                (set! stop-audio #f))]
-             [('video 'open)
-              (unless canvas
-                (log-video-warning "Player: Canvas must be set to play video"))
-              (when canvas
-                (set! video-buffer (new video-buffer% [canvas canvas]))
-                (send video-buffer set-time-base (avcodec-context-time-base ctx))
-                (set! stop-video-thread-flag #f)
-                (set! video-thread
-                      (thread
-                       (λ ()
-                         (let loop ()
-                           (unless stop-video-thread-flag
-                             (send video-buffer draw-frame #f)
-                             (sleep 0.01)
-                             (loop)))))))]
-             [('video 'write)
-              (let loop ()
-                (set-time! 'video)
-                (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
-                                [exn:ffmpeg:eof? (λ (e) eof)])
-                  (define out-frame (av-buffersink-get-frame buff-ctx))
-                  (if (and play-video? video-buffer)
-                      (send video-buffer add-frame out-frame)
-                      (av-frame-free out-frame))
-                  (if (eq? stop-rendering-flag #t)
-                      eof
-                      (loop))))]
-             [('video 'close)
-              (when video-buffer
-                (set! stop-video-thread-flag #t)
-                (and video-thread (thread-wait video-thread))
-                (when play-video?
-                  (send video-buffer flush-buffer)))
-              (set! video-buffer #f)
-              (set-render-status-box-rendering?! rs-box #f)]
-             [(_ _) (void)])])))))
+    (define/override (write-output-callback-constructor #:render-status rs-box
+                                                        #:render-tag render-tag)
+      (cond
+        [(and record-primary (eq? render-tag 'primary))
+         (super write-output-callback-constructor
+                #:render-status rs-box
+                #:render-tag render-tag)]
+        [else
+         (define (pc) (eq? stop-rendering-flag 'pause))
+         (λ (mode obj)
+           (match obj
+             [(struct* codec-obj ([codec-context ctx]
+                                  [buffer-context buff-ctx]
+                                  [type type]))
+              (define (set-time! type)
+                (define buffer (match type
+                                 ['video video-buffer]
+                                 ['audio audio-buffer]
+                                 [_      #f]))
+                (when (and buffer rs-box)
+                  (define frame (or (send buffer get-current-position)))
+                  (when frame
+                    (set-render-status-box-position!
+                     rs-box (* frame
+                               (avcodec-context-time-base ctx))))))
+              (set-time! type)
+              (match* (type mode)
+                [(_ 'init)
+                 (set-render-status-box-position! rs-box 0)
+                 (set-render-status-box-rendering?! rs-box #t)]
+                [('audio 'open)
+                 (set! audio-buffer (new audio-buffer%))
+                 ;; Since an error is thrown if no audio devices exist,
+                 ;; simply turn off audio playing.
+                 ;; TODO, should test this _before_ starting to play
+                 (when play-audio?
+                   (send audio-buffer set-time-base (avcodec-context-time-base ctx))
+                   (with-handlers ([exn:fail? (λ (e)
+                                                (log-video-error "Caught error: ~a" e)
+                                                (set! play-audio? #f))])
+                     (match (stream-play/unsafe (λ (buff count)
+                                                  (when audio-buffer
+                                                    (send audio-buffer feed-samples! buff count #f pc)))
+                                                0.1
+                                                os-sample-rate)
+                       [(list stream-time stats stop)
+                        (set! stop-audio stop)])))]
+                [('audio 'write)
+                 (let loop ()
+                   (set-time! 'audio)
+                   (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
+                                   [exn:ffmpeg:eof? (λ (e) eof)])
+                     (define out-frame (av-buffersink-get-frame buff-ctx))
+                     (if play-audio?
+                         (send audio-buffer add-frame out-frame)
+                         (av-frame-free out-frame))
+                     (if (eq? stop-rendering-flag #t)
+                         eof
+                         (loop))))]
+                [('audio 'close)
+                 (send audio-buffer flush-buffer)
+                 (set! audio-buffer #f)
+                 (when (and play-audio? stop-audio)
+                   (stop-audio)
+                   (set! stop-audio #f))]
+                [('video 'open)
+                 (unless canvas
+                   (log-video-warning "Player: Canvas must be set to play video"))
+                 (when canvas
+                   (set! video-buffer (new video-buffer% [canvas canvas]))
+                   (send video-buffer set-time-base (avcodec-context-time-base ctx))
+                   (set! stop-video-thread-flag #f)
+                   (set! video-thread
+                         (thread
+                          (λ ()
+                            (let loop ()
+                              (unless stop-video-thread-flag
+                                (send video-buffer draw-frame #f)
+                                (sleep 0.01)
+                                (loop)))))))]
+                [('video 'write)
+                 (let loop ()
+                   (set-time! 'video)
+                   (with-handlers ([exn:ffmpeg:again? (λ (e) '())]
+                                   [exn:ffmpeg:eof? (λ (e) eof)])
+                     (define out-frame (av-buffersink-get-frame buff-ctx))
+                     (if (and play-video? video-buffer)
+                         (send video-buffer add-frame out-frame)
+                         (av-frame-free out-frame))
+                     (if (eq? stop-rendering-flag #t)
+                         eof
+                         (loop))))]
+                [('video 'close)
+                 (when video-buffer
+                   (set! stop-video-thread-flag #t)
+                   (and video-thread (thread-wait video-thread))
+                   (when play-video?
+                     (send video-buffer flush-buffer)))
+                 (set! video-buffer #f)
+                 (set-render-status-box-rendering?! rs-box #f)]
+                [(_ _) (void)])]))]))))

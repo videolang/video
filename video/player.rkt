@@ -52,21 +52,24 @@
 
 ;; Constants for the window. These 'should' be setable by whoever
 ;; is previewing the video.
-(define WIDTH 640)
-(define HEIGHT 480)
-(define FPS 25)
+(define DEFAULT-WIDTH 640)
+(define DEFAULT-HEIGHT 480)
+(define DEFAULT-FPS 25)
 
 (define video-player-server%
   (class object%
     (init-field [[iv video]]
                 [convert-database #f]
-                [(ic canvas) #f])
+                [(ic canvas) #f]
+                [width DEFAULT-WIDTH]
+                [height DEFAULT-HEIGHT])
     (super-new)
     ;; Internal State
-    (define render-settings (make-render-settings #:start 0
-                                                  #:width WIDTH
-                                                  #:height HEIGHT
-                                                  #:fps FPS))
+    (define save-render-settings #f)
+    (define live-render-settings (make-render-settings #:start 0
+                                                  #:width width
+                                                  #:height height
+                                                  #:fps DEFAULT-FPS))
     (define video #f)
     (define render #f)
     (define screen #f)
@@ -86,12 +89,25 @@
         (play)
         (stop))
       (send render get-length))
+
+    ;; Save a copy of the live stream to a file specified by
+    ;;   render settings.
+    ;; NOTE THAT THIS WILL SLOW THE STREAM DOWN!!!
+    ;; The stream will be first made for the saved stream,
+    ;;   and then converted for the screen.
+    ;; Pass in #f to stop saving the stream.
+    ;; VIDEO MUST BE STOPPED TO CHANGE THIS STATE!!!
+    (define/public (save-stream settings)
+      (set! save-render-settings settings))
+      
     (define/public (play)
       (cond
         [(is-paused?)
          (send render resume-rendering)]
         [else
-         (send render setup render-settings)
+         (send render setup (if save-render-settings
+                                (list save-render-settings live-render-settings)
+                                live-render-settings))
          (send render start-rendering)]))
     (define/public (get-status)
       (cond [(send render rendering?)
@@ -122,7 +138,7 @@
     (define/public (get-position)
       (send render get-current-position))
     (define/public (get-fps)
-      FPS)
+      DEFAULT-FPS)
     (define/public (render-audio val)
       (send render render-audio val))
     (define/public (render-video val)
@@ -190,7 +206,9 @@
 (define video-player%
   (class frame%
     (init-field video
-                [convert-database #f])
+                [convert-database #f]
+                [width DEFAULT-WIDTH]
+                [height DEFAULT-HEIGHT])
     (super-new [label "Video Player"]
                [spacing 10]
                [stretchable-width #f]
@@ -200,7 +218,9 @@
 
     (define vps (new video-player-server%
                      [video video]
-                     [convert-database convert-database]))
+                     [convert-database convert-database]
+                     [width width]
+                     [height height]))
 
     ;; Player Backend
     (define/override (show show?)
@@ -236,8 +256,8 @@
     (define screen
       (new video-canvas%
            [parent screen-row]
-           [width WIDTH] 
-           [height HEIGHT]))
+           [width width] 
+           [height height]))
     (send vps set-canvas screen)
     (define top-row
       (new horizontal-pane%
@@ -490,8 +510,8 @@
     (define screen
       (new video-canvas%
            [parent screen-row]
-           [width WIDTH]
-           [height HEIGHT]))
+           [width DEFAULT-WIDTH]
+           [height DEFAULT-HEIGHT]))
     (define dev-row
       (new horizontal-pane%
            [parent this]

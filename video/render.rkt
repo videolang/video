@@ -24,6 +24,7 @@
          racket/file
          racket/port
          racket/hash
+         racket/list
          graph
          (except-in ffi/unsafe ->)
          (prefix-in base: racket/base)
@@ -370,6 +371,7 @@
 
     (define current-render-settings-lock (make-semaphore 1))
     (define current-render-settings (make-render-settings))
+    (define current-mirror-render-settings '())
 
 
     ;; Copy this renderer, that way it can be
@@ -377,162 +379,230 @@
     (define/public (copy)
       (new render% [source source]))
 
+    ;; Generates many of the properties the bundle
+    ;;   will need to generate a sink node.
+    ;; (Primarily only used once, but used repeatedly
+    ;;   in case of mirror settings.)
+    (define/private (bundle-props settings
+                                  #:render-tag [rt #f])
+      (match-define (struct* render-settings ([destination dest]
+                                              [width width]
+                                              [height height]
+                                              [start start*]
+                                              [end end*]
+                                              [fps fps]
+                                              [video-time-base video-time-base]
+                                              [audio-time-base audio-time-base]
+                                              [format format]
+                                              [video-codec video-codec]
+                                              [audio-codec audio-codec]
+                                              [render-video? render-video?*]
+                                              [render-audio? render-audio?*]
+                                              [pix-fmt pix-fmt]
+                                              [sample-fmt sample-fmt]
+                                              [sample-rate sample-rate]
+                                              [channel-layout channel-layout]
+                                              [speed speed]
+                                              [seek-point seek-point]))
+        settings)
+      ;; Raw videos should output two streams, one for video and one for audio.
+      ;; Needed because there is no single container for raw video
+      ;;   and audio.
+      (define extensions
+        (match format
+          ['raw (list "video.raw" "audio.raw")]
+          [_ (list "mp4")]))
+      ;; If the output type is "raw", generate two feeds, one for audio and one for video
+      (define bundle-specs
+        (match format
+          ['raw (append (if render-video? (list 'video) '())
+                        (if render-audio? (list 'audio) '()))]
+          [_ (cond [(and render-video? render-audio?) (list 'vid+aud)]
+                   [render-video? (list 'video)]
+                   [render-audio? (list 'audio)]
+                   [else '()])]))
+      ;; When outputting multiple streams,
+      ;;   every node but the last one must tell
+      ;;   what streams they are consuming.
+      ;; Because this list happens in reverse order,
+      ;;   only the first element of the list can be #f, for
+      ;;   'consume everything else'
+      (define consume-tables
+        (match format
+          ['raw (if (or render-video? render-audio?)
+                    (list #f (hash 'audio 1))
+                    (list #f))]
+          [else (list #f)]))
+      (define format-names
+        (match format
+          ['raw (append (if render-video? '("rawvideo") '())
+                        (if render-audio? '("s16be") '()))]
+          [_ (list (and format (symbol->string format)))]))
+      (define video-streams (if render-video? 1 0))
+      (define audio-streams (if render-audio? 1 0))
+      (define target-counts (hash 'video video-streams
+                                  'audio audio-streams))
+      (define out-paths
+        (for/list ([extension (in-list extensions)])
+          (path->complete-path (or dest (base:format "out.~a" extension)))))
+      (define target-props
+        (hash-set* (hash)
+                   "width" width
+                   "height" height
+                   "display-aspect-ratio" (and width height
+                                               (/ width height))
+                   "start" start*
+                   "end" end*
+                   "fps" (or fps 25)
+                   "video-time-base" (or video-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
+                   "audio-time-base" (or audio-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
+                   "format" format
+                   "pix-fmt" pix-fmt
+                   "sample-fmt" sample-fmt
+                   "video-codec" video-codec
+                   "audio-codec" audio-codec
+                   "sample-rate" sample-rate
+                   "channel-layout" channel-layout))
+      ;; Create out bundle 
+      (define out-bundles
+        (for/list ([spec (in-list bundle-specs)]
+                   [format-name (in-list format-names)]
+                   [out-path (in-list out-paths)])
+          (stream-bundle->file out-path spec
+                               #:format-name format-name
+                               #:render-tag rt)))
+      (values consume-tables
+              target-props
+              target-counts
+              out-bundles))
+    
     ;; Setup the renderer to a specific output context.
     ;; This method can be called multiple times, but it is
     ;; NOT THREADSAFE!
-    (define/public (setup settings)
+    (define/public (setup settings*)
       (call-with-semaphore
        current-render-settings-lock
        (λ ()
-         (match settings
-           [(struct* render-settings ([destination dest]
-                                      [width width]
-                                      [height height]
-                                      [start start*]
-                                      [end end*]
-                                      [fps fps]
-                                      [video-time-base video-time-base]
-                                      [audio-time-base audio-time-base]
-                                      [format format]
-                                      [video-codec video-codec]
-                                      [audio-codec audio-codec]
-                                      [render-video? render-video?*]
-                                      [render-audio? render-audio?*]
-                                      [pix-fmt pix-fmt]
-                                      [sample-fmt sample-fmt]
-                                      [sample-rate sample-rate]
-                                      [channel-layout channel-layout]
-                                      [speed speed]
-                                      [seek-point seek-point]))
-            (unless manual-rendering-enable?
-              (set! render-video? render-video?*)
-              (set! render-audio? render-audio?*))
-            ;; Raw videos should output two streams, one for video and one for audio.
-            ;; Needed because there is no single container for raw video
-            ;;   and audio.
-            (define extensions
-              (match format
-                ['raw (list "video.raw" "audio.raw")]
-                [_ (list "mp4")]))
-            ;; If the output type is "raw", generate two feeds, one for audio and one for video
-            (define bundle-specs
-              (match format
-                ['raw (append (if render-video? (list 'video) '())
-                              (if render-audio? (list 'audio) '()))]
-                [_ (cond [(and render-video? render-audio?) (list 'vid+aud)]
-                         [render-video? (list 'video)]
-                         [render-audio? (list 'audio)]
-                         [else '()])]))
-            ;; When outputting multiple streams,
-            ;;   every node but the last one must tell
-            ;;   what streams they are consuming.
-            ;; Because this list happens in reverse order,
-            ;;   only the first element of the list can be #f, for
-            ;;   'consume everything else'
-            (define consume-tables
-              (match format
-                ['raw (if (or render-video? render-audio?)
-                          (list #f (hash 'audio 1))
-                          (list #f))]
-                [else (list #f)]))
-            (define format-names
-              (match format
-                ['raw (append (if render-video? '("rawvideo") '())
-                              (if render-audio? '("s16be") '()))]
-                [_ (list (and format (symbol->string format)))]))
-            (define video-streams (if render-video? 1 0))
-            (define audio-streams (if render-audio? 1 0))
-            (define out-paths
-              (for/list ([extension (in-list extensions)])
-                (path->complete-path (or dest (base:format "out.~a" extension)))))
-            ;; Set properties and start rendering
-            (define target-props
-              (hash-set* (hash)
-                         "width" width
-                         "height" height
-                         "display-aspect-ratio" (and width height
-                                                     (/ width height))
-                         "start" start*
-                         "end" end*
-                         "fps" (or fps 25)
-                         "video-time-base" (or video-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
-                         "audio-time-base" (or audio-time-base (or (and fps (/ 1 fps)) (/ 1 25)))
-                         "format" format
-                         "pix-fmt" pix-fmt
-                         "sample-fmt" sample-fmt
-                         "video-codec" video-codec
-                         "audio-codec" audio-codec
-                         "sample-rate" sample-rate
-                         "channel-layout" channel-layout))
-            (set! video-graph (video:mk-render-graph))
-            (set! video-sink (parameterize ([video:current-render-graph video-graph]
-                                            [video:current-convert-database convert-database])
-                               (video:convert source target-props (hash 'video video-streams
-                                                                        'audio audio-streams))))
-            (set! render-graph (graph-copy video-graph))
-            (define start (or start* (dict-ref (node-props video-sink) "start" 0)))
-            (define end (or end* (dict-ref (node-props video-sink) "end" 0)))
-            (set! current-render-settings settings)
-            ;(define start-node ; Not needed?
-            ;  (mk-fifo-node
-            ;   #:props props
-            ;   #:counts (hash 'video video-streams 'audio audio-streams)))
-            ;(add-vertex! render-graph start-node)
-            ;(add-directed-edge! render-graph video-sink start-node 1)
-            (define out-bundles
-              (for/list ([spec (in-list bundle-specs)]
-                         [format-name (in-list format-names)]
-                         [out-path (in-list out-paths)])
-                (stream-bundle->file out-path spec
-                                     #:format-name format-name)))
-            (define seek-post-proc-node
-              (let* ([node video-sink]
-                     [node (cond
-                             [seek-point
-                              (define sn
-                                (mk-filter-node
-                                 (hash 'video (mk-filter "trim"
-                                                         (hash "start" (racket->ffmpeg seek-point)))
-                                       'audio (mk-filter "atrim"
-                                                         (hash "start" (racket->ffmpeg seek-point))))
-                                 #:props (dict-set* (node-props video-sink)
-                                                    "start" seek-point)
-                                 #:counts (node-counts video-sink)))
-                              (add-vertex! render-graph sn)
-                              (add-directed-edge! render-graph node sn 1)
-                              (define pts-n
-                                (mk-filter-node (hash 'video (mk-filter "setpts"
-                                                                        (hash "expr" "PTS-STARTPTS"))
-                                                      'audio (mk-filter "asetpts"
-                                                                        (hash "expr" "PTS-STARTPTS")))
-                                                #:props (node-props sn)
-                                                #:counts (node-counts sn)))
-                              (add-vertex! render-graph pts-n)
-                              (add-directed-edge! render-graph sn pts-n 1)
-                              pts-n]
-                             [else node])])
-                node))
-            (define sink-node
-              (for/fold ([next #f])
-                        ([out-bundle (in-list out-bundles)]
-                         [consume-table (in-list consume-tables)])
-                (mk-sink-node out-bundle
-                              #:counts (node-counts video-sink)
-                              #:next next
-                              #:props (hash-union target-props (node-props video-sink)
-                                                  #:combine (λ (target user) user))
-                              #:consume-table consume-table)))
-            (add-vertex! render-graph sink-node)
-            (add-directed-edge! render-graph seek-post-proc-node sink-node 1)
-            (set! output-node sink-node)
-            (set! video-start (video:get-property video-sink "start"))
-            (set! video-end (video:get-property video-sink "end"))
-            (set! video-seek-point seek-point)
-            (let-values ([(g i o) (init-filter-graph render-graph)])
-              (set! graph-obj g)
-              (set! input-bundles i)
-              (set! output-bundles o))]))))
-
+         (define-values (settings mirror-settings)
+           (cond [(list? settings*)
+                  (values (first settings*)
+                          (rest settings*))]
+                 [else (values settings* #f)]))
+         (match-define (struct* render-settings ([render-video? render-video?*]
+                                                 [render-audio? render-audio?*]
+                                                 [seek-point seek-point]))
+           settings)
+         (unless manual-rendering-enable?
+           (set! render-video? render-video?*)
+           (set! render-audio? render-audio?*))
+         (define-values (consume-tables
+                         target-props
+                         target-counts
+                         out-bundles)
+           (bundle-props settings #:render-tag 'primary))
+         ;; Set properties and start rendering
+         (set! video-graph (video:mk-render-graph))
+         (set! video-sink (parameterize ([video:current-render-graph video-graph]
+                                         [video:current-convert-database convert-database])
+                            (video:convert source target-props target-counts)))
+         (set! render-graph (graph-copy video-graph))
+         (set! current-render-settings settings)
+         (define seek-post-proc-node
+           (let* ([node video-sink]
+                  [node (cond
+                          [seek-point
+                           (define sn
+                             (mk-filter-node
+                              (hash 'video (mk-filter "trim"
+                                                      (hash "start" (racket->ffmpeg seek-point)))
+                                    'audio (mk-filter "atrim"
+                                                      (hash "start" (racket->ffmpeg seek-point))))
+                              #:props (dict-set* (node-props video-sink)
+                                                 "start" seek-point)
+                              #:counts (node-counts video-sink)))
+                           (add-vertex! render-graph sn)
+                           (add-directed-edge! render-graph node sn 1)
+                           (define pts-n
+                             (mk-filter-node (hash 'video (mk-filter "setpts"
+                                                                     (hash "expr" "PTS-STARTPTS"))
+                                                   'audio (mk-filter "asetpts"
+                                                                     (hash "expr" "PTS-STARTPTS")))
+                                             #:props (node-props sn)
+                                             #:counts (node-counts sn)))
+                           (add-vertex! render-graph pts-n)
+                           (add-directed-edge! render-graph sn pts-n 1)
+                           pts-n]
+                          [else node])])
+             node))
+         ;; If mirror render settings exist, create a copy node, and link to that.
+         (define output-splitter-node
+           (cond
+             [mirror-settings
+              (define split-node
+                (mk-split-node #:fan-out (length settings*)
+                               #:counts (node-counts video-sink)
+                               #:props (node-props video-sink)))
+              (add-vertex! render-graph split-node)
+              (add-directed-edge! render-graph seek-post-proc-node split-node 1)
+              split-node]
+             [else seek-post-proc-node]))
+         #;
+         (when mirror-settings
+           (for ([mirror (in-list mirror-settings)]
+                 [i (in-naturals 2)])
+             (define-values (consume-tables
+                             target-props
+                             target-counts
+                             out-bundles)
+               (bundle-props settings #:render-tag '(mirror i)))
+             (define out-node (parameterize ([video:current-render-graph render-graph]
+                                             [video:current-convert-database convert-database])
+                                (video:convert-filter
+                                 (video:make-filter
+                                  #:subgraph
+                                  (hash 'video (mk-fifo-video-filter)
+                                        'audio (mk-fifo-audio-filter)))
+                                 target-props
+                                 (hash 'video video-streams
+                                       'audio audio-streams)
+                                 #f ; <- not needed? (TODO)
+                                 output-splitter-node)))
+             (add-directed-edge! render-graph output-splitter-node i)
+             (define mirror-sink
+               (for/fold ([next #f])
+                         ([out-bundle (in-list out-bundles)]
+                          [consume-table (in-list consume-tables)])
+                 (mk-sink-node out-bundle
+                               #:counts (node-counts video-sink)
+                               #:next next
+                               #:props (hash-union target-props (node-props out-node)
+                                                   #:combine (λ (target user) user))
+                               #:consume-table consume-table)))
+             (add-vertex! render-graph sink-node)
+             (add-directed-edge! out-node sink-node 1)))
+         (set! current-mirror-render-settings mirror-settings)
+         ;; Connect to final node (video sink or copy)
+         (define sink-node
+           (for/fold ([next #f])
+                     ([out-bundle (in-list out-bundles)]
+                      [consume-table (in-list consume-tables)])
+             (mk-sink-node out-bundle
+                           #:counts (node-counts video-sink)
+                           #:next next
+                           #:props (hash-union target-props (node-props video-sink)
+                                               #:combine (λ (target user) user))
+                           #:consume-table consume-table)))
+         (add-vertex! render-graph sink-node)
+         (add-directed-edge! render-graph seek-post-proc-node sink-node 1)
+         (set! output-node sink-node)
+         (set! video-start (video:get-property video-sink "start"))
+         (set! video-end (video:get-property video-sink "end"))
+         (set! video-seek-point seek-point)
+         (let-values ([(g i o) (init-filter-graph render-graph)])
+           (set! graph-obj g)
+           (set! input-bundles i)
+           (set! output-bundles o)))))
+    
     (define/public (feed-buffers-callback-constructor)
       (filtergraph-insert-packet))
 
@@ -620,7 +690,8 @@
     (define/public (paused?)
       (eq? stop-rendering-flag 'pause))
 
-    (define/public (write-output-callback-constructor #:render-status render-status)
+    (define/public (write-output-callback-constructor #:render-status render-status
+                                                      #:render-tag render-tag)
       (define-values (video-frames audio-frames data-frames) (values #f #f #f))
       (call-with-semaphore current-render-settings-lock
         (λ ()
@@ -640,7 +711,9 @@
                    [index (in-naturals)])
           (thread
            (λ ()
-             (define proc (write-output-callback-constructor #:render-status current-render-status))
+             (define proc (write-output-callback-constructor
+                           #:render-status current-render-status
+                           #:render-tag (stream-bundle-render-tag output-bundle)))
              (define mux (new mux%
                               [bundle output-bundle]
                               [by-index-callback proc]))
@@ -787,7 +860,7 @@
 ;; Prototype contract for render% classes.
 (define render<%>/c
   (class/c [copy (->m (instanceof/c (recursive-contract render<%>/c)))]
-           [setup (->m render-settings? void?)]
+           [setup (->m (or/c render-settings? (non-empty-listof render-settings?)) void?)]
            [start-rendering (->*m () (boolean?) void?)]
            [wait-for-rendering (->m void?)]
            [stop-rendering (->m void?)]

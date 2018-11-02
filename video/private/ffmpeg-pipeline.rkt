@@ -68,7 +68,8 @@
                        avformat-context
                        options-dict
                        start-offset
-                       file)
+                       file
+                       render-tag)
   #:mutable)
 (define (mk-stream-bundle #:raw-streams [rs #'()]
                           #:streams [s #'()]
@@ -76,8 +77,9 @@
                           #:avformat-context [ctx #f]
                           #:options-dict [o #f]
                           #:start-offset [so #f]
-                          #:file [f #f])
-  (stream-bundle rs s st ctx o so f))
+                          #:file [f #f]
+                          #:render-tag [rt #f])
+  (stream-bundle rs s st ctx o so f rt))
 
 (struct codec-obj (codec-parameters
                    type
@@ -95,7 +97,8 @@
                    callback-data
                    extra-parameters
                    start-time
-                   flags)
+                   flags
+                   render-tag)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
                       #:type [t #f]
@@ -113,8 +116,9 @@
                       #:callback-data [cd #f]
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
                       #:start-time [st (current-inexact-milliseconds)]
-                      #:flags [f '()])
-  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f))
+                      #:flags [f '()]
+                      #:render-tag [rt #f])
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f rt))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
@@ -476,10 +480,24 @@
      #:sample-fmt 'fltp))
   (values parameters rest))
 
+;; Bundles up streams to be output to a file.
+;; The 'dual' of file->stream-bundle, but actually returns
+;;   a stream bundle (for writing out to a file).
+;; Also takes in an empty stream bundle for the outputs it expects.
+;;   The symbol 'vid is a shorthand for only create a video stream.
+;;   Likewise, 'aud is for audio.
+;;   And 'vid+aud is both.
+;; Path (U Stream-Bundle 'vid 'aud 'vid+aud)
+;;    [#:output-format Symbol]
+;;    [#:format-name String]
+;;    [#:options-dict (Hashof String Any]
+;;    [#:render-tag Any]
+;;  -> Stream-bundle
 (define (stream-bundle->file file bundle/spec
                              #:output-format [output-format #f]
                              #:format-name [format-name #f]
-                             #:options-dict [options-dict #f])
+                             #:options-dict [options-dict #f]
+                             #:render-tag [render-tag #f])
   (unless (or file output-format format-name)
     (raise-arguments-error 'stream-bundle->file "No File, output-format or format-name specified"
                            "Output Format" output-format
@@ -502,11 +520,13 @@
                             #:id i
                             #:codec-parameters parameters
                             #:index index
-                            #:callback-data callback-data)]
+                            #:callback-data callback-data
+                            #:render-tag render-tag)]
              [x (mk-codec-obj #:type x
                               #:id (match x
                                      ['video 'h264]
                                      ['audio 'aac])
+                              #:render-tag render-tag
                               #:index index)]))
          (dict-update! stream-table (codec-obj-type ret)
                        (λ (rst) (append rst (list ret)))
@@ -515,23 +535,27 @@
       [(or 'vid 'video)
        (define video
          (mk-codec-obj #:type 'video
-                       #:index 0))
+                       #:index 0
+                       #:render-tag render-tag))
        (dict-set! stream-table 'video (list video))
        (vector video)]
       [(or 'aud 'audio)
        (define audio
          (mk-codec-obj #:type 'audio
-                       #:index 0))
+                       #:index 0
+                       #:render-tag render-tag))
        (dict-set! stream-table 'audio (list audio))
        (vector audio)]
       [(or 'vid+aud 'video+audio 'movie)
        (define video
          (mk-codec-obj #:type 'video
-                       #:index 0))
+                       #:index 0
+                       #:render-tag render-tag))
        (dict-set! stream-table 'video (list video))
        (define audio
          (mk-codec-obj #:type 'audio
-                       #:index 1))
+                       #:index 1
+                       #:render-tag render-tag))
        (dict-set! stream-table 'audio (list audio))
        (vector video audio)]))
   (define output-context
@@ -599,7 +623,8 @@
                     #:file file
                     #:streams streams
                     #:raw-streams streams
-                    #:stream-table stream-table))
+                    #:stream-table stream-table
+                    #:render-tag render-tag))
 
 (define mux%
   (class object%
@@ -1172,12 +1197,16 @@
     ;; Graph Source Nodes
     (define src-nodes (base:filter source-node? (get-vertices g)))
     (define bundle-lst (map source-node-bundle src-nodes))
-    (define sink-node (findf sink-node? (get-vertices g)))
-    (define sink-bundles (let loop ([curr-node sink-node])
-                           (cons (sink-node-bundle curr-node)
-                                 (if (sink-node-next curr-node)
-                                     (loop (sink-node-next curr-node))
-                                     '()))))
+    (define sink-nodes (base:filter sink-node? (get-vertices g)))
+    (define sink-bundles
+      (append*
+       (for/list ([sink-node (in-list sink-nodes)])
+         (let loop ([curr-node sink-node])
+           (define next (sink-node-next curr-node))
+           (cons (sink-node-bundle curr-node)
+                 (if next
+                     (loop next)
+                     '()))))))
     ;; Build Graph for each individual codec-obj
     (define node-str-list
       (append*
@@ -1231,6 +1260,8 @@
      bundle-lst
      sink-bundles)))
 
+;; Construct a filtergraph for a generic renderer to use.
+;; Graph [#:seek Boolean] -> (Values String (Listof Stream-Bundle) (Listof Stream-Bundle)
 (define (init-filter-graph g #:seek? [seek? #t])
   (define (make-inout type name [next #f] [args #f])
     (define inout (avfilter-inout-alloc))
@@ -1574,6 +1605,9 @@
 
 ;; Given a rendergraph, and an output seek point, find the location
 ;;    each source node must seek to to result in that seek location
+;; Seeks ONLY from the first sink node it finds.
+;;   Since render graphs (generally) only have one sink node,
+;;   this is acceptable.
 ;; Render-Graph Time-In-Seconds -> (Dictof Source-Node Time-In-Seconds)
 (define (get-seek-point graph seek-point)
   (define g (graph-copy graph))
