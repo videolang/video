@@ -32,6 +32,7 @@
 (define current-detailed-printing? (make-parameter #f))
 
 (struct render-settings (destination
+                         split-av
                          width
                          height
                          display-aspect-ratio
@@ -79,6 +80,7 @@
           vid port mode)))])
          
 (define (make-render-settings #:destination [d #f]
+                              #:split-av [sav #f]
                               #:width [w 1920]
                               #:height [h 1080]
                               #:display-aspect-ratio [dar 16/9]
@@ -102,4 +104,4 @@
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
                               #:seek-point [seekp #f])
-  (render-settings d w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp))
+  (render-settings d sav w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp))

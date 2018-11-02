@@ -97,7 +97,7 @@
     ;;   and then converted for the screen.
     ;; Pass in #f to stop saving the stream.
     ;; VIDEO MUST BE STOPPED TO CHANGE THIS STATE!!!
-    (define/public (save-stream settings)
+    (define/public (record settings)
       (set! save-render-settings settings))
       
     (define/public (play)

@@ -26,6 +26,7 @@
          opengl/util
          portaudio
          racket/generator
+         racket/list
          racket/class
          racket/async-channel
          (except-in racket/gui/base yield)
@@ -497,8 +498,7 @@
   (mixin (render<%>) ()
     (super-new)
     (inherit-field stop-rendering-flag)
-    (init [(ic canvas) #f]
-          [(ir record?) #f])
+    (init [(ic canvas) #f])
     (define canvas #f)
     (define record-primary #f)
     (define play-video? #t)
@@ -518,23 +518,30 @@
       (set! height (if c
                        (send c get-video-height)
                        50)))
-    (define/public (set-record r)
-      (set! record-primary r))
     (set-canvas ic)
-    (set-record ir)
+    (define (render-settings->live-settings rs)
+      (struct-copy render-settings rs
+                   [destination (make-temporary-file "out~a.raw")]
+                   [pix-fmt 'rgb24]
+                   [width width]
+                   [height height]
+                   [sample-fmt 's16]
+                   [sample-rate os-sample-rate]
+                   [channel-layout 'stereo]
+                   [format 'raw]))
     (define/override (setup rs)
       (unless (and width height)
         (error 'video-canvas-render-mixin
                "Must call set-canvas before setup"))
-      (super setup (struct-copy render-settings rs
-                                [destination (make-temporary-file "out~a.raw")]
-                                [pix-fmt 'rgb24]
-                                [width width]
-                                [height height]
-                                [sample-fmt 's16]
-                                [sample-rate os-sample-rate]
-                                [channel-layout 'stereo]
-                                [format 'raw])))
+      (super setup
+             (cond [(list? rs)
+                    (set! record-primary #t)
+                    (list* (first rs)
+                           (map render-settings->live-settings (rest rs)))]
+                   [else
+                    (set! record-primary #f)
+                    (render-settings->live-settings rs)])))
+    
     (define/override (write-output-callback-constructor #:render-status rs-box
                                                         #:render-tag render-tag)
       (cond

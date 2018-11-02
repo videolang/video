@@ -828,6 +828,7 @@
      (make-constructor-style-printer
       (λ _ 'sink-node)
       (λ (x) (list '#:file (stream-bundle-file (sink-node-bundle x))
+                   '#:render-tag (stream-bundle-render-tag (sink-node-bundle x))
                    '#:props (node-props x)
                    '#:counts (node-counts x)
                    '#:consume-table (sink-node-consume-table x)

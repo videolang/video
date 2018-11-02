@@ -150,6 +150,7 @@
 
  [make-render-settings (->* ()
                             (#:destination (or/c path? path-string? #f)
+                             #:split-av boolean?
                              #:width (and/c integer? positive?)
                              #:height (and/c integer? positive?)
                              #:start (or/c (and/c real? (>=/c 0)) #f)
@@ -386,6 +387,7 @@
     (define/private (bundle-props settings
                                   #:render-tag [rt #f])
       (match-define (struct* render-settings ([destination dest]
+                                              [split-av split-av]
                                               [width width]
                                               [height height]
                                               [start start*]
@@ -409,18 +411,21 @@
       ;; Needed because there is no single container for raw video
       ;;   and audio.
       (define extensions
-        (match format
-          ['raw (list "video.raw" "audio.raw")]
-          [_ (list "mp4")]))
+        (match* (format split-av)
+          [('raw _) (list "video.raw" "audio.raw")]
+          [(_ #t) (list "video" "audio")]
+          [(_ _) (list "mp4")]))
       ;; If the output type is "raw", generate two feeds, one for audio and one for video
       (define bundle-specs
-        (match format
-          ['raw (append (if render-video? (list 'video) '())
-                        (if render-audio? (list 'audio) '()))]
-          [_ (cond [(and render-video? render-audio?) (list 'vid+aud)]
-                   [render-video? (list 'video)]
-                   [render-audio? (list 'audio)]
-                   [else '()])]))
+        (cond
+          [(or (eq? format 'raw)
+               split-av)
+           (append (if render-video? (list 'video) '())
+                   (if render-audio? (list 'audio) '()))]
+          [else (cond [(and render-video? render-audio?) (list 'vid+aud)]
+                      [render-video? (list 'video)]
+                      [render-audio? (list 'audio)]
+                      [else '()])]))
       ;; When outputting multiple streams,
       ;;   every node but the last one must tell
       ;;   what streams they are consuming.
@@ -428,23 +433,38 @@
       ;;   only the first element of the list can be #f, for
       ;;   'consume everything else'
       (define consume-tables
-        (match format
-          ['raw (if (or render-video? render-audio?)
-                    (list #f (hash 'audio 1))
-                    (list #f))]
-          [else (list #f)]))
+        (cond [(or (eq? format 'raw)
+                   split-av)
+               (if (or render-video? render-audio?)
+                   (list #f (hash 'audio 1))
+                   (list #f))]
+              [else (list #f)]))
       (define format-names
-        (match format
-          ['raw (append (if render-video? '("rawvideo") '())
-                        (if render-audio? '("s16be") '()))]
-          [_ (list (and format (symbol->string format)))]))
+        (cond
+          [(eq? format 'raw)
+           (append (if render-video? '("rawvideo") '())
+                   (if render-audio? '("s16be") '()))]
+          [split-av (append (if render-video?
+                                (list (and format (symbol->string format)))
+                                '())
+                            (if render-audio?
+                                (list (and format (symbol->string format)))
+                                '()))]
+          [else (list (and format (symbol->string format)))]))
       (define video-streams (if render-video? 1 0))
       (define audio-streams (if render-audio? 1 0))
       (define target-counts (hash 'video video-streams
                                   'audio audio-streams))
       (define out-paths
         (for/list ([extension (in-list extensions)])
-          (path->complete-path (or dest (base:format "out.~a" extension)))))
+          (define file-str
+            (cond
+              [split-av
+               (define name (or dest "out"))
+               (define end (or (and format (symbol->string format)) "mp4"))
+               (base:format "~a.~a.~a" name extension end)]
+              [else (or dest (base:format "out.~a" extension))]))
+          (path->complete-path file-str)))
       (define target-props
         (hash-set* (hash)
                    "width" width
@@ -546,7 +566,6 @@
               (add-directed-edge! render-graph seek-post-proc-node split-node 1)
               split-node]
              [else seek-post-proc-node]))
-         #;
          (when mirror-settings
            (for ([mirror (in-list mirror-settings)]
                  [i (in-naturals 2)])
@@ -554,7 +573,14 @@
                              target-props
                              target-counts
                              out-bundles)
-               (bundle-props settings #:render-tag '(mirror i)))
+               (bundle-props mirror #:render-tag `(mirror ,i)))
+             (define fifo-node
+               (mk-filter-node (hash 'video (mk-fifo-video-filter)
+                                     'audio (mk-fifo-audio-filter))
+                               #:props (node-props output-splitter-node)
+                               #:counts (node-counts output-splitter-node)))
+             (add-vertex! render-graph fifo-node)
+             (add-directed-edge! render-graph output-splitter-node fifo-node i)
              (define out-node (parameterize ([video:current-render-graph render-graph]
                                              [video:current-convert-database convert-database])
                                 (video:convert-filter
@@ -563,11 +589,9 @@
                                   (hash 'video (mk-fifo-video-filter)
                                         'audio (mk-fifo-audio-filter)))
                                  target-props
-                                 (hash 'video video-streams
-                                       'audio audio-streams)
+                                 target-counts
                                  #f ; <- not needed? (TODO)
-                                 output-splitter-node)))
-             (add-directed-edge! render-graph output-splitter-node i)
+                                 fifo-node)))
              (define mirror-sink
                (for/fold ([next #f])
                          ([out-bundle (in-list out-bundles)]
@@ -578,8 +602,8 @@
                                #:props (hash-union target-props (node-props out-node)
                                                    #:combine (λ (target user) user))
                                #:consume-table consume-table)))
-             (add-vertex! render-graph sink-node)
-             (add-directed-edge! out-node sink-node 1)))
+             (add-vertex! render-graph mirror-sink)
+             (add-directed-edge! render-graph out-node mirror-sink 1)))
          (set! current-mirror-render-settings mirror-settings)
          ;; Connect to final node (video sink or copy)
          (define sink-node
@@ -593,7 +617,7 @@
                                                #:combine (λ (target user) user))
                            #:consume-table consume-table)))
          (add-vertex! render-graph sink-node)
-         (add-directed-edge! render-graph seek-post-proc-node sink-node 1)
+         (add-directed-edge! render-graph output-splitter-node sink-node 1)
          (set! output-node sink-node)
          (set! video-start (video:get-property video-sink "start"))
          (set! video-end (video:get-property video-sink "end"))
