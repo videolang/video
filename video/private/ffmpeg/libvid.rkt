@@ -44,6 +44,7 @@
 (define-libvid set-racket-log-callback
   (_fun (_fun #:async-apply (λ (x) (x))
               #:keep racket-log-callback-box
+              #:atomic? #t
               _av-log-constant _string _string
               -> _void) -> _void))
 (define-libvid ffmpeg-log-callback _fpointer)

@@ -48,7 +48,7 @@
            racket/set
            racket/dict
            racket/hash
-           ffi/unsafe
+           ;ffi/unsafe
            ffi/unsafe/define
            ffi/unsafe/define/conventions
            setup/dirs
@@ -57,8 +57,15 @@
                        racket/syntax)
            "lib.rkt"
            "constants.rkt"
-           "data.rkt"))
-
+           "data.rkt")
+  (require ffi/unsafe)
+  (provide (except-out (all-from-out ffi/unsafe) _fun))
+  (define-syntax (_ff-fun stx)
+    (syntax-parse stx
+      [(_ . rest)
+       #'(_fun #:lock-name ffmpeg-lock-name . rest)]))
+  (provide (rename-out [_ff-fun _fun]))
+  )
 ;; ===================================================================================================
 
 (module avutil racket/base
@@ -448,7 +455,7 @@
       (_fun (out : (_ptr io _avformat-context-pointer/null))
             _path
             _av-input-format-pointer/null
-            (_ptr io _av-dictionary-pointer/null)
+            _pointer ;(_ptr io _av-dictionary-pointer/null)
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]

@@ -65,7 +65,11 @@
                                (< the-version r)))
           i)))])
 
+(define ffmpeg-lock-name "ffmpeg-lock")
+
 ;; Deprecation flags =================================================================================
+
+;; TODO, should be split by av library
 
 (define api-opt-type-metadata 56)
 (define api-xvmc 56)
