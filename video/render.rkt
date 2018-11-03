@@ -412,8 +412,10 @@
       ;;   and audio.
       (define extensions
         (match* (format split-av)
-          [('raw _) (list "video.raw" "audio.raw")]
-          [(_ #t) (list "video" "audio")]
+          [('raw _) (append (if render-video? '("video.raw") '())
+                            (if render-audio? '("audio.raw") '()))]
+          [(_ #t) (append (if render-video? '("video") '())
+                          (if render-audio? '("audio") '()))]
           [(_ _) (list "mp4")]))
       ;; If the output type is "raw", generate two feeds, one for audio and one for video
       (define bundle-specs

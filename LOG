@@ -10,6 +10,7 @@ Commit#: TBD
 * Enable ffmpeg logging at the racket layer IF the FF_LOG environment variable is set to racket.
 * Add locks to fix potential inconsistent state in ffmpeg.
 * Add a 'mirror' option to the renderer, to output to multiple places at once.
+* Renderer can now split output into two files one for video, and one for audio.
 
 
 v0.2
