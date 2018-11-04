@@ -55,7 +55,8 @@
                          video-frames
                          audio-frames
                          data-frames
-                         seek-point)
+                         seek-point
+                         probesize)
   #:methods gen:custom-write
   [(define (write-proc vid port mode)
      (if (current-detailed-printing?)
@@ -103,5 +104,7 @@
                               #:video-frames [vfr #f]
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
-                              #:seek-point [seekp #f])
-  (render-settings d sav w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp))
+                              #:seek-point [seekp #f]
+                              #:probesize [ps #f])
+  (render-settings
+   d sav w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp ps))

@@ -109,7 +109,8 @@
     [(struct* render-settings ([width width]
                                [height height]
                                [fps fps]
-                               [pix-fmt pix-fmt]))
+                               [pix-fmt pix-fmt]
+                               [probesize probesize]))
      (define os-dev
        (match (system-type 'os)
          ['macosx "avfoundation"]
@@ -136,6 +137,9 @@
                             (if video-dev
                                 (build-av-dict
                                  (let* ([r (hash)]
+                                        [r (if probesize
+                                               (hash-set r "probesize" (format "~a" probesize))
+                                               r)]
                                         [r (if (and width height)
                                                (hash-set r "video_size" (format "~ax~a" width height))
                                                r)]

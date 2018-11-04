@@ -170,7 +170,8 @@
                              #:data-frames (or/c nonnegative-integer? #f)
                              #:render-video? boolean?
                              #:render-audio? boolean?
-                             #:seek-point (or/c nonnegative-integer? #f))
+                             #:seek-point (or/c nonnegative-integer? #f)
+                             #:probesize (or/c nonnegative-integer? #f))
                             render-settings?)])
 
  ;; Interface for render%
