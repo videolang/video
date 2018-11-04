@@ -307,7 +307,8 @@
            [curr-frame #f]
            [curr-frame-lock (make-semaphore 1)]
            [time-base #f]
-           [start-time (current-inexact-milliseconds)])
+           [start-time (current-inexact-milliseconds)]
+           [start-frame #f])
 
     ;; Set the timebase for the frame's PTSs.
     (define/public (set-time-base tb)
@@ -327,7 +328,8 @@
     ;; Set the start time. The current time is based on (current-innexact-milliseconds)
     ;; The difference determins what time of the stream should be played
     (define/public (set-start-time [t (current-inexact-milliseconds)])
-      (set! start-time t))
+      (set! start-time t)
+      (set! start-frame #f))
 
     ;; Add a frame to the buffer's internal queue
     (define/public (add-frame frame)
@@ -355,7 +357,9 @@
     (inherit-field buff
                    curr-frame
                    curr-frame-lock
-                   start-time time-base)
+                   start-time
+                   start-frame
+                   time-base)
 
     ;; Grab the next frame from the queue
     (define/override (read-frame [block #t])
@@ -382,8 +386,12 @@
            ;; Wait until to show
            (let loop ()
              (define now (current-inexact-milliseconds))
+             (define curr-frame-pts (av-frame-pts curr-frame))
+             (unless start-frame
+               (set! start-frame curr-frame-pts))
              (define viewer-pos (/ (- now start-time) 1000))
-             (define frame-pos (* time-base (av-frame-pts curr-frame)))
+             (define frame-pos (* time-base (- curr-frame-pts
+                                               start-frame)))
              (define to-wait (- frame-pos viewer-pos))
              (when (<= 0 to-wait)
                (sleep 0.01)
