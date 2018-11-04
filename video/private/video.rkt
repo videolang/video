@@ -867,7 +867,7 @@
              'audio (if aud-str 1 0))]
       ['unix
        (if vid-str
-           (hash 'video 1 'audio 1)
+           (hash 'video 1)
            (hash 'audio 1))]))
   (define node (mk-source-node bundle
                                #:props (hash "start" 0

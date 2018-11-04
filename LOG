@@ -11,6 +11,7 @@ Commit#: TBD
 * Add locks to fix potential inconsistent state in ffmpeg.
 * Add a 'mirror' option to the renderer, to output to multiple places at once.
 * Renderer can now split output into two files one for video, and one for audio.
+* Preview window works again with live webcams
 
 
 v0.2
