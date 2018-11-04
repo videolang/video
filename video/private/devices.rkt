@@ -111,6 +111,11 @@
                                [fps fps]
                                [pix-fmt pix-fmt]
                                [probesize probesize]))
+     (define stream-name ; <- Only needed for debugging
+       (match (system-type 'os)
+         ['macosx (format "AVFoundation: ~a:~a" video-dev audio-dev)]
+         ['unix (or video-dev audio-dev)]
+         [_ #f]))
      (define os-dev
        (match (system-type 'os)
          ['macosx "avfoundation"]
@@ -151,4 +156,4 @@
                                                r)])
                                    r))
                                 #f)))
-     (avformat-context->stream-bundle input-ctx #f)]))
+     (avformat-context->stream-bundle input-ctx stream-name)]))
