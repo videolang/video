@@ -455,7 +455,7 @@
       (_fun (out : (_ptr io _avformat-context-pointer/null))
             _path
             _av-input-format-pointer/null
-            _pointer ;(_ptr io _av-dictionary-pointer/null)
+            (_ptr io _av-dictionary-pointer/null)
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]

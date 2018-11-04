@@ -845,22 +845,34 @@
                                            [audio #f]
                                            [render-settings (make-render-settings)])
   ()
-  (define devices (list-input-devices))
+  (define devices  ;; <- Only needed for os x
+    (and (eq? (system-type 'os) 'macosx)
+         (list-input-devices)))
   (define (make-devstr devlist-op name)
     (and name
          (match (system-type 'os)
-           ['macosx (if (exact-nonnegative-integer? name) name (index-of (devlist-op devices) name))]
+           ['macosx
+            (cond [(exact-nonnegative-integer? name) name]
+                  [else (index-of (devlist-op devices) name)])]
            ['unix name]
            ['windows name]
            [_ (error 'input-device "Not yet implemented for this platform")])))
   (define vid-str (make-devstr input-devices-video video))
   (define aud-str (make-devstr input-devices-audio audio))
   (define bundle (devices->stream-bundle vid-str aud-str render-settings))
+  (define counts
+    (match (system-type 'os)
+      [(or 'macosx 'windows)
+       (hash 'video (if vid-str 1 0)
+             'audio (if aud-str 1 0))]
+      ['unix
+       (if vid-str
+           (hash 'video 1 'audio 1)
+           (hash 'audio 1))]))
   (define node (mk-source-node bundle
                                #:props (hash "start" 0
                                              "end" +inf.0)
-                               #:counts (hash 'video (if vid-str 1 0)
-                                              'audio (if aud-str 1 0))))
+                               #:counts counts))
   (add-vertex! (current-render-graph) node)
   node)
 
