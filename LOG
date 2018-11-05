@@ -1,6 +1,6 @@
 v0.2.1
-Date: TBD
-Commit#: TBD
+Date: 2018-11-05
+Commit#: bc751bcf01f6def50f6d2262b9b9ec9dd679fabd
 * Fix bug allowing for transparent picture overlays.
 * Fix bug preventing `pict`s from being used in `multitrack`.
 * Add highpass/lowpass filters
