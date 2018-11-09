@@ -156,4 +156,5 @@
                                                r)])
                                    r))
                                 #f)))
-     (avformat-context->stream-bundle input-ctx stream-name)]))
+     (avformat-context->stream-bundle input-ctx stream-name
+                                      #:volatile? #t)]))

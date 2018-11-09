@@ -37,6 +37,7 @@
 (struct exn:ffmpeg:decoder-not-found exn:ffmpeg ())
 (struct exn:ffmpeg:version exn:ffmpeg ())
 (struct exn:ffmpeg:fail exn:ffmpeg (name message env))
+(struct exn:ffmpeg:fail:decode exn:ffmpeg:fail ())
 
 ;; ===================================================================================================
 

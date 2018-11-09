@@ -384,7 +384,14 @@
                 (raise (exn:ffmpeg:again "send-packet" (current-continuation-marks)))]
                [(= ret AVERROR-EOF)
                 (raise (exn:ffmpeg:eof "send-packet" (current-continuation-marks)))]
-               [else (error 'send-packet "ERROR (~a): ~a" ret (convert-err ret))])))
+               [(= (- ret) ENOMEM)
+                (error 'send-packet "out of memory")]
+               [(= (- ret) EINVAL)
+                (error 'send-packet "codec not opened")]
+               [else (raise (exn:ffmpeg:fail:decode 'send-packet
+                                                    (format "ERROR (~a): ~a" ret (convert-err ret))
+                                                    (hash 'errno ret
+                                                          'err (convert-err ret))))])))
   (define (avcodec-receive-packet ctx [maybe-packet #f])
     (define-avcodec avcodec-receive-packet
       (_fun _avcodec-context-pointer

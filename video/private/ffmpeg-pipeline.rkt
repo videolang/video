@@ -98,6 +98,7 @@
                    extra-parameters
                    start-time
                    flags
+                   volatile?
                    render-tag)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -117,8 +118,9 @@
                       #:extra-parameters [ep (mk-extra-codec-parameters)]
                       #:start-time [st (current-inexact-milliseconds)]
                       #:flags [f '()]
+                      #:volatile? [v? #f]
                       #:render-tag [rt #f])
-  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f rt))
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f v? rt))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
@@ -278,8 +280,12 @@
 ;;   an ffmpeg level avformat-context. This pulls out the various streams 
 ;;   and information about them (such as their codecs), and prepares them for
 ;;   demux% or some other processor.
-;; avformat-context-pointer? (or/c path? path-string? #f) -> stream-bundle?
-(define (avformat-context->stream-bundle avformat file)
+;; Volatile indicates if the underlying data can change with multiple uses.
+;;   The case of reading from an input device (like a webcam)
+;; avformat-context-pointer? (or/c path? path-string? #f) [#:volotile? bool?]
+;;   -> stream-bundle?
+(define (avformat-context->stream-bundle avformat file
+                                         #:volatile? [volatile? #f])
   (avformat-find-stream-info avformat #f)
   (define raw-strs (avformat-context-streams avformat))
   (define stream-table (make-hash))
@@ -301,7 +307,8 @@
                                 #:stream i
                                 #:id codec-id
                                 #:codec codec
-                                #:codec-context codec-ctx))
+                                #:codec-context codec-ctx
+                                #:volatile? volatile?))
       (dict-update! stream-table codec-name
                     (λ (rst) (append rst (list obj)))
                     (λ () '()))
@@ -1428,41 +1435,53 @@
 ;; ===================================================================================================
 
 (define ((filtergraph-insert-packet) mode obj packet)
-  (match obj
-    [(struct* codec-obj ([codec-context ctx]
-                         [buffer-context buff-ctx]))
-     (match mode
-       ['loop
-        (avcodec-send-packet ctx packet)
-        (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
-          (let loop ()
-            (define in-frame (avcodec-receive-frame ctx))
-            (set-av-frame-pts!
-             in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-write-frame buff-ctx in-frame)
-            ;(av-buffersrc-add-frame buff-ctx in-frame)
-            ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
-            (av-frame-free in-frame)
-            (loop)))
-        ]
-       ['close
-        (avcodec-send-packet ctx #f)
-        (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
-          (let loop ()
-            (define in-frame (avcodec-receive-frame ctx))
-            (set-av-frame-pts!
-             in-frame (av-frame-get-best-effort-timestamp in-frame))
-            (av-buffersrc-write-frame buff-ctx in-frame)
-            ;(av-buffersrc-add-frame buff-ctx in-frame)
-            ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
-            (av-frame-free in-frame)
-            (loop)))
-        (avcodec-flush-buffers ctx)
-        (av-buffersrc-write-frame buff-ctx #f)
-        ;(av-buffersrc-add-frame buff-ctx #f)
-        ;(av-buffersrc-add-frame-flags buff-ctx #f '(push))
-        ]
-       [_ (void)])]))
+  (let/ec return
+    (match obj
+      [(struct* codec-obj ([codec-context ctx]
+                           [buffer-context buff-ctx]
+                           [volatile? volatile?]))
+       (match mode
+         ['loop
+          (with-handlers ([exn:ffmpeg:fail:decode?
+                           (λ (e)
+                             (cond
+                               [volatile?
+                                (log-video-warning "Invalid stream data (error ~a, ~a), skipping..."
+                                                   (hash-ref (exn:ffmpeg:fail-env e) 'errno)
+                                                   (hash-ref (exn:ffmpeg:fail-env e) 'err))
+                                (return (void))]
+                               [else (error 'decode
+                                            "Corrupt media file (error ~a, ~a"
+                                            (hash-ref (exn:ffmpeg:fail-env e) 'errno)
+                                            (hash-ref (exn:ffmpeg:fail-env e) 'err))]))])
+            (avcodec-send-packet ctx packet))
+          (with-handlers ([exn:ffmpeg:again? (λ (e) (void))])
+            (let loop ()
+              (define in-frame (avcodec-receive-frame ctx))
+              (set-av-frame-pts!
+               in-frame (av-frame-get-best-effort-timestamp in-frame))
+              (av-buffersrc-write-frame buff-ctx in-frame)
+              ;(av-buffersrc-add-frame buff-ctx in-frame)
+              ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
+              (av-frame-free in-frame)
+              (loop)))]
+         ['close
+          (avcodec-send-packet ctx #f)
+          (with-handlers ([exn:ffmpeg:eof? (λ (e) (void))])
+            (let loop ()
+              (define in-frame (avcodec-receive-frame ctx))
+              (set-av-frame-pts!
+               in-frame (av-frame-get-best-effort-timestamp in-frame))
+              (av-buffersrc-write-frame buff-ctx in-frame)
+              ;(av-buffersrc-add-frame buff-ctx in-frame)
+              ;(av-buffersrc-add-frame-flags buff-ctx in-frame '(push))
+              (av-frame-free in-frame)
+              (loop)))
+          (avcodec-flush-buffers ctx)
+          ;(av-buffersrc-add-frame buff-ctx #f)
+          ;(av-buffersrc-add-frame-flags buff-ctx #f '(push))
+          (av-buffersrc-write-frame buff-ctx #f)]
+         [_ (void)])])))
 
 (define (filtergraph-next-packet #:render-status [rs-box #f]
                                  #:video-frames [vframes #f]
