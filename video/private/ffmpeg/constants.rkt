@@ -23,6 +23,7 @@
          ffi/unsafe
          syntax/parse/define
          (for-syntax racket/base
+                     racket/syntax
                      syntax/parse)
          "lib.rkt"
          "../log.rkt")
@@ -69,78 +70,139 @@
 
 ;; Deprecation flags =================================================================================
 
-;; TODO, should be split by av library
+(define-syntax-parser define-api-deprications
+  [(_
+    (~alt (~once (~seq #:lib lib:id))
+          (~once (~seq #:version version:integer)))
+    ...
+    api-name:id ...)
+   #:with (api ...) (for/list ([i (in-list (attribute api-name))])
+                      (format-id this-syntax "~a-api-~a" #'lib i))
+   #'(begin
+       (define api version) ...)])
 
-(define api-opt-type-metadata 56)
-(define api-xvmc 56)
-(define api-vdpau 56)
+;; AVCodec
 
-(define api-request-channels 57)
-(define api-old-decode-audio 57)
-(define api-old-encode-audio 57)
-(define api-old-encode-video 57)
-(define api-codec-id 57)
-(define api-vaapi 57)
+(define-api-deprications #:lib avcodec
+  #:version 57
+  api-request-channels
+  api-old-decode-audio
+  api-old-encode-audio
+  api-old-encode-video
+  api-codec-id)
 
-(define api-debug-mv 58)
-(define api-vima-decoder 58)
-(define api-audio-convert 58)
-(define api-avcodec-resample api-audio-convert)
-(define api-missing-sample 58)
-(define api-cap-vdpau 58)
-(define api-buffs-vdpaus 58)
-(define api-voxware 58)
-(define api-set-dimensions 58)
-(define api-ac-vlc 58)
-(define api-old-msmpeg4 58)
-(define api-aspect-extended 58)
-(define api-arch-alpha 58)
-(define api-unused-members 58)
-(define api-idct-xvidmmx 58)
-(define api-input-preserved 58)
-(define api-normalize-aqp 58)
-(define api-gmc 58)
-(define api-mv0 58)
-(define api-codec-name 58)
-(define api-afd 58)
-(define api-vismv 58)
-(define api-audioenc-delay 58)
-(define api-vaapi-context 58)
-(define api-merge-sd 58)
-(define api-mpv-opt 58)
-(define api-stream-codec 58)
-(define api-quant-bias 58)
-(define api-rc-strategy 58)
-(define api-motion-est 58)
-(define api-without-prefix 58)
-(define api-sidedata-only 58)
+(define-api-deprications #:lib avcodec
+  #:version 58
+  debug-mv
+  vima-decoder
+  audio-convert
+  avcodec-resample
+  missing-sample
+  cap-vdpau
+  buffs-vdpaus
+  voxware
+  set-dimensions
+  ac-vlc
+  old-msmpeg4
+  aspect-extended
+  arch-alpha
+  unused-members
+  idct-xvidmmx
+  input-preserved
+  normalize-aqp
+  gmc
+  mv0
+  codec-name
+  afd
+  vismv
+  audioenc-delay
+  vaapi-context
+  merge-sd
+  mpv-opt
+  stream-codec
+  quant-bias
+  rc-strategy
+  motion-est
+  without-prefix
+  sidedata-only)
 
-(define api-lowres 59)
-(define api-avctxtime-base 59)
-(define api-coded-frame 59)
-(define api-sidedata-only-packet 59)
-(define api-vdpau-profile 59)
-(define api-convergence-duration 59)
-(define api-avpicture 59)
-(define api-avpacket-old-api 59)
-(define api-rtp-callback 59)
-(define api-vbv-delay 59)
-(define api-coder-type 59)
-(define api-stat-bits 59)
-(define api-private-opt 59)
-(define api-ass-timing 59)
-(define api-old-bsf 59)
-(define api-copy-context 59)
-(define api-get-context-defaults 59)
-(define api-nvenc-old-name 59)
-(define api-struct-vaapi-context 59)
-(define api-merge-sd-api 59)
-(define api-tag-string 59)
-(define api-getchroma 59)
-(define api-codec-get-set 59)
-(define api-user-visible-avhwaccel 59)
-(define api-lockmgr 59)
-(define api-next 59)
+(define-api-deprications #:lib avcodec
+  #:version 59
+  lowres
+  avctx-timebase
+  coded-frame
+  sidedata-only-pkt
+  vdpau-profile
+  convergence-duration
+  avpicture
+  avpacket-old-api
+  rtp-callback
+  vbv-delay
+  coder-type
+  stat-bits
+  private-opt
+  ass-timing
+  old-bsf
+  copy-context
+  get-context-defaults
+  nvenc-old-name
+  struct-vaapi-context
+  merge-sd-api
+  tag-string
+  getchroma
+  codec-get-set
+  user-visible-avhwaccel
+  lockmgr
+  next)
+
+;; AVFilter
+
+(define-api-deprications #:lib avfilter
+  #:version 8
+  old-filter-opts-error
+  lavr-opts
+  filter-get-set
+  next)
+
+;; AVFormat
+
+(define-api-deprications #:lib avformat
+  #:version 59
+  compute-pkt-fields2
+  old-open-callbacks
+  lavf-avctx
+  http-user-agent
+  hls-wrap
+  lavf-keepside-flag
+  old-rotate-api
+  format-get-set
+  old-avio-eof-0
+  lavf-ffserver
+  format-filename
+  old-rtsp-options
+  next)
+
+;; AVDevice
+;; (none yet)
+
+;; AVUtil
+
+(define-api-deprications #:lib avutil
+  #:version 56
+  opt-type-metadata
+  xvmc
+  vdpau)
+
+(define-api-deprications #:lib avutil
+  #:version 57
+  vaapi
+  frame-qp
+  plus1-minus1
+  error-frame
+  pkt-pts
+  crypto-size-t
+  frame-get-set
+  pseudopal)
 
 ;; ===================================================================================================
 
@@ -583,7 +645,7 @@
   (_bitmask (_ffmpeg-list
              encoding-param
              decoding-param
-             [metadata #:removed api-opt-type-metadata]
+             [metadata #:removed avutil-api-opt-type-metadata]
              audio-param = #x8
              video-param
              export
@@ -650,7 +712,7 @@
                              ;; Video
                              mpeg1video
                              mpeg2video
-                             [mpeg2video-xvmc #:removed api-xvmc]
+                             [mpeg2video-xvmc #:removed avutil-api-xvmc]
                              h261
                              h263
                              rv10
@@ -1001,7 +1063,7 @@
                              mlp
                              gsm-ms
                              atrac3
-                             [voxware #:removed api-voxware]
+                             [voxware #:removed avcodec-api-voxware]
                              ape
                              nellymoser
                              musepack8
@@ -1099,7 +1161,7 @@
                              ffmetadata = #x21000
                              wrapped-avframe)
                            #:unknown (λ (v)
-                                      (string->symbol (format "unkown-format-id-~a" v)))))
+                                      (string->symbol (format "unknown-format-id-~a" v)))))
 
 (define _av-duration-estimation-method (_enum '(pts
                                                 stream
@@ -1131,8 +1193,8 @@
                                  yuvj420p
                                  yuvj422p
                                  yuvj444p
-                                 [xvmc-mpeg2-mc #:removed api-xvmc]
-                                 [xvmc-mpeg2-idct #:removed api-xvmc]
+                                 [xvmc-mpeg2-mc #:removed avutil-api-xvmc]
+                                 [xvmc-mpeg2-idct #:removed avutil-api-xvmc]
                                  uyvy422
                                  uyyvyy411
                                  bgr8
@@ -1152,11 +1214,11 @@
                                  yuv440p
                                  yuvj440p
                                  yuva420p
-                                 [vdpau-h264 #:removed api-vdpau]
-                                 [vdpau-mpeg1 #:removed api-vdpau]
-                                 [vdpau-mpeg2 #:removed api-vdpau]
-                                 [vdpau-wmv3 #:removed api-vdpau]
-                                 [vdpau-vc1 #:removed api-vdpau]
+                                 [vdpau-h264 #:removed avutil-api-vdpau]
+                                 [vdpau-mpeg1 #:removed avutil-api-vdpau]
+                                 [vdpau-mpeg2 #:removed avutil-api-vdpau]
+                                 [vdpau-wmv3 #:removed avutil-api-vdpau]
+                                 [vdpau-vc1 #:removed avutil-api-vdpau]
                                  rgb48be
                                  rgb48le
                                  rgb565be
@@ -1167,14 +1229,14 @@
                                  bgr565le
                                  bgr555be
                                  bgr555le
-                                 [vaapi-moco #:removed api-vaapi]
-                                 [vaapi-idct #:removed api-vaapi]
-                                 [vaapi #:added api-vaapi]
+                                 [vaapi-moco #:removed avutil-api-vaapi]
+                                 [vaapi-idct #:removed avutil-api-vaapi]
+                                 [vaapi #:added avutil-api-vaapi]
                                  yuv420p16le
                                  yuv420p16be
                                  yuv422p16le
                                  yuv422p16be
-                                 [vdpau-mpeg4 #:removed api-vdpau]
+                                 [vdpau-mpeg4 #:removed avutil-api-vdpau]
                                  dxva2-vld
                                  rgb444le
                                  rgb444be
