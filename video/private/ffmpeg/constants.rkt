@@ -182,6 +182,15 @@
 ;; AVFormat
 
 (define-api-deprications #:lib avformat
+  #:version 58
+  lavf-bitexact
+  lavf-frac
+  url-feof
+  noconst-get-side-data
+  lavf-merge-sd
+  r-frame-rate)
+
+(define-api-deprications #:lib avformat
   #:version 59
   compute-pkt-fields2
   old-open-callbacks

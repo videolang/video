@@ -26,7 +26,8 @@
          racket/list
          (for-syntax racket/base
                      syntax/parse
-                     racket/syntax))
+                     racket/syntax
+                     racket/list))
 
 ;; Taken from `ffi/unsafe` based on the suggestions from Matthew
 ;;   Flatt and Ryan Culpepper on Friday, Sept. 22, 2017. This function
@@ -93,6 +94,11 @@
                    (~optional (~seq #:offset offset) #:defaults ([offset #'#f])))
               ...])))
 
+;; Like define-cstruct, but can add/remove fields depending on versions.
+;; Syntax for field is: [name _type #:added vers-exp #:removed vers-exp]
+;;   where the `#:added` and `#:removed` versions are optional.
+;; Additionally, the cstruct can have overlapping field names
+;;   ONLY if they are not used in the same ffmpeg version at the same time.
 (define-syntax (define-ffmpeg-cstruct stx)
   (syntax-parse stx
     [(_ _id:id
@@ -110,10 +116,15 @@
      #:with make-id (format-id stx "make-~a" #'id)
      #:with id-tag (format-id stx "~a-tag" #'id)
      #:with id? (format-id stx "~a?" #'id)
-     #:with (id-field ...) (for/list ([i (in-list (attribute fields.name))])
-                             (format-id stx "~a-~a" #'id i))
-     #:with (set-id-field! ...) (for/list ([i (in-list (attribute fields.name))])
-                                  (format-id stx "set-~a-~a!" #'id i))
+     #:with ((id-field
+              set-id-field!
+              field-name) ...) (remove-duplicates
+                                #:key (compose syntax->datum first)
+                                (for/list ([i (in-list (attribute fields.name))])
+                                  (list
+                                   (format-id stx "~a-~a" #'id i)
+                                   (format-id stx "set-~a-~a!" #'id i)
+                                   i)))
      (quasisyntax/loc stx
        (begin
          (define size size-expr)
@@ -134,6 +145,10 @@
                       #:when (and (<= (vector-ref i 1) the-version)
                                   (< the-version (vector-ref i 2))))
              (list (vector-ref i 0) (vector-ref i 3) (vector-ref i 4))))
+         (let ([dup? (check-duplicates current-fields
+                                       #:key first)])
+           (when dup?
+             (error 'define-ffmpeg-cstruct "Overlapping definition of ~a" dup?)))
          (define field-names (map first current-fields))
          (define field-types (map second current-fields))
          (define field-manual-offsets (map third current-fields))
@@ -155,8 +170,8 @@
             (λ (x)
               (set-cpointer-tag! x 'id)
               x)))
-         (define id-field (build-getter 'fields.name field-names field-types offsets 'id)) ...
-         (define set-id-field! (build-setter 'fields.name field-names field-types offsets 'id)) ...
+         (define id-field (build-getter 'field-name field-names field-types offsets 'id)) ...
+         (define set-id-field! (build-setter 'field-name field-names field-types offsets 'id)) ...
          (define id-field-names (for/list ([i (in-list the-fields)])
                                   (vector-ref i 0)))
          (define (make-id . inits)
@@ -654,7 +669,7 @@
    [sw-pix-fmt _avpixel-format]
    [pkt-timebase _avrational]
    [codec-discriptor _pointer]
-   [lowres* _int #:added avcodec-api-lowres]
+   [lowres _int #:added avcodec-api-lowres]
    [pts-correction-num-faulty-pts _int64]
    [pts-correction-num-faulty-dts _int64]
    [pts-correction-last-pts _int64]
@@ -691,14 +706,13 @@
    [num _int64]
    [den _int64]))
 
-;; TODO, this struct
 (define-ffmpeg-cstruct _avstream
   #:version-proc avformat-version
   ([index _int]
    [id _int]
-   [codec _pointer #:removed 58] ;_avcodec-context-pointer]
+   [codec _pointer #:removed avformat-api-lavf-avctx] ;_avcodec-context-pointer]
    [priv-data _pointer]
-   [pts _avfrac #:removed 58]
+   [pts _avfrac #:removed avformat-api-lavf-frac]
    [time-base _avrational]
    [start-time _int64]
    [duration _int64]
@@ -712,7 +726,12 @@
    [side-data _pointer]
    [nb-side-data _int]
    [event-flags _int]
-   ;; Private
+   [r-frame-rate _avrational #:added 58]
+   [recommended-encoder-configuration _pointer
+                                      #:added 58
+                                      #:removed avformat-api-lavf-ffserver]
+   [codecpar _avcodec-parameters-pointer/null #:added 58]
+   ;; Private (only listed for public fields in 58 and below)
    [info _pointer]
    [pts-wrap-bits _int]
    [first-dts _int64]
@@ -729,7 +748,7 @@
    [index-enteries _pointer]
    [nb-index-enteries _int]
    [index-enteries-allocated-size _uint]
-   [r-frame-rate _avrational]
+   [r-frame-rate _avrational #:removed 58]
    [stream-identifier _int]
    [interleaver-chunk-size _int64]
    [interleaver-chunk-duration _int64]
@@ -750,12 +769,12 @@
    [dts-ordered _uint8]
    [dts-misordered _uint8]
    [inject-global-side-data _int]
-   ;; Public Again
-   [recommended-encoder-configuration _string]
+   ;; Public Again (only for versions less than 58)
+   [recommended-encoder-configuration _string #:removed 58]
    [display-aspect-ration _avrational]
    [priv-pts _pointer]
    [internal _pointer]
-   [codecpar _avcodec-parameters-pointer/null]))
+   [codecpar _avcodec-parameters-pointer/null #:removed 58]))
 
 (define-ffmpeg-cstruct _av-picture
   #:version-proc avcodec-version
@@ -771,7 +790,6 @@
 
 ;; The actual avframe struct is much bigger,
 ;; but only these fields are part of the public ABI.
-;; TODO, this struct
 (define-ffmpeg-cstruct _av-frame
   #:version-proc avutil-version
   ([data (_array _pointer AV-NUM-DATA-POINTERS)]
@@ -785,13 +803,13 @@
    [pict-type _avpicture-type]
    [sample-aspect-ration _avrational]
    [pts _int64]
-   [pkt-pts _int64 #:removed 56]
+   [pkt-pts _int64 #:removed avutil-api-pkt-pts]
    [pkt-dts _int64]
    [coded-picture-number _int]
    [display-picture-number _int]
    [quality _int]
    [opaque _pointer]
-   [error (_array _uint64 AV-NUM-DATA-POINTERS) #:removed 56]
+   [error (_array _uint64 AV-NUM-DATA-POINTERS) #:removed avutil-api-error-frame]
    [repeate-pict _int]
    [interlaced-frame _int]
    [top-field-first _int]
@@ -817,12 +835,16 @@
    [decode-error-flags _ff-decode-error-flags]
    [channels _int]
    [pkt-size _int]
-   [qscale-table _int8 #:removed 56]
-   [qstride _int #:removed 56]
-   [qscale-type _int #:removed 56]
-   [qp-table-ref _pointer #:removed 56]
+   [qscale-table _int8 #:removed avutil-api-frame-qp]
+   [qstride _int #:removed avutil-api-frame-qp]
+   [qscale-type _int #:removed avutil-api-frame-qp]
+   [qp-table-buf _pointer #:removed avutil-api-frame-qp]
    [hw-frames-ctx _pointer]
-   [opaque-ref _pointer]))
+   [opaque-ref _pointer]
+   [crop-top _size]
+   [crop-bottom _size]
+   [crop-left _size]
+   [crop-right _size]))
 (define (av-frame-format/video frame)
   (cast (av-frame-format frame) _int _avpixel-format))
 (define (set-av-frame-format/video! frame format)
