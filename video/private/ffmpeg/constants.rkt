@@ -20,6 +20,7 @@
 (require racket/set
          racket/dict
          racket/list
+         racket/match
          ffi/unsafe
          syntax/parse/define
          (for-syntax racket/base
@@ -85,11 +86,16 @@
 
 (define-api-deprications #:lib avcodec
   #:version 57
-  api-request-channels
-  api-old-decode-audio
-  api-old-encode-audio
-  api-old-encode-video
-  api-codec-id)
+  request-channels
+  old-decode-audio
+  old-encode-audio
+  old-encode-video
+  codec-id
+  deinterlace
+  destruct-packet
+  get-buffer
+  thread-opaque
+  codec-pkt)
 
 (define-api-deprications #:lib avcodec
   #:version 58
@@ -99,13 +105,22 @@
   avcodec-resample
   missing-sample
   cap-vdpau
-  buffs-vdpaus
+  bufs-vdpaus
   voxware
   set-dimensions
   ac-vlc
   old-msmpeg4
   aspect-extended
   arch-alpha
+  xvmc
+  error-rate
+  qscale-type
+  mb-type
+  max-bframes
+  neg-linesizes
+  emu-edge
+  arch-sh4
+  arch-spark
   unused-members
   idct-xvidmmx
   input-preserved
@@ -1666,21 +1681,31 @@
            simpleauto = 128)))
 
 (define _ff-profile
-  (let ()
-    (define FF_PROFILE_UNKNOWN -99)
-    (define FF_PROFILE_RESERVED -100)
+  (make-ctype
+   _int
+   (λ (x)
+     (match x
+       [(? integer?) x]
+       [`(? ,(? integer?)) x]
+       
+       ['(? unknown) -99]
+       ['(? reserved) -100]
+       ['(aac main) 0]
+       ['(aac low) 1]
+       ['(aac ssr) 2]
+       ['(aac ltp) 3]
+       ['(aac he) 4]
+       ['(aac he-v2) 28]
+       ['(aac ld) 22]
+       ['(aac eld) 38]
+       ['(mpeg2-aac low) 128]
+       ['(mpeg2-aac he) 131]
+       
+       [else 'TODO]))
+   (λ (x)
+     x))) ;; <- TODO?
 
-    (define FF_PROFILE_AAC_MAIN 0)
-    (define FF_PROFILE_AAC_LOW  1)
-    (define FF_PROFILE_AAC_SSR  2)
-    (define FF_PROFILE_AAC_LTP  3)
-    (define FF_PROFILE_AAC_HE   4)
-    (define FF_PROFILE_AAC_HE_V2 28)
-    (define FF_PROFILE_AAC_LD   22)
-    (define FF_PROFILE_AAC_ELD  38)
-    (define FF_PROFILE_MPEG2_AAC_LOW 128)
-    (define FF_PROFILE_MPEG2_AAC_HE  131)
-    
+#|
     (define FF_PROFILE_DTS         20)
     (define FF_PROFILE_DTS_ES      30)
     (define FF_PROFILE_DTS_96_24   40)
@@ -1750,6 +1775,7 @@
     (define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3)
     (define FF_PROFILE_HEVC_REXT                        4)
     'TODO))
+|#
 
 (define av-bprint-size-unlimited -1)
 (define av-bprint-size-automatic 1)
