@@ -126,8 +126,10 @@
 ;; Init ffmpeg (ONCE PER PROCESS)
 (when (ffmpeg-installed?)
   (unless (register-process-global video-key (cast 1 _racket _pointer))
-    (av-register-all)
-    (avfilter-register-all)
+    (when ((version-major (avformat-version)) . < . 58)
+      (av-register-all))
+    (when ((version-major (avfilter-version)) . < . 7)
+      (avfilter-register-all))
     (avformat-network-init)
     (avdevice-register-all)))
 

@@ -48,7 +48,7 @@
 ;; ===================================================================================================
 
 (define ffmpeg-min-version "3.2")
-(define ffmpeg-rec-version "3.3")
+(define ffmpeg-rec-version "4.0")
 
 (define lib-prefix
   (match (system-type 'os)
@@ -198,13 +198,21 @@
 ;; returns #t if it does, otherwise returns #f.
 ;; -> Boolean
 (define (ffmpeg-min-version?)
-  (and (version-check "libavutil" (avutil-version) '(55 34))
-       (version-check "libavcodec" (avcodec-version) '(57 64))
-       (version-check "libavformat" (avformat-version) '(57 56))
-       (version-check "libavfilter" (avfilter-version) '(6 65))
-       (version-check "libswscale" (swscale-version) '(4 2))
-       (version-check "libswresample" (swresample-version) '(2 3))
-       (version-check "libavdevice" (avdevice-version) '(57 1))))
+  (and (version-check "libavutil" (avutil-version)
+                      '(55 34) '(56 1))
+       (version-check "libavcodec" (avcodec-version)
+                      '(57 64) '(58 1))
+       (version-check "libavformat" (avformat-version)
+                      '(57 56) '(58 1))
+       (version-check "libavfilter" (avfilter-version)
+                      '(6 65) '(6 1))
+       (version-check "libswscale" (swscale-version)
+                      '(4 2) '(5 1))
+       (version-check "libswresample" (swresample-version)
+                      '(2 3)
+                      '(3 1))
+       (version-check "libavdevice" (avdevice-version)
+                      '(57 1) '(58 1))))
 
 ;; Test to see if FFMPEG meets the recommended versions.
 ;; Video should work with versions lower than this, but will not
@@ -212,16 +220,16 @@
 ;; -> Boolean
 (define (ffmpeg-recommended-version?)
   (and (version-check "libavutil" (avutil-version)
-                      '(55 58) '(56 14))
+                      '(56 14))
        (version-check "libavcodec" (avcodec-version)
-                      '(57 89) '(58 18))
+                      '(58 18))
        (version-check "libavformat" (avformat-version)
-                      '(57 71) '(58 12))
+                      '(58 12))
        (version-check "libavfilter" (avfilter-version)
-                      '(6 82) '(7 16))
+                      '(7 16))
        (version-check "libswscale" (swscale-version)
-                      '(4 6) '(5 1))
+                      '(5 1))
        (version-check "libswresample" (swresample-version)
-                      '(2 7) '(3 1))
+                      '(3 1))
        (version-check "libavdevice" (avdevice-version)
-                      '(57 6) '(58 3))))
+                      '(58 3))))

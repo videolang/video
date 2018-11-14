@@ -42,7 +42,7 @@
                 ("libvid-i386-win32-0-2" #:platform "win32\\i386")
                 ("libvid-x86_64-linux-0-2" #:platform "x86_64-linux")
                 ("libvid-i386-linux-0-2" #:platform "i386-linux")
-                ("ffmpeg-x86_64-macosx-3-4" #:platform "x86_64-macosx")
+                ("ffmpeg-x86_64-macosx" #:platform "x86_64-macosx")
                 ("ffmpeg-x86_64-win32-3-4" #:platform "win32\\x86_64")
                 ("ffmpeg-i386-win32-3-4" #:platform "win32\\i386")))
 (define build-deps '("scribble-lib"
