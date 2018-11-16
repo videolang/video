@@ -43,7 +43,9 @@
                          audio-time-base
                          format
                          video-codec
+                         video-codec-options
                          audio-codec
+                         audio-codec-options
                          subtitle-codec
                          pix-fmt
                          sample-fmt
@@ -92,7 +94,9 @@
                               #:audio-time-base [atb #f]
                               #:format [fo #f]
                               #:video-codec [vc #f]
+                              #:video-codec-options [vco #f]
                               #:audio-codec [ac #f]
+                              #:audio-codec-options [aco #f]
                               #:subtitle-codec [sc #f]
                               #:pix-fmt [pf 'yuv420p]
                               #:sample-fmt [sf 'fltp]
@@ -107,4 +111,4 @@
                               #:seek-point [seekp #f]
                               #:probesize [ps #f])
   (render-settings
-   d sav w h dar s e fr vtb atb fo vc ac sc pf sf sr cl sp rv? rc? vfr afr dfr seekp ps))
+   d sav w h dar s e fr vtb atb fo vc vco ac aco sc pf sf sr cl sp rv? rc? vfr afr dfr seekp ps))

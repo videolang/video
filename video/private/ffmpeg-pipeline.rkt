@@ -99,6 +99,7 @@
                    start-time
                    flags
                    volatile?
+                   options-dict
                    render-tag)
   #:mutable)
 (define (mk-codec-obj #:codec-parameters [occ #f]
@@ -119,22 +120,25 @@
                       #:start-time [st (current-inexact-milliseconds)]
                       #:flags [f '()]
                       #:volatile? [v? #f]
+                      #:options-dict [od #f]
                       #:render-tag [rt #f])
-  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f v? rt))
+  (codec-obj occ t i id codec codec-context s p np d nd bf bc cd ep st f v? od rt))
 
 (struct extra-codec-parameters (time-base
                                 gop-size
                                 pix-fmt
                                 color-range
                                 sample-fmt
+                                options-dict
                                 max-b-frames))
 (define (mk-extra-codec-parameters #:time-base [tb #f]
                                    #:gop-size [gs #f]
                                    #:pix-fmt [pix-fmt #f]
                                    #:color-range [color-range #f]
                                    #:sample-fmt [sample-fmt #f]
+                                   #:options-dict [od #f]
                                    #:max-b-frames [max-b-frames #f])
-  (extra-codec-parameters tb gs pix-fmt color-range sample-fmt max-b-frames))
+  (extra-codec-parameters tb gs pix-fmt color-range sample-fmt od max-b-frames))
 
 (struct render-status-box (position
                            rendering?)
@@ -467,7 +471,8 @@
                                #:gop-size 12
                                #:pix-fmt 'yuv420p
                                #:color-range 'mpeg
-                               #:max-b-frames 8))
+                               #:max-b-frames 8
+                               #:options-dict (hash "crf" "23"))) ; also "preset" "medium"?
   (values parameters rest))
 
 (define (default-audio-parameters format [stream #f])
@@ -504,12 +509,16 @@
                              #:output-format [output-format #f]
                              #:format-name [format-name #f]
                              #:options-dict [options-dict #f]
+                             #:video-options-dict [vod #f]
+                             #:audio-options-dict [aod #f]
                              #:render-tag [render-tag #f])
   (unless (or file output-format format-name)
     (raise-arguments-error 'stream-bundle->file "No File, output-format or format-name specified"
                            "Output Format" output-format
                            "Format Name" format-name
                            "File" file))
+  (define video-options-dict (or vod options-dict))
+  (define audio-options-dict (or aod options-dict))
   (define stream-table (make-hash))
   (define streams
     (match bundle/spec
@@ -543,6 +552,7 @@
        (define video
          (mk-codec-obj #:type 'video
                        #:index 0
+                       #:options-dict video-options-dict
                        #:render-tag render-tag))
        (dict-set! stream-table 'video (list video))
        (vector video)]
@@ -550,6 +560,7 @@
        (define audio
          (mk-codec-obj #:type 'audio
                        #:index 0
+                       #:options-dict audio-options-dict
                        #:render-tag render-tag))
        (dict-set! stream-table 'audio (list audio))
        (vector audio)]
@@ -557,11 +568,13 @@
        (define video
          (mk-codec-obj #:type 'video
                        #:index 0
+                       #:options-dict video-options-dict
                        #:render-tag render-tag))
        (dict-set! stream-table 'video (list video))
        (define audio
          (mk-codec-obj #:type 'audio
                        #:index 1
+                       #:options-dict audio-options-dict
                        #:render-tag render-tag))
        (dict-set! stream-table 'audio (list audio))
        (vector video audio)]))
@@ -578,6 +591,7 @@
     (match i
       [(struct* codec-obj ([type type]
                            [id id]
+                           [options-dict options-dict]
                            [index index]))
        (define type-codec-id
          (match type
@@ -619,6 +633,8 @@
          (define (maybe-set! setter getter)
            (when (getter maybe-extra-params)
              (setter ctx (getter maybe-extra-params))))
+         (unless options-dict
+           (set-codec-obj-options-dict! i (extra-codec-parameters-options-dict maybe-extra-params)))
          (maybe-set! set-avcodec-context-time-base! extra-codec-parameters-time-base)
          (maybe-set! set-avcodec-context-gop-size! extra-codec-parameters-gop-size)
          (maybe-set! set-avcodec-context-pix-fmt! extra-codec-parameters-pix-fmt)
@@ -668,13 +684,14 @@
               ctx (set-add (avcodec-context-flags ctx) 'global-header)))])))
     
     (define/public (open)
-      (define options (build-av-dict (stream-bundle-options-dict bundle)))
       (for ([i (in-vector streams)])
         (match i
           [(struct* codec-obj ([type type]
                                [codec codec]
                                [codec-context ctx]
-                               [stream stream]))
+                               [stream stream]
+                               [options-dict options-dict]))
+           (define options (build-av-dict options-dict))
            (define str-opt (av-dict-copy options '()))
            (with-handlers ([exn:ffmpeg:fail?
                             (λ (e)
@@ -687,7 +704,7 @@
                                "Sample Format" (hash-ref env 'codec-context-sample-format)
                                "Time Base" (hash-ref env 'codec-context-time-base)))])
              (avcodec-open2 ctx codec str-opt))
-           (av-dict-free str-opt)
+           ;(av-dict-free str-opt) ;; Its a new dict
            ;(avcodec-parameters-from-context (avstream-codecpar stream) ctx)
            (if by-index-callback
                (by-index-callback 'open i)

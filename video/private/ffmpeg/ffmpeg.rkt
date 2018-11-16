@@ -351,7 +351,7 @@
     (define-avcodec avcodec-open2
       (_fun [codec-ctx : _avcodec-context-pointer]
             [codec : _avcodec-pointer]
-            [dict : _pointer];(_ptr io _av-dictionary-pointer/null)]
+            (_ptr io _av-dictionary-pointer/null)
             -> [ret : _int]
             -> (match (- ret)
                  [0 dict]

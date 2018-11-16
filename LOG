@@ -5,6 +5,7 @@ Commit#: TBD
   - This is useful for webcams that are not completely standards compliant.
 * Video now works with FFmpeg 4.
   - Hopefully also with the infrastructure to make future upgrades easier.
+* Default Video quality much higher for mp4 files.
 
 
 v0.2.1

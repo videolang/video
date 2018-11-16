@@ -158,7 +158,9 @@
                              #:fps real?
                              #:format (or/c symbol? #f)
                              #:video-codec (or/c symbol? #f)
+                             #:video-codec-options (or/c dict? #f)
                              #:audio-codec (or/c symbol? #f)
+                             #:audio-codec-options (or/c dict? #f)
                              #:subtitle-codec (or/c symbol? #f)
                              #:pix-fmt symbol?
                              #:sample-fmt symbol?
@@ -398,7 +400,9 @@
                                               [audio-time-base audio-time-base]
                                               [format format]
                                               [video-codec video-codec]
+                                              [video-codec-options video-codec-options]
                                               [audio-codec audio-codec]
+                                              [audio-codec-options audio-codec-options]
                                               [render-video? render-video?*]
                                               [render-audio? render-audio?*]
                                               [pix-fmt pix-fmt]
@@ -493,6 +497,8 @@
                    [out-path (in-list out-paths)])
           (stream-bundle->file out-path spec
                                #:format-name format-name
+                               #:video-options-dict video-codec-options
+                               #:audio-options-dict audio-codec-options
                                #:render-tag rt)))
       (values consume-tables
               target-props
