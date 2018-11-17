@@ -489,7 +489,8 @@
     (set-avstream-time-base! stream 1/44100))
   (define rest
     (mk-extra-codec-parameters ;#:time-base 1/44100
-     #:sample-fmt 'fltp))
+     #:sample-fmt 'fltp
+     #:options-dict (hash "b" "256000"))) ;; also "vbr" "5"?
   (values parameters rest))
 
 ;; Bundles up streams to be output to a file.
