@@ -319,7 +319,7 @@
    [nb-streams _uint]
    [streams-data _pointer]
    [filename (_array _byte 1024) #:removed avformat-api-format-filename]
-   [url _string]
+   [url _string #:added 58]
    [start-time _int64]
    [duration _int64]
    [bit-rate _int]
