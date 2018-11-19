@@ -181,9 +181,31 @@ deprecated with a yellow @note-text{NOTE} label.
             (fade-transition 5)
             (clip "intro.mp4"))]}
 
-@deftransition[(L-cut [length nonnegative-integer?])]
+@deftransition[(L-cut [delay nonnegative-integer?])]{
+ A transition between two clips, where the audio of the
+ first clip continues for @racket[delay] seconds into the
+ video of the second clip. (The result looks like an ``L'' in
+ a traditional NLVE.)
+ 
+ The length of the resulting clip is the length of the two
+ other clips minus @racket[delay] seconds.
 
-@deftransition[(J-cut [length nonnegative-integer?])]
+ See @racket[J-cut]
+ 
+ @history[#:added "0.2.2"]}
+
+@deftransition[(J-cut [delay nonnegative-integer?])]{
+ A transition between two clips, where the video of the
+ first clip continues for @racket[delay] seconds into the
+ audio of the second clip. (The result looks like a J in a
+ traditional NLVE.)
+ 
+ The length of the resulting clip is the length of the two
+ other clips minus @racket[delay] seconds.
+
+ See @racket[L-cut].
+ 
+ @history[#:added "0.2.2"]}
 
 @section{Bundled Merges}
 
@@ -235,7 +257,9 @@ deprecated with a yellow @note-text{NOTE} label.
 
  The width type can be specified in Hz (@racket['h],
  Q-factor (@racket['Q]), octave (@racket['o]), slope
- (@racket['s]), or KHz (@racket['k]).}
+ (@racket['s]), or KHz (@racket['k]).
+
+ @history[#:added "0.2.1"]}
 
 @defproc[(highpass-filter
           [#:frequency frequency (or/c nonnegative-integer? #f) #f]
@@ -249,7 +273,9 @@ deprecated with a yellow @note-text{NOTE} label.
 
  The width type can be specified in Hz (@racket['h],
  Q-factor (@racket['Q]), octave (@racket['o]), slope
- (@racket['s]), or KHz (@racket['k]).}
+ (@racket['s]), or KHz (@racket['k]).
+
+ @history[#:added "0.2.1"]}
 
 @defproc[(compand-filter
           [#:attacks attacks (listof real?) '()]
@@ -262,7 +288,8 @@ deprecated with a yellow @note-text{NOTE} label.
           [#:gain gain (or/c real? #f) #f]
           [#:volume volume (or/c real? #f) #f]
           [#:delay delay (or/c real? #f) #f])
-         filter?]{}
+         filter?]{
+ @history[#:added "0.2.1"]}
 
 @defproc[(grayscale-filter) filter?]{
                                      
