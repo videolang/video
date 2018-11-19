@@ -36,6 +36,7 @@
          "units.rkt"
          "private/init.rkt"
          "private/log.rkt"
+         (prefix-in ffmpeg: "private/ffmpeg/main.rkt")
          (for-syntax syntax/parse
                      racket/base
                      racket/syntax))
@@ -93,6 +94,14 @@
   ;; Creates a fading transition from a start to end clip
   [fade-transition (->transition []
                                  [(and/c number? positive?)])]
+
+  ;; Creates a transition where the audio proceeds the video
+  [L-cut (->transition []
+                       [(and/c number? positive?)])]
+
+  ;; The duel of a L-cut, video proceeds the audio
+  [J-cut (->transition []
+                       [(and/c number? positive?)])]
 
   [overlay-merge (->merge [(and/c number? (>=/c 0))
                            (and/c number? (>=/c 0))]
@@ -369,6 +378,100 @@
 (define (attach-filter obj . f)
   (define new-filters (append f (service-filters obj)))
   (copy-video obj #:filters new-filters))
+
+(define-transition (L-cut [delay 1])
+  #:properties (λ (prop)
+                 (dict-set* (or prop (hash))
+                            "pre-length" delay
+                            "post-length" delay))
+  #:combined-subgraph (λ (#:empty-graph ctx
+                          #:track1-props node-a
+                          #:track2-props node-b
+                          #:target-props target-props
+                          #:target-counts target-counts)
+                        (define len-a (- (dict-ref node-a "end")
+                                         (dict-ref node-a "start")))
+                        (define len-b (- (dict-ref node-b "end")
+                                         (dict-ref node-b "start")))
+                        (define t-length (- (+ len-a len-b) delay))
+                        (define in-a
+                          (mk-filter-node
+                           (hash 'audio (mk-filter "atrim"
+                                                   (hash "start" 0
+                                                         "end" (- len-a delay)))
+                                 'video (mk-filter "trim"
+                                                   (hash "start" 0
+                                                         "end" len-a)))
+                           #:props node-a
+                           #:counts target-counts))
+                        (add-vertex! ctx in-a)
+                        (define in-b
+                          (mk-filter-node
+                           (hash 'video (mk-filter "trim"
+                                                   (hash "start" delay
+                                                         "end" len-b))
+                                 'audio (mk-filter "atrim"
+                                                   (hash "start" 0
+                                                         "end" len-b)))
+                           #:props node-b
+                           #:counts target-counts))
+                        (add-vertex! ctx in-b)
+                        (define pts-a
+                          (mk-filter-node (hash
+                                           'video (mk-filter "setpts" (hash "expr" "PTS-STARTPTS"))
+                                           'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                                    #:props (node-props in-a)
+                                    #:counts (node-counts in-b)))
+                        (add-vertex! ctx pts-a)
+                        (add-directed-edge! ctx in-a pts-a 1)
+                        (define pts-b
+                          (mk-filter-node (hash
+                                           'video (mk-filter "setpts"
+                                                             (hash "expr" "PTS-STARTPTS"))
+                                                                   ;(format "PTS-STARTPTS+(~a/TB)"
+                                                                   ;        delay)))
+                                           'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                                    #:props (node-props in-b)
+                                    #:counts (node-counts in-b)))
+
+                        (add-vertex! ctx pts-b)
+                        (add-directed-edge! ctx in-b pts-b 1)
+                        (define concat
+                          (mk-filter-node
+                           (hash 'video (mk-filter "concat"
+                                                   (hash "n" 2
+                                                         "v" 1
+                                                         "a" 0))
+                                 'audio (mk-filter "concat"
+                                                   (hash "n" 2
+                                                         "v" 0
+                                                         "a" 1)))
+                           #:props (dict-set* target-props
+                                              "video-time-base" ffmpeg:AV-TIME-BASE-Q
+                                              "audio-time-base" ffmpeg:AV-TIME-BASE-Q
+                                              "start" 0
+                                              "end" t-length)
+                           #:counts target-counts))
+                        (add-vertex! ctx concat)
+                        (add-directed-edge! ctx pts-a concat 1)
+                        (add-directed-edge! ctx pts-b concat 2)
+                        (make-video-subgraph
+                         #:graph ctx
+                         #:sources (cons in-a in-b)
+                         #:sinks concat
+                         #:prop (hash "length" t-length))))
+
+(define-transition (J-cut [delay 1])
+   #:properties (λ (prop)
+                 (dict-set* (or prop (hash))
+                            "pre-length" delay
+                            "post-length" delay))
+  #:combined-subgraph (λ (#:empty-graph ctx
+                          #:track1-props node-a
+                          #:track2-props node-b
+                          #:target-props target-props
+                          #:target-counts target-counts)
+                        (void) #;...))
 
 (define-transition (fade-transition [fade-length 1])
   #:properties (λ (prop)
@@ -744,7 +847,9 @@
                                            (let* ([_ (hash "attacks" attacks
                                                            "decays" decays
                                                            "points" points*)]
-                                                  [_ (if soft-knee (hash-set _ "soft-knee" soft-knee) _)]
+                                                  [_ (if soft-knee
+                                                         (hash-set _ "soft-knee" soft-knee)
+                                                         _)]
                                                   [_ (if gain (hash-set _ "gain" gain) _)]
                                                   [_ (if volume (hash-set _ "volume" volume) _)]
                                                   [_ (if delay (hash-set _ "delay" delay) _)])

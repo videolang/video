@@ -181,6 +181,10 @@ deprecated with a yellow @note-text{NOTE} label.
             (fade-transition 5)
             (clip "intro.mp4"))]}
 
+@deftransition[(L-cut [length nonnegative-integer?])]
+
+@deftransition[(J-cut [length nonnegative-integer?])]
+
 @section{Bundled Merges}
 
 @defmerge[(overlay-merge [x number?]
