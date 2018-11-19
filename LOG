@@ -6,6 +6,7 @@ Commit#: TBD
 * Video now works with FFmpeg 4.
   - Hopefully also with the infrastructure to make future upgrades easier.
 * Default Video quality much higher for mp4 files.
+* Add L-cut and J-cut functions to base API.
 
 
 v0.2.1
