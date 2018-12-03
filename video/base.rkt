@@ -160,6 +160,13 @@
   [grayscale-filter (-> filter?)]
 
   [sepia-filter (-> filter?)]
+
+  ;; Sets the volume to the audio, does not affect video.
+  [volume-filter (->* [(and/c real? (>=/c 0))]
+                      [#:precision (or/c 'fixed 'float 'double #f)
+                       #:replaygain (or/c 'drop 'ignore 'track 'album #f)
+                       #:replaygain-preamp (or/c real? #f)]
+                      filter?)]
   
   [lowpass-filter (->* []
                        [#:frequency (or/c nonnegative-integer? #f)
@@ -815,6 +822,19 @@
                                     "gr" 0.349 "gg" 0.686 "gb" 0.168 "ga" 0
                                     "br" 0.272 "bg" 0.534 "bb" 0.131 "ba" 0
                                     "ar" 0     "ag" 0     "ab" 0     "aa" 0)))
+
+(define (volume-filter volume
+                       #:precision [precision #f]
+                       #:replaygain [replaygain #f]
+                       #:replaygain-preamp [preamp #f])
+  (make-filter
+   #:subgraph (hash
+               'audio (mk-filter "volume"
+                                 (let* ([_ (hash "volume" volume)]
+                                        [_ (if precision (hash-set _ "precision" precision) _)]
+                                        [_ (if replaygain (hash-set _ "replaygain" replaygain) _)]
+                                        [_ (if preamp (hash-set _ "replaygain_preamp" preamp) _)])
+                                   _)))))
 
 (define (remove-video)
   (make-filter

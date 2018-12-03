@@ -245,6 +245,27 @@ deprecated with a yellow @note-text{NOTE} label.
 
 @section{Bundled Filters}
 
+@defproc[(volume-filter [volume (and/c real? (>=/c real?))]
+                        [#:precision precision (or/c 'fixed 'float 'double #f) #f]
+                        [#:replaygain replaygain (or/c 'drop 'ignore 'track 'album #f) #f]
+                        [#:replaygain-preamp replaygain-preamp (or/c real? #f) #f])
+         filter?]{
+
+ Sets the volume of the audio track, leaving video track
+ unaffected. The unchanged volume for the track is
+ @racket[1]. When @racket[volume] is less than @racket[1]
+ result in a quieter track, while values more than @racket[1]
+ result in a louder one.
+
+ The @racket[precision] determines the sample precision used for the increase.
+
+ The @racket[replaygain] and @racket[replaygain-preamp] are
+ options. They only affect the audio if the track has
+ external ReplayGain metadata.
+ 
+ @history[#:added "0.2.2"]}
+
+
 @defproc[(lowpass-filter
           [#:frequency frequency (or/c nonnegative-integer? #f) #f]
           [#:poles poles (or/c nonnegative-integer? #f) #f]

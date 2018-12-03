@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,5 +27,7 @@
 (provide
  (contract-out [pixels? (-> any/c boolean?)]
                [seconds? (-> any/c boolean?)]
+               [dB? (-> any/c boolean?)]
                [pixels (-> number? pixels?)]
-               [seconds (-> number? seconds?)]))
+               [seconds (-> number? seconds?)]
+               [dB (-> number? dB?)]))

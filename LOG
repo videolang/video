@@ -1,4 +1,4 @@
-vTBD
+v0.2.2
 Date: TBD
 Commit#: TBD
 * Video can (sometimes) continue when there is an error in the video stream.
@@ -8,6 +8,7 @@ Commit#: TBD
 * Default Video quality much higher for mp4 files.
 * Add L-cut and J-cut functions to base API.
 * Add remove-video and remove-audio filters to base API.
+* Add a volume filter.
 
 
 v0.2.1
