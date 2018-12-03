@@ -188,6 +188,12 @@
                         #:delay (or/c real? #f)]
                        filter?)]
 
+  ;; Filter to remove video from an audio, resulting in a single audio track
+  [remove-video (-> filter?)]
+
+  ;; Filter to remove audio from a video track, resulting in a silent video.
+  [remove-audio (-> filter?)]
+
   [mux-filter (-> #:type (or/c 'video 'v 'audio 'a)
                   #:index nonnegative-integer?
                   filter?)]
@@ -809,6 +815,40 @@
                                     "gr" 0.349 "gg" 0.686 "gb" 0.168 "ga" 0
                                     "br" 0.272 "bg" 0.534 "bb" 0.131 "ba" 0
                                     "ar" 0     "ag" 0     "ab" 0     "aa" 0)))
+
+(define (remove-video)
+  (make-filter
+   #:subgraph (λ (#:empty-graph ctx
+                  #:source-props source-props
+                  #:source-counts source-counts)
+                (define node
+                  (mk-filter-node (hash 'video (mk-filter "nullsink")
+                                        'audio (mk-filter "afifo"))
+                                  #:props source-props
+                                  #:counts (hash-set source-counts 'video 0)))
+                (add-vertex! ctx node)
+                (make-video-subgraph
+                 #:graph ctx
+                 #:sources node
+                 #:sinks node
+                 #:prop source-props))))
+
+(define (remove-audio)
+  (make-filter
+   #:subgraph (λ (#:empty-graph ctx
+                  #:source-props source-props
+                  #:source-counts source-counts)
+                (define node
+                  (mk-filter-node (hash 'video (mk-filter "fifo")
+                                        'audio (mk-filter "anullsink"))
+                                  #:props source-props
+                                  #:counts (hash-set source-counts 'audio 0)))
+                (add-vertex! ctx node)
+                (make-video-subgraph
+                 #:graph ctx
+                 #:sources node
+                 #:sinks node
+                 #:prop source-props))))
 
 (define ((pass-filter-helper type)
          #:frequency [f #f]

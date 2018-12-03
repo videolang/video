@@ -291,6 +291,12 @@ deprecated with a yellow @note-text{NOTE} label.
          filter?]{
  @history[#:added "0.2.1"]}
 
+@defproc[(remove-video) filter?]{
+ @history[#:added "0.2.2"]}
+
+@defproc[(remove-audio) filter?]{
+ @history[#:added "0.2.2"]}
+
 @defproc[(grayscale-filter) filter?]{
                                      
  A video producer that attaches this filter will become grayscale.
