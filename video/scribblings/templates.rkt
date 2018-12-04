@@ -1,7 +1,7 @@
 #lang scribble/manual
 
 @;{
-   Copyright 2016-2017 Leif Andersen
+   Copyright 2016-2018 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
             scribble/example
             racket/sandbox
             video/base
+            (prefix-in video: video/version)
             video/surface
             video/private/utils
             racket/sandbox
