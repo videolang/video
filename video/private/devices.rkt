@@ -37,7 +37,15 @@
                           #:audio [a '()])
   (input-devices v sc a))
 
-(define (list-input-devices)
+(define (list-input-devices [dev #f])
+  (define os-dev
+    (or dev
+        (match (system-type 'os)
+          ['macosx "avfoundation"]
+          ['unix #f]
+          ['windows "dshow"]
+          [_
+           (error "Not yet implemented for this platform")])))
   (match (system-type 'os)
     ['unix
      (define vid-fmt (av-find-input-format "v4l2"))
@@ -88,7 +96,7 @@
                  (set-box! (unbox curr-list)
                            (cons dev-name (unbox (unbox curr-list))))])]))
        (λ ()
-         (define fmt (av-find-input-format "avfoundation"))
+         (define fmt (av-find-input-format os-dev))
          (define ctx (avformat-alloc-context))
          (with-handlers ([exn? (λ (e) (void))])
            (avformat-open-input ctx "" fmt (build-av-dict (hash "list_devices" "true"))))

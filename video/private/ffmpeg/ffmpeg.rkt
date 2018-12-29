@@ -623,7 +623,9 @@
                                          [else (error 'avio-close (convert-err ret))])))
 
   (define-avformat av-find-input-format
-    (_fun _string -> _av-input-format-pointer))
+    (_fun [name : _string] -> [ret : _av-input-format-pointer/null]
+          -> (or ret
+                 (error 'input-stream "Could not find suitable input stream for ~a" name))))
   
   (define-avformat av-find-best-stream
     (_fun _avformat-context-pointer _avmedia-type _int _int
