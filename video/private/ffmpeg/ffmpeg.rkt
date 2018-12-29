@@ -466,16 +466,24 @@
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]
+                 [(= (- ret) AVERROR-EXIT)
+                  (raise-ffmpeg-error 'open-input
+                                      "Did not open input file:"
+                                      'errcode ret
+                                      'input input
+                                      'path path)]
                  [(= (- ret) ENOENT)
-                  (error 'avformat (raise-ffmpeg-error 'open-input
-                                                       "Missing input file:"
-                                                       'input input
-                                                       'path path))]
+                  (raise-ffmpeg-error 'open-input
+                                      "Missing input file:"
+                                      'errcode ret
+                                      'input input
+                                      'path path)]
                  [(= (- ret) AVERROR-INVALIDDATA)
-                  (error 'avformat (raise-ffmpeg-error 'open-input
-                                                       "Invalid input media:"
-                                                       'input input
-                                                       'path path))]
+                  (raise-ffmpeg-error 'open-input
+                                      "Invalid input media:"
+                                      'input input
+                                      'path path
+                                      'errcode ret)]
                  [(< ret 0)
                   (error 'avformat "~a : ~a" ret (convert-err ret))])))
     (define opt* (if (void? opt) input/opt opt))
@@ -624,7 +632,7 @@
 
   (define-avformat av-find-input-format
     (_fun [name : _string] -> [ret : _av-input-format-pointer/null]
-          -> (or ret
+          -> (or (error "Blue") ;ret
                  (error 'input-stream "Could not find suitable input stream for ~a" name))))
   
   (define-avformat av-find-best-stream

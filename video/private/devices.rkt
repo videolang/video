@@ -43,9 +43,12 @@
         (match (system-type 'os)
           ['macosx "avfoundation"]
           ['unix #f]
-          ['windows "dshow"]
-          [_
-           (error "Not yet implemented for this platform")])))
+          ['windows "dshow"])))
+  (define log-filter
+    (match (system-type 'os)
+      ['macosx "AVFoundation input device"]
+      ['unix #f]
+      ['windows "dshow"]))
   (match (system-type 'os)
     ['unix
      (define vid-fmt (av-find-input-format "v4l2"))
@@ -98,12 +101,15 @@
        (λ ()
          (define fmt (av-find-input-format os-dev))
          (define ctx (avformat-alloc-context))
-         (with-handlers ([exn? (λ (e) (void))])
+         (with-handlers* ([exn:ffmpeg:fail?
+                           (λ (e)
+                             (unless (eq? (hash-ref (exn:ffmpeg:fail-env e) #f) AVERROR-EXIT)
+                               (raise e)))])
            (avformat-open-input ctx "" fmt (build-av-dict (hash "list_devices" "true"))))
          (flush-ffmpeg-log!))
        #:logger ffmpeg-logger
        'info
-       (string->symbol "AVFoundation input device"))
+       (string->symbol log-filter))
      (mk-input-devices #:video (reverse (unbox video-list))
                        #:audio (reverse (unbox audio-list)))]
     [_
