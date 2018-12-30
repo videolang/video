@@ -9,6 +9,7 @@ Commit#: TBD
 * Add L-cut and J-cut functions to base API.
 * Add remove-video and remove-audio filters to base API.
 * Add a volume filter.
+* More work on live streaming. Some initial testing for windows.
 
 
 v0.2.1

@@ -632,7 +632,7 @@
 
   (define-avformat av-find-input-format
     (_fun [name : _string] -> [ret : _av-input-format-pointer/null]
-          -> (or (error "Blue") ;ret
+          -> (or ret
                  (error 'input-stream "Could not find suitable input stream for ~a" name))))
   
   (define-avformat av-find-best-stream
