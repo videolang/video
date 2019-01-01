@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2018 Leif Andersen
+   Copyright 2016-2019 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -466,7 +466,7 @@
             -> [ret : _int]
             -> (cond
                  [(= ret 0) out]
-                 [(= (- ret) AVERROR-EXIT)
+                 [(= ret AVERROR-EXIT)
                   (raise-ffmpeg-error 'open-input
                                       "Did not open input file:"
                                       'errcode ret
