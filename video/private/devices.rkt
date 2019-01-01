@@ -26,7 +26,8 @@
          "render-settings.rkt"
          "ffmpeg/main.rkt"
          "ffmpeg-pipeline.rkt"
-         "init.rkt")
+         "init.rkt"
+         "log.rkt")
 
 (struct input-devices (video
                        screen-capture
@@ -103,8 +104,7 @@
          (define ctx (avformat-alloc-context))
          (with-handlers* ([exn:ffmpeg:fail?
                            (λ (e)
-                             (unless (eq? (hash-ref (exn:ffmpeg:fail-env e) #f) AVERROR-EXIT)
-                               (raise e)))])
+                             (log-video-info "Recieved (probably) expected error ~a" e))])
            (avformat-open-input ctx "" fmt (build-av-dict (hash "list_devices" "true"))))
          (flush-ffmpeg-log!))
        #:logger ffmpeg-logger
