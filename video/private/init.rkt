@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2018 Leif Andersen
+   Copyright 2016-2019 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -169,3 +169,18 @@
   (define portaudio-key #"VIDEO-PORTAUDIO-INIT")
   (unless (register-process-global portaudio-key (cast 1 _racket _pointer))
     (pa-maybe-initialize)))
+
+#|
+;; This module simply runs a test to see if ffmpeg, portaudio,
+;;   and libvid are installed. Its in a seperate module because video is
+;;   still usable without libvid, but putting it in this module allows
+;;   us to add checks for CI.
+(module* test-lib-install racket/base
+  (require "ffmpeg/lib.rkt"
+           "ffmpeg/libvid.rkt"
+           portaudio)
+  (unless (ffmpeg-installed?)
+    (error "Could not find or load ffmpeg"))
+  (unless (libvid-installed?)
+    (error "Could not find or load libvid")))
+|#

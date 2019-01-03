@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2018 Leif Andersen
+   Copyright 2016-2019 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -115,8 +115,12 @@
     [_
      (error "Not yet implemented for this platform")]))
 
-;; Create a strean bundle out of an input device
-;; nonnegative-integer nonnegative-integer render-settings -> stream-bundle
+;; Create a strean bundle out of a video/audio input device
+;; The render-settings are determined by the `input-device` datatype
+;;
+;; (or/c nonnegative-integer? string?)
+;;   (or/c nonnegative-integer? string?)
+;;   render-settings -> stream-bundle
 (define (devices->stream-bundle video-dev audio-dev
                                 settings)
   (match settings
@@ -124,7 +128,8 @@
                                [height height]
                                [fps fps]
                                [pix-fmt pix-fmt]
-                               [probesize probesize]))
+                               [probesize probesize]
+                               [rtbufsize rtbufsize]))
      (define stream-name ; <- Only needed for debugging
        (match (system-type 'os)
          ['macosx (format "AVFoundation: ~a:~a" video-dev audio-dev)]
@@ -156,6 +161,9 @@
                             (if video-dev
                                 (build-av-dict
                                  (let* ([r (hash)]
+                                        [r (if rtbufsize
+                                               (hash-set r "rtbufsize" (format "~a" rtbufsize))
+                                               r)]
                                         [r (if probesize
                                                (hash-set r "probesize" (format "~a" probesize))
                                                r)]

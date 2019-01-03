@@ -173,7 +173,8 @@
                              #:render-video? boolean?
                              #:render-audio? boolean?
                              #:seek-point (or/c nonnegative-integer? #f)
-                             #:probesize (or/c nonnegative-integer? #f))
+                             #:probesize (or/c nonnegative-integer? #f)
+                             #:rtbufsize (or/c nonnegative-integer? #f))
                             render-settings?)])
 
  ;; Interface for render%

@@ -1,7 +1,7 @@
 #lang racket/base
 
 #|
-   Copyright 2016-2018 Leif Andersen
+   Copyright 2016-2019 Leif Andersen
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -58,7 +58,8 @@
                          audio-frames
                          data-frames
                          seek-point
-                         probesize)
+                         probesize
+                         rtbufsize)
   #:methods gen:custom-write
   [(define (write-proc vid port mode)
      (if (current-detailed-printing?)
@@ -109,6 +110,7 @@
                               #:audio-frames [afr #f]
                               #:data-frames [dfr #f]
                               #:seek-point [seekp #f]
-                              #:probesize [ps #f])
+                              #:probesize [ps #f]
+                              #:rtbufsize [rtbs #f])
   (render-settings
-   d sav w h dar s e fr vtb atb fo vc vco ac aco sc pf sf sr cl sp rv? rc? vfr afr dfr seekp ps))
+   d sav w h dar s e fr vtb atb fo vc vco ac aco sc pf sf sr cl sp rv? rc? vfr afr dfr seekp ps rtbs))
