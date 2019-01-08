@@ -10,6 +10,7 @@ Commit#: TBD
 * Add remove-video and remove-audio filters to base API.
 * Add a volume filter.
 * More work on live streaming. Some initial testing for windows.
+* Updare libvid, seems to work on windows now.
 
 
 v0.2.1
