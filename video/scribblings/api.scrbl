@@ -228,20 +228,28 @@ deprecated with a yellow @note-text{NOTE} label.
             (overlay-merge 0 0 100 100)
             (clip "logo.png"))]}
 
-@defmerge[(composite-merge [x (between/c 0 1)]
-                           [y (between/c 0 1)]
-                           [width (between/c 0 1)]
-                           [height (between/c 0 1)])]{
+@defmerge[(composite-merge [x1 (between/c 0 1)]
+                           [y1 (between/c 0 1)]
+                           [x2 (between/c 0 1)]
+                           [y2 (between/c 0 1)])]{
                                 
- The @racket[x] and @racket[y] coordinates specify the top-left point of
- overlayed image. If a @racket[pixel?] struct is provided
+ The @racket[x1] and @racket[y1] coordinates specify the top-left point of
+ overlayed image, and the @racket[x1] and @racket[y1] coordinates specify
+ the bottom-right point.
+
+ If a @racket[pixel?] struct is provided
  then the point is in terms of pixels, otherwise the point is
  a number between 0 and 1, 0 being top-left, and 1 being
  bottom-right.
 
- The @racket[width] and @racket[height] coordinates specify
- the width and height of the overlayed image, either in
- pixels or a ratio.}
+ For example putting an inner clip half the size in the middle of the
+ screen can be done with:
+ @racketblock[
+ (multitrack
+   (blank #f)
+   (composite-merge 1/4 1/4 3/4 3/4)
+   (clip "inner.mp4"))]
+}
 
 @section{Bundled Filters}
 
