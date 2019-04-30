@@ -56,7 +56,7 @@
 
 ;; video/version has the actual version. This one might get out of date
 ;;   durring pre-releases.
-(define version "0.2.1")
+(define version "0.2.3")
 (define pkg-authors '(leif))
 (define pkg-desc "Video Language")
 

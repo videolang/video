@@ -1,6 +1,10 @@
+v0.2.3
+Date:TBD
+Commit#: TBD
+
 v0.2.2
 Date: 2019-04-30
-Commit#: TBD
+Commit#: aa958b5ab250c8a202b24444935255d773608ea6
 * Video can (sometimes) continue when there is an error in the video stream.
   - This is useful for webcams that are not completely standards compliant.
 * Video now works with FFmpeg 4.

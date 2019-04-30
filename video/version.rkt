@@ -22,7 +22,7 @@
 (define current-version
   (mk-version #:major "0"
               #:minor "2"
-              #:patch "1"
+              #:patch "3"
               #:pre-release #f))
 
 (define (version)
