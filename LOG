@@ -1,5 +1,5 @@
 v0.2.2
-Date: TBD
+Date: 2019-04-30
 Commit#: TBD
 * Video can (sometimes) continue when there is an error in the video stream.
   - This is useful for webcams that are not completely standards compliant.
