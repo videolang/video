@@ -85,7 +85,8 @@
                             (list/c byte? byte? byte?)
                             byte?)]
                      [(or/c byte? #f)
-                      (or/c byte? #f)])]
+                      (or/c byte? #f)
+                      #:length number?])]
 
   ;; Create a producer that is the same as the other producer but with one or more
   ;; filters attached to it
@@ -266,12 +267,12 @@
              #:filters (or filters '())))
 
 (define-producer (color c [c2 #f] [c3 #f]
-                        #:length [length #f])
+                        #:length [len* #f])
   #:user-properties prop
   #:properties (λ (r)
-                 (let* ([r (if length
+                 (let* ([r (if len
                                (hash-union r
-                                           (hash "length" length)
+                                           (hash "length" len)
                                            #:combine (λ (t s) t))
                                r)]
                         [r (cond
@@ -284,8 +285,8 @@
                    r))
   #:subgraph (hash 'video
                    (mk-filter "color" (let* ([ret (hash "c" (color->string c c2 c3))]
-                                             [ret (if (and length (not (equal? length +inf.0)))
-                                                      (hash-set ret "d" length)
+                                             [ret (if (and len (not (equal? len +inf.0)))
+                                                      (hash-set ret "d" len)
                                                       ret)]
                                              [ret (if (and width height)
                                                       (hash-set ret "size" (format "~ax~a"
@@ -294,17 +295,18 @@
                                                       ret)])
                                         ret))
                    'audio
-                   (mk-empty-audio-filter #:duration length))
+                   (mk-empty-audio-filter #:duration len))
   (when (or (and c2 (not c3))
             (and (not c2) c3)
             (and c2 c3 (not (byte? c))))
     (error 'color
            "Invalid combination of arguments: c1 ~a; c2 ~a; c3 ~a"
            c c2 c3))
-  (define length (or (dict-ref prop "length" #f)
-                     (and (dict-ref prop "start" #f)
-                          (dict-ref prop "end" #f)
-                          (- (dict-ref prop "end") (dict-ref prop "start")))))
+  (define len (or len*
+                  (dict-ref prop "length" #f)
+                  (and (dict-ref prop "start" #f)
+                       (dict-ref prop "end" #f)
+                       (- (dict-ref prop "end") (dict-ref prop "start")))))
   (define width (dict-ref prop "width" #f))
   (define height (dict-ref prop "height" #f)))
 
