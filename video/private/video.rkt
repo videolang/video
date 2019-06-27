@@ -731,7 +731,8 @@
      (graph-union! (current-render-graph) (video-subgraph-graph rg))
      (video-subgraph-sinks rg)]))
 
-(define-constructor file producer ([path #f]) ()
+(define-constructor file producer ([path #f]
+                                   [normalize-time? #f]) ()
   (when (not path)
     (error 'file "No path given"))
   ;; First get properties of file
@@ -815,15 +816,28 @@
           "pix-fmt" fpix-fmt
           "sample-fmt" fsample-fmt
           "sample-rate" fsample-rate
-          "chapters" fchapters))
+          "chapters" fchapters
+          "times-unset?" (not normalize-time?)))
   (define node (mk-source-node bundle
                                #:counts count-tab
                                #:props props))
   (add-vertex! (current-render-graph) node)
   (cond
-    [(and fduration ftime-base) ; A moving image
+    [(and fduration ftime-base normalize-time?) ; A moving image
+     node
+     (define pts-n
+       (mk-filter-node (hash 'video (mk-filter "setpts" (hash "expr" "PTS-STARTPTS"))
+                             'audio (mk-filter "asetpts" (hash "expr" "PTS-STARTPTS")))
+                       #:props (dict-set* (node-props node)
+                                          "start" 0
+                                          "end" (* fduration ftime-base))
+                       #:counts (node-counts node)))
+     (add-vertex! (current-render-graph) pts-n)
+     (add-directed-edge! (current-render-graph) node pts-n 0)
+     pts-n]
+    [(and fduration ftime-base)                 ; A moving image
      node]
-    [else                              ; A still image
+    [else                                       ; A still image
      ;; This is terrible, but see:
      ;; video.stackexchange.com/questions/12105/add-an-image-overlay-in-front-of-video-using-ffmpeg
      (define b-node (convert (make-blank)

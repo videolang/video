@@ -261,6 +261,7 @@
               #:properties [properties #f])
   (define clip-path (relative-path->string path))
   (make-file #:path clip-path
+             #:normalize-time? #t
              #:prop (hash-union (or properties (hash))
                                 (hash "start" s "end" e "length" len)
                                 #:combine (λ (prop arg) prop))
@@ -680,18 +681,20 @@
                           (if (a . < . b) a b))
                         (define (exact-max a b)
                           (if (a . < . b) b a))
-                        (define t1s (dict-ref t1 "start" #f))
-                        (define t1e (dict-ref t1 "end" #f))
-                        (define t2s (dict-ref t2 "start" #f))
-                        (define t2e (dict-ref t2 "end" #f))
+                        (define t1s 0)
+                        (define t1e (- (dict-ref t1 "end" #f)
+                                       (dict-ref t1 "start" #f)))
+                        (define t2s 0)
+                        (define t2e (- (dict-ref t2 "end" #f)
+                                       (dict-ref t2 "start" #f)))
                         (define start (exact-max (or t1s 0)
                                                  (or t2s 0)))
                         (define end (exact-min (or t1e +inf.0)
                                                (or t2e +inf.0)))
-                        (define zero-node1 (mk-reset-timestamp-node
+                        (define zero-node1 (mk-reset-timestamp-node ;(- end start)
                                             #:props t1
                                             #:counts c1))
-                        (define zero-node2 (mk-reset-timestamp-node
+                        (define zero-node2 (mk-reset-timestamp-node ;(- end start)
                                             #:props t2
                                             #:counts c2))
                         (add-vertex! ctx zero-node1)
