@@ -20,11 +20,13 @@
          racket/file
          racket/path
          racket/match
+         racket/runtime-path
          "base.rkt"
          "render.rkt"
-         "player.rkt"
          "convert.rkt"
          "private/ffmpeg/ffmpeg.rkt")
+;; Only require this if the -p flag is given, it requires gtk.
+;; (require "player.rkt")
 
 (define output-path (make-parameter (build-path (current-directory) "out.mp4")))
 (define output-type (make-parameter #f))
@@ -58,6 +60,8 @@
   (unless ret
     (raise-user-error '|raco video| "The ~a parameter must be a number" val))
   ret)
+
+(define-runtime-path here ".")
 
 (module+ main
   (define video-string
@@ -166,6 +170,7 @@
 
   (cond
     [(output-preview?)
+     (define preview (dynamic-require (build-path here "player.rkt") 'player))
      (void (preview video #:convert-database (make-base-database)))]
     [else
      (match (output-type)
